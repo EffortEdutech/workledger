@@ -1,0 +1,208 @@
+workledger/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml                    # Auto-deploy to Vercel
+│
+├── public/
+│   ├── icons/                            # PWA icons
+│   ├── manifest.json                     # PWA manifest
+│   └── robots.txt
+│
+├── src/
+│   ├── assets/                           # Images, logos
+│   │   └── logo.svg
+│   │
+│   ├── components/                       # Reusable UI components
+│   │   ├── common/                       # Shared components
+│   │   │   ├── Button.jsx
+│   │   │   ├── Input.jsx
+│   │   │   ├── Select.jsx
+│   │   │   ├── Modal.jsx
+│   │   │   ├── LoadingSpinner.jsx
+│   │   │   └── ErrorBoundary.jsx
+│   │   │
+│   │   ├── layout/                       # Layout components
+│   │   │   ├── AppLayout.jsx
+│   │   │   ├── Header.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   ├── BottomNav.jsx             # Mobile navigation
+│   │   │   └── Footer.jsx
+│   │   │
+│   │   ├── auth/                         # Authentication components
+│   │   │   ├── LoginForm.jsx
+│   │   │   ├── RegisterForm.jsx
+│   │   │   ├── ProtectedRoute.jsx
+│   │   │   └── RoleGuard.jsx
+│   │   │
+│   │   ├── templates/                    # Template-specific components
+│   │   │   ├── DynamicForm.jsx           # CRITICAL: Template-driven form generator
+│   │   │   ├── FieldRenderer.jsx
+│   │   │   ├── SectionRenderer.jsx
+│   │   │   └── TemplateSelector.jsx
+│   │   │
+│   │   ├── workEntries/                  # Work entry components
+│   │   │   ├── WorkEntryForm.jsx
+│   │   │   ├── WorkEntryList.jsx
+│   │   │   ├── WorkEntryCard.jsx
+│   │   │   ├── StatusBadge.jsx
+│   │   │   ├── ApprovalPanel.jsx
+│   │   │   └── SLAAlert.jsx              # SLA breach warnings
+│   │   │
+│   │   ├── contracts/                    # Contract components
+│   │   │   ├── ContractForm.jsx
+│   │   │   ├── ContractList.jsx
+│   │   │   ├── ContractCard.jsx
+│   │   │   └── ContractTypeBadge.jsx     # PMC/CMC/AMC/SLA badges
+│   │   │
+│   │   ├── attachments/                  # File upload components
+│   │   │   ├── PhotoUpload.jsx
+│   │   │   ├── PhotoGallery.jsx
+│   │   │   ├── SignatureCanvas.jsx
+│   │   │   └── FilePreview.jsx
+│   │   │
+│   │   └── reports/                      # Report components
+│   │       ├── ReportGenerator.jsx
+│   │       ├── ReportPreview.jsx
+│   │       └── PDFViewer.jsx
+│   │
+│   ├── pages/                            # Route pages
+│   │   ├── auth/
+│   │   │   ├── Login.jsx
+│   │   │   ├── Register.jsx
+│   │   │   └── ForgotPassword.jsx
+│   │   │
+│   │   ├── dashboard/
+│   │   │   └── Dashboard.jsx
+│   │   │
+│   │   ├── work/                         # Main work tab
+│   │   │   ├── WorkHome.jsx              # Quick entry + history
+│   │   │   ├── NewEntry.jsx
+│   │   │   ├── EditEntry.jsx
+│   │   │   └── ViewEntry.jsx
+│   │   │
+│   │   ├── projects/
+│   │   │   ├── ProjectList.jsx
+│   │   │   ├── ProjectDetail.jsx
+│   │   │   ├── NewProject.jsx
+│   │   │   └── EditProject.jsx
+│   │   │
+│   │   ├── contracts/
+│   │   │   ├── ContractList.jsx
+│   │   │   ├── ContractDetail.jsx
+│   │   │   ├── NewContract.jsx
+│   │   │   └── EditContract.jsx
+│   │   │
+│   │   ├── team/
+│   │   │   ├── TeamList.jsx
+│   │   │   ├── PendingApprovals.jsx      # Manager view
+│   │   │   └── ActivityFeed.jsx
+│   │   │
+│   │   ├── reports/
+│   │   │   ├── ReportList.jsx
+│   │   │   ├── GenerateReport.jsx
+│   │   │   └── MonthlyReports.jsx        # CMC/AMC monthly summaries
+│   │   │
+│   │   ├── settings/
+│   │   │   ├── OrganizationSettings.jsx
+│   │   │   ├── UserSettings.jsx
+│   │   │   ├── TemplateManagement.jsx
+│   │   │   └── SyncStatus.jsx
+│   │   │
+│   │   └── NotFound.jsx
+│   │
+│   ├── services/                         # Business logic & API
+│   │   ├── supabase/
+│   │   │   ├── client.js                 # Supabase client
+│   │   │   ├── auth.js                   # Auth service
+│   │   │   └── storage.js                # File storage
+│   │   │
+│   │   ├── offline/
+│   │   │   ├── db.js                     # IndexedDB schema (Dexie)
+│   │   │   ├── syncEngine.js             # CRITICAL: Offline sync
+│   │   │   └── syncQueue.js              # Sync queue management
+│   │   │
+│   │   ├── api/
+│   │   │   ├── organizationService.js
+│   │   │   ├── projectService.js
+│   │   │   ├── contractService.js
+│   │   │   ├── templateService.js        # Template CRUD
+│   │   │   ├── workEntryService.js       # CRITICAL: Work entry operations
+│   │   │   ├── attachmentService.js
+│   │   │   └── reportService.js
+│   │   │
+│   │   ├── pdf/
+│   │   │   ├── pdfGenerator.js           # CRITICAL: Client-side PDF
+│   │   │   ├── pdfLayouts.js             # Layout renderers
+│   │   │   └── pdfTemplates.js           # Template-specific PDF logic
+│   │   │
+│   │   ├── permissions/
+│   │   │   ├── rbac.js                   # Role-based access control
+│   │   │   └── permissionChecks.js
+│   │   │
+│   │   └── utils/
+│   │       ├── validation.js
+│   │       ├── formatters.js
+│   │       ├── dateHelpers.js
+│   │       └── formulaEvaluator.js       # For template auto-calculations
+│   │
+│   ├── hooks/                            # Custom React hooks
+│   │   ├── useAuth.js
+│   │   ├── useOffline.js                 # Offline status hook
+│   │   ├── useSync.js                    # Sync status hook
+│   │   ├── useTemplates.js
+│   │   ├── useWorkEntries.js
+│   │   ├── usePermissions.js             # RBAC hook
+│   │   └── useFormValidation.js
+│   │
+│   ├── context/                          # React Context
+│   │   ├── AuthContext.jsx
+│   │   ├── OfflineContext.jsx
+│   │   ├── SyncContext.jsx
+│   │   └── ThemeContext.jsx
+│   │
+│   ├── constants/                        # Constants & config
+│   │   ├── contractTypes.js              # PMC, CMC, AMC, SLA definitions
+│   │   ├── roles.js                      # User roles
+│   │   ├── status.js                     # Entry statuses
+│   │   └── routes.js                     # App routes
+│   │
+│   ├── styles/
+│   │   ├── index.css                     # Tailwind imports
+│   │   └── custom.css                    # Custom styles
+│   │
+│   ├── App.jsx                           # Main app component
+│   ├── main.jsx                          # Entry point
+│   └── router.jsx                        # Route configuration
+│
+├── database/                             # Database scripts
+│   ├── schema/
+│   │   ├── 001_initial_schema.sql        # Core tables
+│   │   ├── 002_rls_policies.sql          # RLS policies
+│   │   ├── 003_functions.sql             # Database functions
+│   │   └── 004_triggers.sql              # Triggers
+│   │
+│   ├── seeds/
+│   │   ├── 001_templates.sql             # CRITICAL: Pre-built templates
+│   │   └── 002_demo_data.sql             # Demo data (optional)
+│   │
+│   └── migrations/
+│       └── README.md                     # Migration guide
+│
+├── docs/                                 # Documentation
+│   ├── PROGRESS.md                       # Session-by-session progress
+│   ├── DAILY_LOG.md                      # Daily updates
+│   ├── API.md                            # API documentation
+│   ├── TEMPLATES.md                      # Template system guide
+│   ├── OFFLINE.md                        # Offline architecture
+│   └── DEPLOYMENT.md                     # Deployment guide
+│
+├── .env.example                          # Environment variables template
+├── .env.local                            # Local env (gitignored)
+├── .gitignore
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+├── postcss.config.js
+├── vercel.json                           # Vercel configuration
+├── README.md
+└── LICENSE
