@@ -1,120 +1,136 @@
+/**
+ * WorkLedger - Tailwind CSS Configuration (Minimal)
+ * 
+ * Custom design system with contract-specific colors,
+ * status colors, and offline sync indicators.
+ * 
+ * Minimal plugin setup - only includes what we actually need.
+ * 
+ * @file tailwind.config.js
+ * @created January 25, 2026
+ * @updated January 29, 2026 - Minimal plugins only
+ */
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
-    "./src/**/*.{js,jsx,ts,tsx}",
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
       colors: {
-        // Primary Brand Colors
+        // Primary brand color
         primary: {
           50: '#eff6ff',
           100: '#dbeafe',
           200: '#bfdbfe',
           300: '#93c5fd',
           400: '#60a5fa',
-          500: '#3b82f6', // Main brand color
+          500: '#3b82f6',
           600: '#2563eb',
           700: '#1d4ed8',
           800: '#1e40af',
           900: '#1e3a8a',
-          950: '#172554'
+          950: '#172554',
         },
-        // Contract Type Colors
+        
+        // Contract category colors (Malaysian market)
         contract: {
-          pmc: '#3b82f6',      // Blue - Preventive
-          cmc: '#8b5cf6',      // Purple - Comprehensive
-          amc: '#10b981',      // Green - Annual
-          sla: '#ef4444',      // Red - SLA (critical)
-          corrective: '#f97316', // Orange - Breakdown
-          emergency: '#dc2626',  // Dark Red - Emergency
-          t_and_m: '#eab308',    // Yellow - Time & Material
-          construction: '#6366f1' // Indigo - Construction
+          pmc: '#dbeafe',        // PMC - Preventive Maintenance (blue-100)
+          cmc: '#e9d5ff',        // CMC - Comprehensive Maintenance (purple-100)
+          amc: '#d1fae5',        // AMC - Annual Maintenance (green-100)
+          sla: '#fee2e2',        // SLA - Service Level Agreement (red-100)
+          corrective: '#fed7aa', // Corrective Maintenance (orange-100)
+          emergency: '#ffe4e6',  // Emergency On-Call (rose-100)
+          tm: '#cffafe',         // Time & Material (cyan-100)
+          construction: '#fef3c7' // Construction Daily Diary (amber-100)
         },
-        // Status Colors
+        
+        // Entry status colors
         status: {
-          draft: '#6b7280',       // Gray
-          submitted: '#3b82f6',   // Blue
-          approved: '#10b981',    // Green
-          rejected: '#ef4444'     // Red
+          draft: '#f3f4f6',      // gray-100
+          submitted: '#dbeafe',  // blue-100
+          approved: '#d1fae5',   // green-100
+          rejected: '#fee2e2'    // red-100
         },
-        // Offline Indicators
-        offline: {
-          pending: '#f59e0b',     // Amber - pending sync
-          syncing: '#3b82f6',     // Blue - syncing
-          synced: '#10b981',      // Green - synced
-          failed: '#ef4444',      // Red - failed
-          conflict: '#f97316'     // Orange - conflict
+        
+        // Offline sync status colors
+        sync: {
+          pending: '#fef3c7',    // amber-100
+          syncing: '#dbeafe',    // blue-100
+          synced: '#d1fae5',     // green-100
+          failed: '#fee2e2',     // red-100
+          conflict: '#fed7aa'    // orange-100
         }
       },
+      
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['Fira Code', 'Monaco', 'Consolas', 'monospace']
+        sans: [
+          'Inter',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          'sans-serif',
+        ],
       },
+      
       spacing: {
+        '18': '4.5rem',
         '88': '22rem',
-        '100': '25rem',
-        '112': '28rem',
-        '128': '32rem'
+        '128': '32rem',
       },
+      
       maxWidth: {
         '8xl': '88rem',
-        '9xl': '96rem'
+        '9xl': '96rem',
       },
-      boxShadow: {
-        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        'card-hover': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        'modal': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-      },
-      animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'spin-slow': 'spin 2s linear infinite',
-        'bounce-slow': 'bounce 2s infinite'
-      },
-      borderRadius: {
-        'xl': '0.75rem',
-        '2xl': '1rem',
-        '3xl': '1.5rem'
-      },
+      
       zIndex: {
         '60': '60',
         '70': '70',
         '80': '80',
         '90': '90',
-        '100': '100'
-      }
-    }
+        '100': '100',
+      },
+      
+      animation: {
+        'spin-slow': 'spin 3s linear infinite',
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'bounce-slow': 'bounce 2s infinite',
+      },
+      
+      boxShadow: {
+        'soft': '0 2px 15px 0 rgba(0, 0, 0, 0.08)',
+        'hard': '0 4px 20px 0 rgba(0, 0, 0, 0.15)',
+      },
+      
+      // Aspect ratio utilities (now built-in since Tailwind v3.15)
+      aspectRatio: {
+        auto: 'auto',
+        square: '1 / 1',
+        video: '16 / 9',
+        '4/3': '4 / 3',
+        '21/9': '21 / 9',
+      },
+    },
   },
   plugins: [
-    // Add forms plugin for better form styling
-    require('@tailwindcss/forms')({
-      strategy: 'class' // Use 'form-input', 'form-select' etc.
-    }),
-    // Add line-clamp plugin
-    require('@tailwindcss/line-clamp'),
-    // Custom utilities
-    function({ addUtilities }) {
-      const newUtilities = {
-        '.scrollbar-hide': {
-          /* IE and Edge */
-          '-ms-overflow-style': 'none',
-          /* Firefox */
-          'scrollbar-width': 'none',
-          /* Safari and Chrome */
-          '&::-webkit-scrollbar': {
-            display: 'none'
-          }
-        },
-        '.scrollbar-default': {
-          '-ms-overflow-style': 'auto',
-          'scrollbar-width': 'auto',
-          '&::-webkit-scrollbar': {
-            display: 'block'
-          }
-        }
-      }
-      addUtilities(newUtilities)
-    }
-  ]
+    // Only include @tailwindcss/forms for better form styling
+    // This is essential for login, work entry forms, etc.
+    require('@tailwindcss/forms'),
+    
+    // REMOVED (now built into Tailwind core):
+    // - @tailwindcss/line-clamp (built-in since v3.3+)
+    // - @tailwindcss/aspect-ratio (built-in since v3.15+)
+    
+    // OPTIONAL (add later if needed):
+    // - @tailwindcss/typography (for rich text / prose styling)
+    //   Only needed if we have blog posts or rich text content
+    //   To add: npm install @tailwindcss/typography
+  ],
 }

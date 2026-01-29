@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Primary Meta Tags -->
+  <title>WorkLedger - Contract-Aware Work Reporting Platform</title>
+  <meta name="title" content="WorkLedger - Work Reporting Platform" />
+  <meta name="description" content="Offline-first work reporting platform for construction, maintenance, and service industries in Malaysia. PMC, CMC, AMC, SLA contract management." />
+  <meta name="keywords" content="work reporting, maintenance management, construction diary, PMC, CMC, AMC, SLA, Malaysia" />
+  <meta name="author" content="Bina Jaya / Effort Edutech" />
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#3B82F6" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="WorkLedger" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://workledger.vercel.app/" />
+  <meta property="og:title" content="WorkLedger - Work Reporting Platform" />
+  <meta property="og:description" content="Offline-first work reporting platform for construction, maintenance, and service industries." />
+  <meta property="og:image" content="/og-image.png" />
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://workledger.vercel.app/" />
+  <meta property="twitter:title" content="WorkLedger - Work Reporting Platform" />
+  <meta property="twitter:description" content="Offline-first work reporting platform for construction, maintenance, and service industries." />
+  <meta property="twitter:image" content="/twitter-image.png" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="alternate icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  
+  <!-- Web App Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+  
+  <!-- Preconnect to Supabase -->
+  <link rel="preconnect" href="https://gbdwvbuyiplzplsjzvvj.supabase.co" />
+  <link rel="dns-prefetch" href="https://gbdwvbuyiplzplsjzvvj.supabase.co" />
+  
+  <!-- Fonts (Optional - Remove if not using custom fonts) -->
+  <!-- <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" /> -->
+  
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <!-- <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" /> -->
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+  
+  <!-- Robots -->
+  <meta name="robots" content="index, follow" />
+</head>
+<body>
+  <!-- Root element for React -->
+  <div id="root"></div>
+  
+  <!-- Noscript warning -->
+  <noscript>
+    <div style="
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      padding: 20px;
+      text-align: center;
+      font-family: system-ui, -apple-system, sans-serif;
+    ">
+      <div>
+        <h1 style="font-size: 2rem; margin-bottom: 1rem;">JavaScript Required</h1>
+        <p style="font-size: 1.125rem; color: #6b7280;">
+          WorkLedger requires JavaScript to run. Please enable JavaScript in your browser settings.
+        </p>
+      </div>
+    </div>
+  </noscript>
+  
+  <!-- React App Script -->
+  <script type="module" src="/src/main.jsx"></script>
+  
+  <!-- Service Worker Registration (handled by Vite PWA plugin) -->
+  
+  <!-- Performance Monitoring -->
+  <script>
+    // Log page load performance
+    window.addEventListener('load', () => {
+      if (window.performance && window.performance.timing) {
+        const timing = window.performance.timing;
+        const loadTime = timing.loadEventEnd - timing.navigationStart;
+        console.log(`⚡ Page loaded in ${loadTime}ms`);
+      }
+    });
+  </script>
+</body>
+</html>

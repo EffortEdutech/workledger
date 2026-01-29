@@ -1,0 +1,204 @@
+/**
+ * WorkLedger - Route Constants
+ * 
+ * Centralized route definitions for the entire application.
+ * Used by React Router and navigation components.
+ * 
+ * @module constants/routes
+ * @created January 29, 2026
+ */
+
+/**
+ * Public Routes (No authentication required)
+ */
+export const PUBLIC_ROUTES = {
+  LOGIN: '/login',
+  REGISTER: '/register',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password'
+};
+
+/**
+ * Protected Routes (Authentication required)
+ */
+export const PROTECTED_ROUTES = {
+  // Dashboard
+  DASHBOARD: '/',
+  
+  // Organizations
+  ORGANIZATIONS: '/organizations',
+  ORGANIZATION_NEW: '/organizations/new',
+  ORGANIZATION_DETAIL: '/organizations/:id',
+  ORGANIZATION_SETTINGS: '/organizations/:id/settings',
+  ORGANIZATION_MEMBERS: '/organizations/:id/members',
+  
+  // Projects
+  PROJECTS: '/projects',
+  PROJECT_NEW: '/projects/new',
+  PROJECT_DETAIL: '/projects/:id',
+  PROJECT_EDIT: '/projects/:id/edit',
+  
+  // Contracts
+  CONTRACTS: '/contracts',
+  CONTRACT_NEW: '/contracts/new',
+  CONTRACT_DETAIL: '/contracts/:id',
+  CONTRACT_EDIT: '/contracts/:id/edit',
+  
+  // Work Entries
+  WORK_ENTRIES: '/work-entries',
+  WORK_ENTRY_NEW: '/work-entries/new',
+  WORK_ENTRY_DETAIL: '/work-entries/:id',
+  WORK_ENTRY_EDIT: '/work-entries/:id/edit',
+  
+  // Templates
+  TEMPLATES: '/templates',
+  TEMPLATE_NEW: '/templates/new',
+  TEMPLATE_DETAIL: '/templates/:id',
+  TEMPLATE_EDIT: '/templates/:id/edit',
+  
+  // Reports
+  REPORTS: '/reports',
+  REPORT_MONTHLY: '/reports/monthly',
+  REPORT_SLA: '/reports/sla',
+  REPORT_CUSTOM: '/reports/custom',
+  
+  // User Profile
+  PROFILE: '/profile',
+  PROFILE_SETTINGS: '/profile/settings',
+  
+  // Admin
+  ADMIN: '/admin',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_TEMPLATES: '/admin/templates',
+  ADMIN_SETTINGS: '/admin/settings',
+  
+  // Offline Sync
+  SYNC_STATUS: '/sync',
+  
+  // Help
+  HELP: '/help',
+  ABOUT: '/about'
+};
+
+/**
+ * All Routes (Combined)
+ */
+export const ROUTES = {
+  ...PUBLIC_ROUTES,
+  ...PROTECTED_ROUTES
+};
+
+/**
+ * Route Groups (for navigation menus)
+ */
+export const ROUTE_GROUPS = {
+  MAIN: [
+    { path: PROTECTED_ROUTES.DASHBOARD, label: 'Dashboard', icon: '🏠' },
+    { path: PROTECTED_ROUTES.WORK_ENTRIES, label: 'Work Entries', icon: '📋' },
+    { path: PROTECTED_ROUTES.PROJECTS, label: 'Projects', icon: '🏗️' },
+    { path: PROTECTED_ROUTES.CONTRACTS, label: 'Contracts', icon: '📄' },
+    { path: PROTECTED_ROUTES.REPORTS, label: 'Reports', icon: '📊' }
+  ],
+  ADMIN: [
+    { path: PROTECTED_ROUTES.ORGANIZATIONS, label: 'Organizations', icon: '🏢' },
+    { path: PROTECTED_ROUTES.TEMPLATES, label: 'Templates', icon: '📝' },
+    { path: PROTECTED_ROUTES.ADMIN_USERS, label: 'Users', icon: '👥' }
+  ],
+  USER: [
+    { path: PROTECTED_ROUTES.PROFILE, label: 'Profile', icon: '👤' },
+    { path: PROTECTED_ROUTES.SYNC_STATUS, label: 'Sync Status', icon: '🔄' },
+    { path: PROTECTED_ROUTES.HELP, label: 'Help', icon: '❓' }
+  ]
+};
+
+/**
+ * Generate dynamic route path
+ * @param {string} route - Route template (e.g., '/projects/:id')
+ * @param {Object} params - Route parameters (e.g., { id: '123' })
+ * @returns {string} Resolved route path
+ * 
+ * @example
+ * generatePath(ROUTES.PROJECT_DETAIL, { id: 'abc-123' })
+ * // Returns: '/projects/abc-123'
+ */
+export const generatePath = (route, params = {}) => {
+  let path = route;
+  
+  Object.entries(params).forEach(([key, value]) => {
+    path = path.replace(`:${key}`, value);
+  });
+  
+  return path;
+};
+
+/**
+ * Check if route is public (no auth required)
+ * @param {string} path - Route path
+ * @returns {boolean} True if route is public
+ */
+export const isPublicRoute = (path) => {
+  return Object.values(PUBLIC_ROUTES).includes(path);
+};
+
+/**
+ * Check if route requires authentication
+ * @param {string} path - Route path
+ * @returns {boolean} True if route is protected
+ */
+export const isProtectedRoute = (path) => {
+  return !isPublicRoute(path);
+};
+
+/**
+ * Get route breadcrumbs
+ * @param {string} path - Current route path
+ * @returns {Array} Breadcrumb items
+ * 
+ * @example
+ * getBreadcrumbs('/projects/abc-123/edit')
+ * // Returns: [
+ * //   { label: 'Dashboard', path: '/' },
+ * //   { label: 'Projects', path: '/projects' },
+ * //   { label: 'Project Details', path: '/projects/abc-123' },
+ * //   { label: 'Edit', path: '/projects/abc-123/edit' }
+ * // ]
+ */
+export const getBreadcrumbs = (path) => {
+  const segments = path.split('/').filter(Boolean);
+  const breadcrumbs = [
+    { label: 'Dashboard', path: PROTECTED_ROUTES.DASHBOARD }
+  ];
+  
+  let currentPath = '';
+  segments.forEach((segment, index) => {
+    currentPath += `/${segment}`;
+    
+    // Don't add breadcrumb for UUID-like segments
+    if (/^[a-f0-9-]{36}$/i.test(segment)) {
+      return;
+    }
+    
+    // Capitalize and format label
+    const label = segment
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    
+    breadcrumbs.push({
+      label,
+      path: currentPath
+    });
+  });
+  
+  return breadcrumbs;
+};
+
+/**
+ * Default redirect after login
+ */
+export const DEFAULT_AUTHENTICATED_ROUTE = PROTECTED_ROUTES.DASHBOARD;
+
+/**
+ * Default redirect after logout
+ */
+export const DEFAULT_UNAUTHENTICATED_ROUTE = PUBLIC_ROUTES.LOGIN;
