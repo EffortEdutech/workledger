@@ -53,16 +53,31 @@ export function AppLayout({ children }) {
                 </span>
               </div>
 
-              {/* Desktop: Sidebar Toggle */}
-              <button
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="hidden md:flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                aria-label="Toggle sidebar"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
+              {/* Left Section: Toggle + Home */}
+              <div className="flex items-center space-x-2">
+                {/* Desktop: Sidebar Toggle */}
+                <button
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className="hidden md:flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  aria-label="Toggle sidebar"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+
+                {/* Home Icon - Always Visible */}
+                <button
+                  onClick={() => navigate(ROUTES.DASHBOARD)}
+                  className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                  aria-label="Go to Dashboard"
+                  title="Dashboard"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </button>
+              </div>
 
               {/* Spacer */}
               <div className="flex-1"></div>
@@ -97,7 +112,7 @@ export function AppLayout({ children }) {
         <footer className="hidden md:block border-t border-gray-200 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <p className="text-center text-xs text-gray-500">
-              © {new Date().getFullYear()} WorkLedger by Effort Edutech
+              © {new Date().getFullYear()} WorkLedger by Bina Jaya / Effort Edutech
             </p>
           </div>
         </footer>

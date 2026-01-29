@@ -21,6 +21,11 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 // Main Pages
 import Dashboard from './pages/Dashboard';
 
+// Organization Pages
+import OrganizationList from './pages/organizations/OrganizationList';
+import NewOrganization from './pages/organizations/NewOrganization';
+import OrganizationSettings from './pages/organizations/OrganizationSettings';
+
 // Placeholder Components (will be replaced in future sessions)
 const PlaceholderPage = ({ title }) => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -66,6 +71,33 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+  
+  // Organization Routes
+  {
+    path: '/organizations',
+    element: (
+      <ProtectedRoute>
+        <OrganizationList />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/organizations/new',
+    element: (
+      <ProtectedRoute>
+        <NewOrganization />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/organizations/:id/settings',
+    element: (
+      <ProtectedRoute>
+        <OrganizationSettings />
+      </ProtectedRoute>
+    ),
+  },
+  
   {
     path: ROUTES.PROJECTS,
     element: (
