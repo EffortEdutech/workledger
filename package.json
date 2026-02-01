@@ -11,6 +11,7 @@
     "format": "prettier --write \"src/**/*.{js,jsx,json,css,md}\""
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.3.4",
     "@supabase/supabase-js": "^2.39.1",
     "clsx": "^2.1.0",

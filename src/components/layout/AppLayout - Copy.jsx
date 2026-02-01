@@ -2,13 +2,13 @@
  * WorkLedger - App Layout Component
  * 
  * Enhanced main layout for authenticated pages with:
- * - Desktop: Sidebar navigation + Header + Breadcrumb
- * - Mobile: Header + Bottom navigation + Breadcrumb
+ * - Desktop: Sidebar navigation + Header
+ * - Mobile: Header + Bottom navigation
  * - Responsive design
  * 
  * @module components/layout/AppLayout
  * @created January 29, 2026
- * @updated January 31, 2026 - Added Breadcrumb navigation
+ * @updated January 29, 2026 - Added Sidebar and BottomNav integration
  */
 
 import React, { useState } from 'react';
@@ -17,7 +17,6 @@ import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../constants/routes';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
-import Breadcrumb from '../common/Breadcrumb';
 
 export function AppLayout({ children }) {
   const navigate = useNavigate();
@@ -105,10 +104,6 @@ export function AppLayout({ children }) {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6">
-            {/* Breadcrumb Navigation */}
-            <Breadcrumb />
-            
-            {/* Page Content */}
             {children}
           </div>
         </main>

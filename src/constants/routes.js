@@ -51,7 +51,7 @@ export const PROTECTED_ROUTES = {
   WORK_ENTRY_EDIT: '/work-entries/:id/edit',
   
   // Templates
-  TEMPLATES: '/templates',
+  TEMPLATES: '/demo/templates', 
   TEMPLATE_NEW: '/templates/new',
   TEMPLATE_DETAIL: '/templates/:id',
   TEMPLATE_EDIT: '/templates/:id/edit',

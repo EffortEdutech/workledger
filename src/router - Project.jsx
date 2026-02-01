@@ -6,7 +6,7 @@
  * 
  * @file src/router.jsx
  * @created January 29, 2026
- * @updated January 31, 2026 - Session 12: Added template demo route
+ * @updated January 30, 2026 - Session 9: Added project routes
  */
 
 import { createBrowserRouter } from 'react-router-dom';
@@ -32,15 +32,6 @@ import NewProject from './pages/projects/NewProject';
 import EditProject from './pages/projects/EditProject';
 import ProjectDetail from './pages/projects/ProjectDetail';
 
-// Contract Pages (Session 10)
-import ContractListPage from './pages/contracts/ContractListPage';
-import NewContract from './pages/contracts/NewContract';
-import EditContract from './pages/contracts/EditContract';
-import ContractDetail from './pages/contracts/ContractDetail';
-
-// Template Demo Page (Session 12)
-import TemplateDemoPage from './pages/demo/TemplateDemoPage';
-
 // Placeholder Components (will be replaced in future sessions)
 const PlaceholderPage = ({ title }) => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -51,6 +42,7 @@ const PlaceholderPage = ({ title }) => (
   </div>
 );
 
+const ContractsPage = () => <PlaceholderPage title="Contracts" />;
 const WorkEntriesPage = () => <PlaceholderPage title="Work Entries" />;
 const TemplatesPage = () => <PlaceholderPage title="Templates" />;
 const ReportsPage = () => <PlaceholderPage title="Reports" />;
@@ -145,51 +137,17 @@ export const router = createBrowserRouter([
     ),
   },
   
-  // Contract Routes (Session 10)
+  // Contract Routes (Placeholder - Session 10)
   {
-    path: '/contracts',
+    path: ROUTES.CONTRACTS,
     element: (
       <ProtectedRoute>
-        <ContractListPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/contracts/new',
-    element: (
-      <ProtectedRoute>
-        <NewContract />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/contracts/:id',
-    element: (
-      <ProtectedRoute>
-        <ContractDetail />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/contracts/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <EditContract />
+        <ContractsPage />
       </ProtectedRoute>
     ),
   },
   
-  // Template Demo Route (Session 12)
-  {
-    path: '/demo/templates',
-    element: (
-      <ProtectedRoute>
-        <TemplateDemoPage />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // Work Entry Routes (Placeholder - Session 13)
+  // Work Entry Routes (Placeholder - Future sessions)
   {
     path: ROUTES.WORK_ENTRIES,
     element: (

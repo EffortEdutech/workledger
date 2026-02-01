@@ -6,7 +6,7 @@
  * 
  * @file src/router.jsx
  * @created January 29, 2026
- * @updated January 31, 2026 - Session 12: Added template demo route
+ * @updated January 31, 2026 - Session 10: Added contract routes
  */
 
 import { createBrowserRouter } from 'react-router-dom';
@@ -37,9 +37,6 @@ import ContractListPage from './pages/contracts/ContractListPage';
 import NewContract from './pages/contracts/NewContract';
 import EditContract from './pages/contracts/EditContract';
 import ContractDetail from './pages/contracts/ContractDetail';
-
-// Template Demo Page (Session 12)
-import TemplateDemoPage from './pages/demo/TemplateDemoPage';
 
 // Placeholder Components (will be replaced in future sessions)
 const PlaceholderPage = ({ title }) => (
@@ -175,16 +172,6 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <EditContract />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // Template Demo Route (Session 12)
-  {
-    path: '/demo/templates',
-    element: (
-      <ProtectedRoute>
-        <TemplateDemoPage />
       </ProtectedRoute>
     ),
   },
