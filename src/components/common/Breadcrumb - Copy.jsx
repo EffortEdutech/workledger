@@ -68,7 +68,7 @@ export function Breadcrumb() {
         await handleContractBreadcrumbs(crumbs, segments, params);
         break;
       
-      case 'work':
+      case 'work-entries':
         await handleWorkEntriesBreadcrumbs(crumbs, segments, params);
         break;
       
@@ -202,28 +202,94 @@ export function Breadcrumb() {
       }
     };
 
-  /**
-   * Handle work entries breadcrumbs
-   * Routes: /work, /work/new, /work/:id, /work/:id/edit
-   */
+    /**
+     * Handle work entries breadcrumbs
+     */ 
   const handleWorkEntriesBreadcrumbs = async (crumbs, segments, params) => {
-    crumbs.push({ label: 'Work Entries', path: '/work' });
+    // Add "Work Entries" as base
+    crumbs.push({ 
+      label: 'Work Entries', 
+      path: '/work',
+      current: segments.length === 1 
+    });
 
     if (segments[1] === 'new') {
-      crumbs.push({ label: 'New Entry', path: '/work/new', current: true });
+      // Creating new work entry
+      crumbs.push({ 
+        label: 'Create New Entry', 
+        path: '/work/new', 
+        current: true 
+      });
     } else if (segments[1] && params.id) {
-      crumbs.push({ label: 'Entry Details', path: `/work/${params.id}` });
-      
-      if (segments[2] === 'edit') {
-        crumbs.push({ label: 'Edit', path: `/work/${params.id}/edit`, current: true });
-      } else {
-        crumbs[crumbs.length - 1].current = true;
+      // Viewing or editing specific work entry
+      try {
+        // Import workEntryService at the top of Breadcrumb.jsx:
+        // import { workEntryService } from '../../services/api/workEntryService';
+        
+        const result = await workEntryService.getWorkEntry(params.id);
+        
+        if (result.success && result.data) {
+          const entry = result.data;
+          
+          // Format entry date for display
+          const entryDate = new Date(entry.entry_date).toLocaleDateString('en-MY', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+          });
+          
+          // Add entry breadcrumb with date
+          crumbs.push({ 
+            label: entryDate,
+            path: `/work/${params.id}`,
+            current: segments.length === 2
+          });
+          
+          // If editing
+          if (segments[2] === 'edit') {
+            crumbs.push({ 
+              label: 'Edit', 
+              path: `/work/${params.id}/edit`, 
+              current: true 
+            });
+          }
+        } else {
+          // Fallback if work entry not found
+          crumbs.push({ 
+            label: 'Work Entry', 
+            path: `/work/${params.id}`,
+            current: segments.length === 2
+          });
+          
+          if (segments[2] === 'edit') {
+            crumbs.push({ 
+              label: 'Edit', 
+              path: `/work/${params.id}/edit`, 
+              current: true 
+            });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error fetching work entry for breadcrumb:', error);
+        
+        // Fallback breadcrumb
+        crumbs.push({ 
+          label: 'Work Entry', 
+          path: `/work/${params.id}`,
+          current: segments.length === 2
+        });
+        
+        if (segments[2] === 'edit') {
+          crumbs.push({ 
+            label: 'Edit', 
+            path: `/work/${params.id}/edit`, 
+            current: true 
+          });
+        }
       }
-    } else {
-      // /work list page is current
-      crumbs[crumbs.length - 1].current = true;
     }
   };
+
 
   /**
    * Handle templates breadcrumbs
@@ -283,7 +349,28 @@ export function Breadcrumb() {
     });
   };
 
+  /**
+   * Handle work entries breadcrumbs
+   * Routes: /work, /work/new, /work/:id, /work/:id/edit
+   */
+  const handleWorkEntriesBreadcrumbs = async (crumbs, segments, params) => {
+    crumbs.push({ label: 'Work Entries', path: '/work' });
 
+    if (segments[1] === 'new') {
+      crumbs.push({ label: 'New Entry', path: '/work/new', current: true });
+    } else if (segments[1] && params.id) {
+      crumbs.push({ label: 'Entry Details', path: `/work/${params.id}` });
+      
+      if (segments[2] === 'edit') {
+        crumbs.push({ label: 'Edit', path: `/work/${params.id}/edit`, current: true });
+      } else {
+        crumbs[crumbs.length - 1].current = true;
+      }
+    } else {
+      // /work list page is current
+      crumbs[crumbs.length - 1].current = true;
+    }
+  };
 
   // Don't render if only dashboard
   if (breadcrumbs.length <= 1) {

@@ -6,7 +6,7 @@
  * 
  * @file src/router.jsx
  * @created January 29, 2026
- * @updated February 1, 2026 - Session 13: Added work entry routes
+ * @updated January 31, 2026 - Session 12: Added template demo route
  */
 
 import { createBrowserRouter } from 'react-router-dom';
@@ -38,12 +38,6 @@ import NewContract from './pages/contracts/NewContract';
 import EditContract from './pages/contracts/EditContract';
 import ContractDetail from './pages/contracts/ContractDetail';
 
-// Work Entry Pages (Session 13) - NEW!
-import WorkEntryListPage from './pages/workEntries/WorkEntryListPage';
-import NewWorkEntry from './pages/workEntries/NewWorkEntry';
-import EditWorkEntry from './pages/workEntries/EditWorkEntry';
-import WorkEntryDetail from './pages/workEntries/WorkEntryDetail';
-
 // Template Demo Page (Session 12)
 import TemplateDemoPage from './pages/demo/TemplateDemoPage';
 
@@ -57,6 +51,7 @@ const PlaceholderPage = ({ title }) => (
   </div>
 );
 
+const WorkEntriesPage = () => <PlaceholderPage title="Work Entries" />;
 const TemplatesPage = () => <PlaceholderPage title="Templates" />;
 const ReportsPage = () => <PlaceholderPage title="Reports" />;
 const ProfilePage = () => <PlaceholderPage title="Profile" />;
@@ -184,40 +179,6 @@ export const router = createBrowserRouter([
     ),
   },
   
-  // Work Entry Routes (Session 13) - NEW! ./pages/contracts/ContractListPage';  WorkEntryListPage
-  {
-    path: '/work',
-    element: (
-      <ProtectedRoute>
-        <WorkEntryListPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/work/new',
-    element: (
-      <ProtectedRoute>
-        <NewWorkEntry />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/work/:id',
-    element: (
-      <ProtectedRoute>
-        <WorkEntryDetail />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/work/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <EditWorkEntry />
-      </ProtectedRoute>
-    ),
-  },
-  
   // Template Demo Route (Session 12)
   {
     path: '/demo/templates',
@@ -228,12 +189,12 @@ export const router = createBrowserRouter([
     ),
   },
   
-  // Work Entry Routes - Redirect old ROUTES constant to new path  work-entries
+  // Work Entry Routes (Placeholder - Session 13)
   {
     path: ROUTES.WORK_ENTRIES,
     element: (
       <ProtectedRoute>
-        <WorkEntryListPage />
+        <WorkEntriesPage />
       </ProtectedRoute>
     ),
   },

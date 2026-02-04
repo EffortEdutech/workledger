@@ -1,11 +1,13 @@
 /**
- * WorkLedger - Dynamic Form Component
+ * WorkLedger - Dynamic Form Component (Updated for Session 15)
  * 
  * Main form component that renders an entire template dynamically.
- * Handles form state, validation, and submission.
+ * Now passes workEntryId to support photo/signature fields.
  * 
  * @module components/templates/DynamicForm
  * @created January 31, 2026 - Session 12
+ * @updated February 2, 2026 - Session 15 (Added workEntryId support)
+ * @updated February 4, 2026 - FIXED: Added onChange callback to parent
  */
 
 import React, { useState, useEffect } from 'react';
@@ -21,15 +23,19 @@ import Button from '../common/Button';
  * - Validation against template.validation_rules
  * - Conditional field visibility
  * - Auto-prefilling from contract data
+ * - Photo/signature support (Session 15)
+ * - Parent notification via onChange (FIXED!)
  */
 export function DynamicForm({
   template,
   contract = null,
   initialData = {},
+  onChange,           // ✅ NEW: Callback to notify parent of data changes
   onSubmit,
   onCancel,
   submitLabel = 'Submit',
-  showCancel = true
+  showCancel = true,
+  workEntryId = null  // Required for photo/signature fields
 }) {
   const [formData, setFormData] = useState(initialData);
   const [errors, setErrors] = useState({});
@@ -65,30 +71,68 @@ export function DynamicForm({
           // Handle prefill_from contract
           if (field.prefill_from && contract) {
             const contractPath = field.prefill_from.replace('contract.', '');
-            if (contract[contractPath]) {
-              defaultData[fieldPath] = contract[contractPath];
+            const value = getNestedValue(contract, contractPath);
+            if (value) {
+              defaultData[fieldPath] = value;
             }
           }
 
-          // Set default values for specific types
+          // Set checkbox default to false if not set
           if (field.field_type === 'checkbox' && defaultData[fieldPath] === undefined) {
             defaultData[fieldPath] = false;
+          }
+
+          // Set photo field default to empty array
+          if (field.field_type === 'photo' && defaultData[fieldPath] === undefined) {
+            defaultData[fieldPath] = [];
+          }
+
+          // Set signature field default to null
+          if (field.field_type === 'signature' && defaultData[fieldPath] === undefined) {
+            defaultData[fieldPath] = null;
           }
         });
       });
 
-      setFormData(prev => ({ ...defaultData, ...prev }));
+      if (Object.keys(defaultData).length > 0) {
+        const newData = { ...formData, ...defaultData };
+        setFormData(newData);
+        
+        // ✅ Notify parent of initial default data
+        if (onChange) {
+          onChange(newData);
+        }
+      }
     }
   }, [template, contract]);
 
   /**
+   * Get nested value from object using dot notation
+   */
+  const getNestedValue = (obj, path) => {
+    return path.split('.').reduce((current, key) => current?.[key], obj);
+  };
+
+  /**
    * Handle field change
+   * ✅ FIXED: Now notifies parent component via onChange callback
    */
   const handleFieldChange = (fieldPath, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldPath]: value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [fieldPath]: value
+      };
+      
+      // ✅ Notify parent component of data change
+      if (onChange) {
+        onChange(newData);
+      }
+      
+      console.log('📝 Form data updated:', fieldPath, '=', value);
+      
+      return newData;
+    });
 
     // Clear error for this field
     if (errors[fieldPath]) {
@@ -101,67 +145,53 @@ export function DynamicForm({
   };
 
   /**
-   * Validate form against template validation rules
+   * Validate form data
    */
   const validateForm = () => {
     const newErrors = {};
 
-    if (!template?.fields_schema?.sections) {
-      return newErrors;
-    }
-
-    // Validate each section
-    template.fields_schema.sections.forEach(section => {
+    template.fields_schema?.sections?.forEach(section => {
       section.fields?.forEach(field => {
         const fieldPath = `${section.section_id}.${field.field_id}`;
         const value = formData[fieldPath];
 
-        // Check required
+        // Required validation
         if (field.required) {
           if (value === undefined || value === null || value === '' || 
-              (typeof value === 'string' && value.trim() === '')) {
+              (Array.isArray(value) && value.length === 0)) {
             newErrors[fieldPath] = `${field.field_name} is required`;
           }
         }
 
-        // Check min/max for numbers
-        if (field.field_type === 'number' && value !== undefined && value !== '') {
-          const numValue = parseFloat(value);
-          if (field.min !== undefined && numValue < field.min) {
-            newErrors[fieldPath] = `${field.field_name} must be at least ${field.min}`;
-          }
-          if (field.max !== undefined && numValue > field.max) {
-            newErrors[fieldPath] = `${field.field_name} must be at most ${field.max}`;
+        // Field-specific validation
+        if (value && field.field_type === 'email') {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(value)) {
+            newErrors[fieldPath] = 'Invalid email format';
           }
         }
 
-        // Check pattern (regex) for text fields
-        if (field.pattern && value) {
-          const regex = new RegExp(field.pattern);
-          if (!regex.test(value)) {
-            newErrors[fieldPath] = field.pattern_message || `${field.field_name} format is invalid`;
+        if (value && field.field_type === 'url') {
+          try {
+            new URL(value);
+          } catch {
+            newErrors[fieldPath] = 'Invalid URL format';
           }
         }
 
-        // Check minLength/maxLength for text
-        if (field.field_type === 'text' || field.field_type === 'textarea') {
-          if (field.minLength && value && value.length < field.minLength) {
-            newErrors[fieldPath] = `${field.field_name} must be at least ${field.minLength} characters`;
+        if (value && field.field_type === 'number') {
+          if (field.min !== undefined && parseFloat(value) < field.min) {
+            newErrors[fieldPath] = `Must be at least ${field.min}`;
           }
-          if (field.maxLength && value && value.length > field.maxLength) {
-            newErrors[fieldPath] = `${field.field_name} must be at most ${field.maxLength} characters`;
+          if (field.max !== undefined && parseFloat(value) > field.max) {
+            newErrors[fieldPath] = `Must be at most ${field.max}`;
           }
         }
       });
     });
 
-    // Apply custom validation rules from template
-    if (template.validation_rules) {
-      // Additional validation logic can be added here
-      // For example: cross-field validation
-    }
-
-    return newErrors;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   /**
@@ -170,111 +200,70 @@ export function DynamicForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate form
-    const validationErrors = validateForm();
-    
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      
-      // Scroll to first error
-      const firstErrorField = Object.keys(validationErrors)[0];
-      const element = document.querySelector(`[name="${firstErrorField}"]`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        element.focus();
-      }
-      
+    // Validate
+    if (!validateForm()) {
+      console.error('❌ Form validation failed');
       return;
     }
 
-    // Submit form
-    setIsSubmitting(true);
     try {
+      setIsSubmitting(true);
       await onSubmit(formData);
     } catch (error) {
-      console.error('Form submission error:', error);
-      setErrors({ _form: error.message || 'Failed to submit form' });
+      console.error('❌ Form submission failed:', error);
+      setErrors({ _form: error.message });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Show error if template is invalid
-  if (!template || !template.fields_schema || !template.fields_schema.sections) {
+  if (!template || !template.fields_schema) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-red-900 mb-2">
-          Invalid Template
-        </h3>
-        <p className="text-red-800">
-          The template schema is invalid or missing. Please contact support.
-        </p>
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <p className="text-yellow-900">Invalid template: Missing fields_schema</p>
       </div>
     );
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Template Header */}
-      <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
-        <h2 className="text-xl font-semibold text-primary-900">
-          {template.template_name}
-        </h2>
-        {template.description && (
-          <p className="mt-1 text-sm text-primary-700">
-            {template.description}
+      {/* Form Errors */}
+      {errors._form && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm text-red-900">{errors._form}</p>
+        </div>
+      )}
+
+      {/* Warning if no workEntryId (for photo/signature fields) */}
+      {!workEntryId && template.fields_schema.sections?.some(s => 
+        s.fields?.some(f => f.field_type === 'photo' || f.field_type === 'signature')
+      ) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <p className="text-sm text-amber-900">
+            ⚠️ This form contains photo or signature fields. Save as draft first to enable these fields.
           </p>
-        )}
-        {template.metadata?.estimated_completion_time && (
-          <p className="mt-2 text-xs text-primary-600">
-            Estimated time: {template.metadata.estimated_completion_time}
-          </p>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Render Sections */}
-      {template.fields_schema.sections.map((section, index) => (
+      {template.fields_schema.sections?.map((section, index) => (
         <SectionRenderer
           key={section.section_id || index}
           section={section}
           formData={formData}
-          onChange={handleFieldChange}
           errors={errors}
+          onChange={handleFieldChange}
           contract={contract}
+          workEntryId={workEntryId}
         />
       ))}
 
-      {/* Form-level Error */}
-      {errors._form && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm text-red-800">
-            {errors._form}
-          </p>
-        </div>
-      )}
-
-      {/* Validation Summary */}
-      {Object.keys(errors).length > 0 && errors._form === undefined && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-sm font-medium text-yellow-900 mb-2">
-            Please fix the following errors:
-          </p>
-          <ul className="list-disc list-inside text-sm text-yellow-800 space-y-1">
-            {Object.entries(errors).map(([fieldPath, errorMessage]) => (
-              <li key={fieldPath}>
-                {errorMessage}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* Form Actions */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+      <div className="flex gap-3 pt-6 border-t">
         {showCancel && (
           <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
           >
@@ -283,7 +272,6 @@ export function DynamicForm({
         )}
         <Button
           type="submit"
-          variant="primary"
           disabled={isSubmitting}
         >
           {isSubmitting ? 'Submitting...' : submitLabel}

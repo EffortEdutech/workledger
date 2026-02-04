@@ -45,10 +45,10 @@ export const PROTECTED_ROUTES = {
   CONTRACT_EDIT: '/contracts/:id/edit',
   
   // Work Entries
-  WORK_ENTRIES: '/work-entries',
-  WORK_ENTRY_NEW: '/work-entries/new',
-  WORK_ENTRY_DETAIL: '/work-entries/:id',
-  WORK_ENTRY_EDIT: '/work-entries/:id/edit',
+  WORK_ENTRIES: '/work',
+  WORK_ENTRY_NEW: '/work/new',
+  WORK_ENTRY_DETAIL: '/work/:id',
+  WORK_ENTRY_EDIT: '/work/:id/edit',
   
   // Templates
   TEMPLATES: '/demo/templates', 

@@ -1,18 +1,16 @@
 /**
- * WorkLedger - Field Renderer Component (Updated for Session 15)
+ * WorkLedger - Field Renderer Component
  * 
  * Renders individual form fields based on template field schema.
- * Now includes PhotoUpload and SignatureCanvas for photo/signature fields.
+ * Supports 13+ field types with validation and conditional rendering.
  * 
  * @module components/templates/FieldRenderer
  * @created January 31, 2026 - Session 12
- * @updated February 2, 2026 - Session 15 (Added photo & signature support)
+ * @updated February 1, 2026 - Added tel/email/url + fixed select dropdown
  */
 
 import React from 'react';
 import Input from '../common/Input';
-import PhotoUpload from '../attachments/PhotoUpload';
-import SignatureCanvas from '../attachments/SignatureCanvas';
 
 /**
  * Field Renderer - Renders individual field based on type
@@ -21,10 +19,7 @@ import SignatureCanvas from '../attachments/SignatureCanvas';
  * - text, tel, email, url
  * - number, date, datetime, month, time
  * - select, radio, checkbox
- * - textarea
- * - photo ✅ (Session 15)
- * - signature ✅ (Session 15)
- * - calculated
+ * - textarea, photo, signature, calculated
  */
 export function FieldRenderer({
   field,
@@ -32,8 +27,7 @@ export function FieldRenderer({
   value,
   onChange,
   error,
-  contract = null,
-  workEntryId = null // Required for photo/signature fields
+  contract = null
 }) {
   // Build field path for form data storage
   const fieldPath = `${section.section_id}.${field.field_id}`;
@@ -45,11 +39,6 @@ export function FieldRenderer({
       : e.target.value;
     
     onChange(fieldPath, newValue);
-  };
-
-  // Handle photo/signature change (array of attachment IDs)
-  const handleAttachmentChange = (attachmentValue) => {
-    onChange(fieldPath, attachmentValue);
   };
 
   // Get default value
@@ -69,9 +58,9 @@ export function FieldRenderer({
       return field.default_value;
     }
 
-    // Handle prefill_from contract
-    if (field.prefill_from && contract) {
-      const path = field.prefill_from.replace('contract.', '');
+    // Handle prefill_from or auto_populate_from contract
+    if ((field.prefill_from || field.auto_populate_from) && contract) {
+      const path = (field.prefill_from || field.auto_populate_from).replace('contract.', '');
       return contract[path] || '';
     }
 
@@ -81,10 +70,6 @@ export function FieldRenderer({
         return false;
       case 'number':
         return '';
-      case 'photo':
-        return []; // Array of attachment IDs
-      case 'signature':
-        return null; // Single attachment ID
       default:
         return '';
     }
@@ -98,6 +83,7 @@ export function FieldRenderer({
       return (
         <Input
           name={fieldPath}
+          type="text"
           value={fieldValue}
           onChange={handleChange}
           placeholder={field.placeholder || ''}
@@ -219,6 +205,13 @@ export function FieldRenderer({
       );
 
     case 'select':
+      // Use native HTML select (working version from your file!)
+      if (!field.options || !Array.isArray(field.options)) {
+        console.warn(`⚠️ Field ${field.field_id} has no options array:`, field);
+      } else {
+        console.log(`✅ Field ${field.field_id} has ${field.options.length} options:`, field.options);
+      }
+      
       return (
         <div>
           <select
@@ -231,19 +224,29 @@ export function FieldRenderer({
               error ? 'border-red-500' : 'border-gray-300'
             } ${field.read_only ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
           >
-            <option value="">{field.placeholder || `Select ${field.field_name}...`}</option>
+            <option value="">
+              {field.placeholder || `Select ${field.field_name}...`}
+            </option>
             {field.options && Array.isArray(field.options) && field.options.map((option, index) => (
-              <option key={index} value={option}>{option}</option>
+              <option key={index} value={option}>
+                {option}
+              </option>
             ))}
           </select>
-          {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="mt-1 text-sm text-red-600">{error}</p>
+          )}
         </div>
       );
 
     case 'radio':
+      if (!field.options || !Array.isArray(field.options)) {
+        console.warn(`⚠️ Field ${field.field_id} has no options array:`, field);
+      }
+      
       return (
         <div className="space-y-2">
-          {field.options && field.options.map((option, index) => (
+          {field.options && Array.isArray(field.options) && field.options.map((option, index) => (
             <label key={index} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
@@ -257,6 +260,9 @@ export function FieldRenderer({
               <span className="text-sm text-gray-700">{option}</span>
             </label>
           ))}
+          {(!field.options || !Array.isArray(field.options) || field.options.length === 0) && (
+            <p className="text-sm text-red-600">No options available for this field</p>
+          )}
           {error && (
             <p className="text-sm text-red-600">{error}</p>
           )}
@@ -301,58 +307,35 @@ export function FieldRenderer({
       );
 
     case 'photo':
-      // Photo upload component (Session 15)
-      if (!workEntryId) {
-        return (
-          <div className="border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50">
-            <p className="text-sm text-amber-800">
-              ⚠️ Photos can only be uploaded after saving the work entry as a draft.
-            </p>
-            <p className="text-xs text-amber-600 mt-1">
-              Save this entry first, then you can add photos.
-            </p>
-          </div>
-        );
-      }
-
       return (
-        <PhotoUpload
-          workEntryId={workEntryId}
-          fieldId={fieldPath}
-          value={fieldValue} // Array of attachment IDs
-          onChange={handleAttachmentChange}
-          maxPhotos={field.max_photos || 3}
-          disabled={field.read_only}
-        />
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+          <div className="text-gray-400">
+            <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <p className="mt-2 text-sm text-gray-500">
+            Photo upload (Session 15)
+          </p>
+          <p className="text-xs text-gray-400">
+            Click to upload or drag and drop
+          </p>
+        </div>
       );
 
     case 'signature':
-      // Signature canvas component (Session 15)
-      if (!workEntryId) {
-        return (
-          <div className="border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50">
-            <p className="text-sm text-amber-800">
-              ⚠️ Signature can only be added after saving the work entry as a draft.
-            </p>
-            <p className="text-xs text-amber-600 mt-1">
-              Save this entry first, then you can add your signature.
-            </p>
-          </div>
-        );
-      }
-
       return (
-        <SignatureCanvas
-          workEntryId={workEntryId}
-          fieldId={fieldPath}
-          value={fieldValue} // Single attachment ID
-          onChange={handleAttachmentChange}
-          disabled={field.read_only}
-        />
+        <div className="border-2 border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+          <p className="text-sm text-gray-500">
+            Signature capture (Future session)
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Draw or upload signature
+          </p>
+        </div>
       );
 
     case 'calculated':
-      // Read-only calculated field
       return (
         <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md">
           <span className="text-sm text-gray-700 font-medium">
@@ -369,6 +352,9 @@ export function FieldRenderer({
         <div className="px-3 py-2 bg-yellow-50 border border-yellow-300 rounded-md">
           <p className="text-sm text-yellow-800">
             Unsupported field type: {field.field_type}
+          </p>
+          <p className="text-xs text-yellow-700 mt-1">
+            Supported: text, tel, email, url, number, date, datetime, month, time, select, radio, checkbox, textarea
           </p>
         </div>
       );

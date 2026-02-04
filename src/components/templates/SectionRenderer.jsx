@@ -1,69 +1,60 @@
 /**
- * WorkLedger - Section Renderer Component
+ * WorkLedger - Section Renderer Component (Updated for Session 15)
  * 
- * Renders template sections with different layout types.
- * Handles conditional field visibility (show_if logic).
+ * Renders a section of the template with its fields.
+ * Now passes workEntryId to FieldRenderer for photo/signature support.
  * 
  * @module components/templates/SectionRenderer
  * @created January 31, 2026 - Session 12
+ * @updated February 2, 2026 - Session 15 (Added workEntryId support)
  */
 
 import React from 'react';
 import FieldRenderer from './FieldRenderer';
 
 /**
- * Section Renderer - Renders a template section with its fields
+ * Section Renderer - Renders a section and its fields
  * 
- * Supported layouts:
- * - single_column (default)
- * - two_column
- * - checklist (compact grid for checkboxes)
+ * Features:
+ * - Section header with description
+ * - Field layout (single/two column/checklist)
+ * - Conditional field visibility (show_if)
+ * - Field validation
  */
 export function SectionRenderer({
   section,
   formData,
+  errors,
   onChange,
-  errors = {},
-  contract = null
+  contract = null,
+  workEntryId = null // ← NEW: For photo/signature fields
 }) {
   /**
-   * Check if field should be shown based on show_if condition
+   * Check if field should be displayed based on show_if condition
    */
   const shouldShowField = (field) => {
     if (!field.show_if) return true;
 
-    // Parse show_if condition
-    // Format: "field_path == value" or "field_path != value"
-    try {
-      const condition = field.show_if;
-      
-      // Simple equality check
-      if (condition.includes('==')) {
-        const [fieldPath, expectedValue] = condition.split('==').map(s => s.trim());
-        const actualValue = getFieldValue(fieldPath);
-        return actualValue === expectedValue.replace(/['"]/g, '');
-      }
-      
-      // Simple inequality check
-      if (condition.includes('!=')) {
-        const [fieldPath, expectedValue] = condition.split('!=').map(s => s.trim());
-        const actualValue = getFieldValue(fieldPath);
-        return actualValue !== expectedValue.replace(/['"]/g, '');
-      }
+    const { field: conditionField, equals } = field.show_if;
 
-      // If can't parse, show the field
-      return true;
-    } catch (error) {
-      console.error('Error evaluating show_if condition:', error);
-      return true;
-    }
+    // Get the value of the conditional field
+    const fieldValue = getFieldValue(conditionField);
+
+    // Check if condition is met
+    return fieldValue === equals;
   };
 
   /**
-   * Get field value from form data
+   * Get field value from formData
+   * Handles different path formats
    */
   const getFieldValue = (fieldPath) => {
-    // Remove section prefix if exists
+    // Try direct path first
+    if (formData[fieldPath] !== undefined) {
+      return formData[fieldPath];
+    }
+
+    // Try with section prefix if not already exists
     const cleanPath = fieldPath.replace(`${section.section_id}.`, '');
     const fullPath = `${section.section_id}.${cleanPath}`;
     return formData[fullPath] || formData[cleanPath] || '';
@@ -121,50 +112,45 @@ export function SectionRenderer({
 
       {/* Section Fields */}
       <div className={getLayoutClass()}>
-        {visibleFields.map((field) => (
-          <div key={field.field_id} className="field-wrapper">
-            {/* Field Label (if separate from field) */}
-            {shouldShowLabel(field) && (
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {field.field_name}
-                {field.required && <span className="text-red-500 ml-1">*</span>}
-                {field.help_text && (
-                  <span className="block text-xs text-gray-500 font-normal mt-0.5">
-                    {field.help_text}
-                  </span>
-                )}
-              </label>
-            )}
+        {visibleFields.map((field, index) => {
+          const fieldPath = `${section.section_id}.${field.field_id}`;
+          const fieldValue = getFieldValue(fieldPath);
+          const fieldError = errors[fieldPath];
 
-            {/* Field Renderer */}
-            <FieldRenderer
-              field={field}
-              section={section}
-              value={formData[`${section.section_id}.${field.field_id}`]}
-              onChange={onChange}
-              error={errors[`${section.section_id}.${field.field_id}`]}
-              contract={contract}
-            />
+          return (
+            <div key={field.field_id || index} className="space-y-1">
+              {/* Field Label */}
+              {shouldShowLabel(field) && (
+                <label
+                  htmlFor={fieldPath}
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  {field.field_name}
+                  {field.required && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                  {field.help_text && (
+                    <span className="ml-2 text-xs text-gray-500 font-normal">
+                      ({field.help_text})
+                    </span>
+                  )}
+                </label>
+              )}
 
-            {/* Field Error */}
-            {errors[`${section.section_id}.${field.field_id}`] && 
-             shouldShowLabel(field) && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors[`${section.section_id}.${field.field_id}`]}
-              </p>
-            )}
-          </div>
-        ))}
+              {/* Field Input */}
+              <FieldRenderer
+                field={field}
+                section={section}
+                value={fieldValue}
+                onChange={onChange}
+                error={fieldError}
+                contract={contract}
+                workEntryId={workEntryId} // ← Pass workEntryId to field renderer
+              />
+            </div>
+          );
+        })}
       </div>
-
-      {/* Section Footer (if any) */}
-      {section.footer_text && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
-            {section.footer_text}
-          </p>
-        </div>
-      )}
     </div>
   );
 }
