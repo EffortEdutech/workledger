@@ -6,8 +6,6 @@
  * 
  * @module constants/routes
  * @created January 29, 2026
- * @updated February 6, 2026 - Session 19: Added REPORT_GENERATE, REPORT_HISTORY
- * @updated February 7, 2026 - Session 20: Fixed TEMPLATES from /demo/templates to /templates
  */
 
 /**
@@ -52,17 +50,15 @@ export const PROTECTED_ROUTES = {
   WORK_ENTRY_DETAIL: '/work/:id',
   WORK_ENTRY_EDIT: '/work/:id/edit',
   
-  // Templates (Session 20 - Production)
-  TEMPLATES: '/templates',
+  // Templates
+  TEMPLATES: '/demo/templates', 
   TEMPLATE_NEW: '/templates/new',
   TEMPLATE_DETAIL: '/templates/:id',
   TEMPLATE_EDIT: '/templates/:id/edit',
   
-  // Reports (Session 19 - Updated)
-  REPORTS: '/reports',                   // ReportHistory landing page
-  REPORT_GENERATE: '/reports/generate',  // GenerateReport page (custom reports)
-  REPORT_HISTORY: '/reports',            // Alias — same as REPORTS
-  REPORT_MONTHLY: '/reports/monthly',    // Future: dedicated monthly page
+  // Reports
+  REPORTS: '/reports',
+  REPORT_MONTHLY: '/reports/monthly',
   REPORT_SLA: '/reports/sla',
   REPORT_CUSTOM: '/reports/custom',
   
@@ -120,17 +116,25 @@ export const ROUTE_GROUPS = {
  * @param {string} route - Route template (e.g., '/projects/:id')
  * @param {Object} params - Route parameters (e.g., { id: '123' })
  * @returns {string} Resolved route path
+ * 
+ * @example
+ * generatePath(ROUTES.PROJECT_DETAIL, { id: 'abc-123' })
+ * // Returns: '/projects/abc-123'
  */
 export const generatePath = (route, params = {}) => {
   let path = route;
+  
   Object.entries(params).forEach(([key, value]) => {
     path = path.replace(`:${key}`, value);
   });
+  
   return path;
 };
 
 /**
  * Check if route is public (no auth required)
+ * @param {string} path - Route path
+ * @returns {boolean} True if route is public
  */
 export const isPublicRoute = (path) => {
   return Object.values(PUBLIC_ROUTES).includes(path);
@@ -138,6 +142,8 @@ export const isPublicRoute = (path) => {
 
 /**
  * Check if route requires authentication
+ * @param {string} path - Route path
+ * @returns {boolean} True if route is protected
  */
 export const isProtectedRoute = (path) => {
   return !isPublicRoute(path);
@@ -145,6 +151,17 @@ export const isProtectedRoute = (path) => {
 
 /**
  * Get route breadcrumbs
+ * @param {string} path - Current route path
+ * @returns {Array} Breadcrumb items
+ * 
+ * @example
+ * getBreadcrumbs('/projects/abc-123/edit')
+ * // Returns: [
+ * //   { label: 'Dashboard', path: '/' },
+ * //   { label: 'Projects', path: '/projects' },
+ * //   { label: 'Project Details', path: '/projects/abc-123' },
+ * //   { label: 'Edit', path: '/projects/abc-123/edit' }
+ * // ]
  */
 export const getBreadcrumbs = (path) => {
   const segments = path.split('/').filter(Boolean);
@@ -155,12 +172,22 @@ export const getBreadcrumbs = (path) => {
   let currentPath = '';
   segments.forEach((segment, index) => {
     currentPath += `/${segment}`;
-    if (/^[a-f0-9-]{36}$/i.test(segment)) return;
+    
+    // Don't add breadcrumb for UUID-like segments
+    if (/^[a-f0-9-]{36}$/i.test(segment)) {
+      return;
+    }
+    
+    // Capitalize and format label
     const label = segment
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
-    breadcrumbs.push({ label, path: currentPath });
+    
+    breadcrumbs.push({
+      label,
+      path: currentPath
+    });
   });
   
   return breadcrumbs;

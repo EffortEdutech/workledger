@@ -7,15 +7,12 @@
  * @file src/router.jsx
  * @created January 29, 2026
  * @updated February 6, 2026 - Session 19: Report routes reorganized
- * @updated February 7, 2026 - Session 20: Template management routes (replaced demo)
- *   - /templates → TemplateListPage (production management)
- *   - /templates/new → TemplateBuilder (create mode)
- *   - /templates/:id → TemplateDetail (view + preview + test)
- *   - /templates/:id/edit → TemplateBuilder (edit mode)
- *   - /demo/templates → redirect to /templates
+ *   - /reports → ReportHistory (landing page)
+ *   - /reports/generate → GenerateReport (custom report generator)
+ *   - Removed /reports/history (merged into /reports)
  */
 
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { ROUTES } from './constants/routes';
 
 // Auth Components
@@ -44,11 +41,6 @@ import NewContract from './pages/contracts/NewContract';
 import EditContract from './pages/contracts/EditContract';
 import ContractDetail from './pages/contracts/ContractDetail';
 
-// Template Pages (Session 20 - Production)
-import TemplateListPage from './pages/templates/TemplateListPage';
-import TemplateBuilder from './pages/templates/TemplateBuilder';
-import TemplateDetail from './pages/templates/TemplateDetail';
-
 // Work Entry Pages (Session 13)
 import WorkEntryListPage from './pages/workEntries/WorkEntryListPage';
 import NewWorkEntry from './pages/workEntries/NewWorkEntry';
@@ -58,6 +50,9 @@ import WorkEntryDetail from './pages/workEntries/WorkEntryDetail';
 // Report Pages (Session 18 + 19)
 import ReportHistory from './pages/reports/ReportHistory';
 import GenerateReport from './pages/reports/GenerateReport';
+
+// Template Demo Page (Session 12)
+import TemplateDemoPage from './pages/demo/TemplateDemoPage';
 
 // Placeholder Components (will be replaced in future sessions)
 const PlaceholderPage = ({ title }) => (
@@ -69,6 +64,7 @@ const PlaceholderPage = ({ title }) => (
   </div>
 );
 
+const TemplatesPage = () => <PlaceholderPage title="Templates" />;
 const ProfilePage = () => <PlaceholderPage title="Profile" />;
 const NotFoundPage = () => <PlaceholderPage title="404 - Page Not Found" />;
 
@@ -76,9 +72,7 @@ const NotFoundPage = () => <PlaceholderPage title="404 - Page Not Found" />;
  * Router Configuration
  */
 export const router = createBrowserRouter([
-  // ============================================
-  // PUBLIC ROUTES (No Authentication Required)
-  // ============================================
+  // Public Routes (No auth required)
   {
     path: ROUTES.LOGIN,
     element: <Login />,
@@ -92,11 +86,7 @@ export const router = createBrowserRouter([
     element: <ForgotPassword />,
   },
   
-  // ============================================
-  // PROTECTED ROUTES (Authentication Required)
-  // ============================================
-
-  // Dashboard
+  // Protected Routes (Auth required)
   {
     path: ROUTES.DASHBOARD,
     element: (
@@ -106,9 +96,71 @@ export const router = createBrowserRouter([
     ),
   },
   
+  // Work Entry Routes
+  {
+    path: ROUTES.WORK_ENTRIES,
+    element: (
+      <ProtectedRoute>
+        <WorkEntryListPage />
+      </ProtectedRoute>
+    ),
+  },
+  
+  // Template Routes 
+  {
+    path: ROUTES.TEMPLATES,
+    element: (
+      <ProtectedRoute>
+        <TemplateDemoPage />
+      </ProtectedRoute>
+    ),
+  },
+  
   // ============================================
-  // ORGANIZATION ROUTES
+  // REPORT ROUTES (Session 19 - Reorganized)
   // ============================================
+  
+  // /reports → ReportHistory (LANDING PAGE)
+  // Shows contract selector, report history table, quick actions
+  {
+    path: ROUTES.REPORTS,
+    element: (
+      <ProtectedRoute>
+        <ReportHistory />
+      </ProtectedRoute>
+    ),
+  },
+  
+  // /reports/generate → GenerateReport (Custom report generator)
+  // Accepts ?contractId=xxx from ReportHistory navigation
+  {
+    path: ROUTES.REPORT_GENERATE,
+    element: (
+      <ProtectedRoute>
+        <GenerateReport />
+      </ProtectedRoute>
+    ),
+  },
+  
+  // Profile Routes (Placeholder - Future sessions)
+  {
+    path: ROUTES.PROFILE,
+    element: (
+      <ProtectedRoute>
+        <ProfilePage />
+      </ProtectedRoute>
+    ),
+  },
+  
+  // 404 - Not Found
+  {
+    path: '*',
+    element: <NotFoundPage />,
+  },
+
+  // -----------------------------------------------------
+
+  // Organization Routes
   {
     path: '/organizations',
     element: (
@@ -134,9 +186,7 @@ export const router = createBrowserRouter([
     ),
   },
   
-  // ============================================
-  // PROJECT ROUTES (Session 9)
-  // ============================================
+  // Project Routes (Session 9)
   {
     path: '/projects',
     element: (
@@ -170,9 +220,7 @@ export const router = createBrowserRouter([
     ),
   },
   
-  // ============================================
-  // CONTRACT ROUTES (Session 10)
-  // ============================================
+  // Contract Routes (Session 10)
   {
     path: '/contracts',
     element: (
@@ -206,60 +254,7 @@ export const router = createBrowserRouter([
     ),
   },
   
-  // ============================================
-  // TEMPLATE ROUTES (Session 20 - Production)
-  // Replaces /demo/templates with full management
-  // ============================================
-  
-  // /templates → TemplateListPage (management table)
-  {
-    path: '/templates',
-    element: (
-      <ProtectedRoute>
-        <TemplateListPage />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // /templates/new → TemplateBuilder (create mode)
-  {
-    path: '/templates/new',
-    element: (
-      <ProtectedRoute>
-        <TemplateBuilder />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // /templates/:id → TemplateDetail (view + preview + test)
-  {
-    path: '/templates/:id',
-    element: (
-      <ProtectedRoute>
-        <TemplateDetail />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // /templates/:id/edit → TemplateBuilder (edit mode)
-  {
-    path: '/templates/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <TemplateBuilder />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // /demo/templates → Redirect to /templates (backward compatibility)
-  {
-    path: '/demo/templates',
-    element: <Navigate to="/templates" replace />,
-  },
-  
-  // ============================================
-  // WORK ENTRY ROUTES (Session 13)
-  // ============================================
+  // Work Entry Routes (Session 13)
   {
     path: '/work',
     element: (
@@ -293,53 +288,19 @@ export const router = createBrowserRouter([
     ),
   },
   
-  // ============================================
-  // REPORT ROUTES (Session 19 - Reorganized)
-  // ============================================
-  
-  // /reports → ReportHistory (LANDING PAGE)
+  // Template Demo Route (Session 12)
   {
-    path: ROUTES.REPORTS,
+    path: '/demo/templates',
     element: (
       <ProtectedRoute>
-        <ReportHistory />
+        <TemplateDemoPage />
       </ProtectedRoute>
     ),
-  },
-  
-  // /reports/generate → GenerateReport (Custom report generator)
-  {
-    path: ROUTES.REPORT_GENERATE,
-    element: (
-      <ProtectedRoute>
-        <GenerateReport />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // ============================================
-  // USER ROUTES
-  // ============================================
-  {
-    path: ROUTES.PROFILE,
-    element: (
-      <ProtectedRoute>
-        <ProfilePage />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // ============================================
-  // 404 - NOT FOUND
-  // ============================================
-  {
-    path: '*',
-    element: <NotFoundPage />,
   },
 
 ], {
   future: {
-    v7_startTransition: true,
+    v7_startTransition: true, // Enable React Router v7 future flag
   }
 });
 

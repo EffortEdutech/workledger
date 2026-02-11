@@ -233,7 +233,13 @@ export function Breadcrumb() {
     
     if (segments[1] === 'new') {
       crumbs.push({ label: 'Create Template', path: '/templates/new', current: true });
-    }
+    } else if (segments[1] && params.id) {
+        crumbs.push({ label: 'Edit', path: `/templates/${params.id}/edit`, current: true });
+
+    } else {
+      // list page is current
+      crumbs[crumbs.length - 1].current = true;
+    }    
   };
 
   /**

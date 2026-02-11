@@ -7,7 +7,6 @@
  * @module constants/routes
  * @created January 29, 2026
  * @updated February 6, 2026 - Session 19: Added REPORT_GENERATE, REPORT_HISTORY
- * @updated February 7, 2026 - Session 20: Fixed TEMPLATES from /demo/templates to /templates
  */
 
 /**
@@ -52,8 +51,8 @@ export const PROTECTED_ROUTES = {
   WORK_ENTRY_DETAIL: '/work/:id',
   WORK_ENTRY_EDIT: '/work/:id/edit',
   
-  // Templates (Session 20 - Production)
-  TEMPLATES: '/templates',
+  // Templates
+  TEMPLATES: '/demo/templates', 
   TEMPLATE_NEW: '/templates/new',
   TEMPLATE_DETAIL: '/templates/:id',
   TEMPLATE_EDIT: '/templates/:id/edit',
