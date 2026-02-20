@@ -250,6 +250,18 @@ export function Breadcrumb() {
     
     if (segments[1] === 'generate') {
       crumbs.push({ label: 'Generate Report', path: '/reports/generate', current: true });
+    } else if (segments[1] === 'layouts') {
+      // /reports/layouts route handling
+      crumbs.push({ label: 'Layouts', path: '/reports/layouts', current: segments.length === 2 });
+      
+      if (segments[2] === 'new') {
+        crumbs.push({ label: 'Create New', path: '/reports/layouts/new', current: true });
+      } else if (segments[2] && params.id) {
+        crumbs.push({ label: 'Edit Layout', path: `/reports/layouts/${params.id}`, current: true });
+      }
+    } else if (segments.length === 1) {
+      // /reports landing page
+      crumbs[crumbs.length - 1].current = true;
     }
   };
 

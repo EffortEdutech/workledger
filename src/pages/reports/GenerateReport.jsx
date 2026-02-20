@@ -11,8 +11,8 @@
  *   - Backward compatible: still works with dropdown if no URL param
  * 
  * Flow:
- *   ReportHistory → [+ Generate Report] → /reports/generate?contractId=xxx
- *   OR direct navigation → /reports/generate (shows dropdown)
+ *   ReportHistory â†’ [+ Generate Report] â†’ /reports/generate?contractId=xxx
+ *   OR direct navigation â†’ /reports/generate (shows dropdown)
  * 
  * @module pages/reports/GenerateReport
  * @created February 5, 2026 - Session 18
@@ -48,7 +48,7 @@ export default function GenerateReport() {
   
   const loadContracts = async () => {
     try {
-      console.log('📊 Loading contracts for report generation...');
+      console.log('ðŸ“Š Loading contracts for report generation...');
       setLoading(true);
       
       const { data, error } = await supabase
@@ -74,11 +74,11 @@ export default function GenerateReport() {
         .order('created_at', { ascending: false });
       
       if (error) {
-        console.error('❌ Error loading contracts:', error);
+        console.error('âŒ Error loading contracts:', error);
         throw error;
       }
       
-      console.log('✅ Loaded contracts:', data?.length || 0);
+      console.log('âœ… Loaded contracts:', data?.length || 0);
       setContracts(data || []);
       
       // If contractId from URL, auto-select it
@@ -87,9 +87,9 @@ export default function GenerateReport() {
         if (found) {
           setSelectedContract(urlContractId);
           setContractInfo(found);
-          console.log('✅ Pre-selected from URL:', found.contract_number);
+          console.log('âœ… Pre-selected from URL:', found.contract_number);
         } else {
-          console.warn('⚠️ URL contractId not found in active contracts:', urlContractId);
+          console.warn('âš ï¸ URL contractId not found in active contracts:', urlContractId);
           // Fall back to first available
           if (data && data.length > 0) {
             setSelectedContract(data[0].id);
@@ -97,14 +97,14 @@ export default function GenerateReport() {
           }
         }
       } else if (data && data.length > 0) {
-        // No URL param — auto-select first
+        // No URL param â€” auto-select first
         setSelectedContract(data[0].id);
         setContractInfo(data[0]);
-        console.log('✅ Auto-selected first:', data[0].contract_number);
+        console.log('âœ… Auto-selected first:', data[0].contract_number);
       }
       
     } catch (error) {
-      console.error('❌ Failed to load contracts:', error);
+      console.error('âŒ Failed to load contracts:', error);
     } finally {
       setLoading(false);
     }
@@ -202,10 +202,10 @@ export default function GenerateReport() {
           </p>
         </div>
         
-        {/* Contract Selector — show dropdown unless pre-selected from URL */}
+        {/* Contract Selector â€” show dropdown unless pre-selected from URL */}
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           {urlContractId && contractInfo ? (
-            // Pre-selected from ReportHistory — show compact info, allow change
+            // Pre-selected from ReportHistory â€” show compact info, allow change
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-gray-700">Contract</label>
@@ -222,10 +222,10 @@ export default function GenerateReport() {
               </div>
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm font-medium text-blue-900">
-                  {contractInfo.contract_number} — {contractInfo.contract_name}
+                  {contractInfo.contract_number} â€” {contractInfo.contract_name}
                 </p>
                 <p className="text-xs text-blue-700 mt-0.5">
-                  {contractInfo.project?.client_name} · {contractInfo.project?.project_name} · {contractInfo.contract_category?.replace(/-/g, ' ').toUpperCase()}
+                  {contractInfo.project?.client_name} Â· {contractInfo.project?.project_name} Â· {contractInfo.contract_category?.replace(/-/g, ' ').toUpperCase()}
                 </p>
               </div>
             </div>
@@ -243,7 +243,7 @@ export default function GenerateReport() {
                 <option value="">-- Select Contract --</option>
                 {contracts.map(contract => (
                   <option key={contract.id} value={contract.id}>
-                    {contract.contract_number} — {contract.project?.client_name || 'Unknown'} — {contract.contract_name}
+                    {contract.contract_number} â€” {contract.project?.client_name || 'Unknown'} â€” {contract.contract_name}
                   </option>
                 ))}
               </select>
@@ -258,7 +258,7 @@ export default function GenerateReport() {
                     {contractInfo.project?.project_name}
                   </span>
                   <span className="px-2 py-1 bg-gray-100 rounded">
-                    {contractInfo.valid_from} → {contractInfo.valid_until}
+                    {contractInfo.valid_from} â†’ {contractInfo.valid_until}
                   </span>
                 </div>
               )}
@@ -277,15 +277,15 @@ export default function GenerateReport() {
                 await reportService.saveReportHistory({
                   contractId: selectedContract,
                   reportType: 'custom',
-                  reportTitle: `Custom Report — ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+                  reportTitle: `Custom Report â€” ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
                   entryIds,
                   options,
                   periodStart: null,
                   periodEnd: null
                 });
-                console.log('✅ Report saved to history');
+                console.log('âœ… Report saved to history');
               } catch (err) {
-                console.warn('⚠️ Failed to save report to history (non-blocking):', err);
+                console.warn('âš ï¸ Failed to save report to history (non-blocking):', err);
               }
             }}
           />

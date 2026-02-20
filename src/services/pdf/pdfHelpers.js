@@ -200,70 +200,161 @@ export function drawBox(pdf, x, y, width, height, style = {}) {
 }
 
 /**
- * Embed image in PDF
+ * ALTERNATIVE FIX: Use Supabase Download (Bypasses CORS Completely)
  * 
- * @param {Object} pdf - jsPDF instance
- * @param {string} imageUrl - Image URL
- * @param {number} x - X position
- * @param {number} y - Y position
- * @param {number} maxWidth - Maximum width
- * @param {number} maxHeight - Maximum height
- * @returns {Promise<number>} Height used
+ * Replace embedImage function in: src/services/pdf/pdfHelpers.js
+ * 
+ * This version uses Supabase's download method instead of fetch(),
+ * which completely bypasses CORS issues.
+ */
+
+import { supabase } from '../supabase/client';
+
+/**
+ * Embed image in PDF using Supabase download (CORS-free)
  */
 export async function embedImage(pdf, imageUrl, x, y, maxWidth, maxHeight) {
   try {
-    // Fetch image
-    const response = await fetch(imageUrl);
-    const blob = await response.blob();
+    console.log('🖼️ Embedding image:', imageUrl);
     
-    // Convert to base64
-    const base64 = await new Promise((resolve) => {
+    // Validate URL
+    if (!imageUrl || !imageUrl.startsWith('http')) {
+      throw new Error('Invalid image URL');
+    }
+    
+    // Parse Supabase storage URL
+    // Format: https://xxx.supabase.co/storage/v1/object/public/bucket-name/path/to/file.jpg
+    const urlPattern = /\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/;
+    const match = imageUrl.match(urlPattern);
+    
+    if (!match) {
+      throw new Error('Invalid Supabase storage URL format');
+    }
+    
+    const [, bucketName, filePath] = match;
+    console.log('  Bucket:', bucketName);
+    console.log('  Path:', filePath);
+    
+    // Download via Supabase client (bypasses CORS!)
+    const { data: blob, error } = await supabase.storage
+      .from(bucketName)
+      .download(filePath);
+    
+    if (error) {
+      console.error('  ❌ Supabase download error:', error);
+      throw error;
+    }
+    
+    if (!blob || blob.size === 0) {
+      throw new Error('Empty image blob');
+    }
+    
+    console.log('  ✅ Downloaded blob:', blob.size, 'bytes, type:', blob.type);
+    
+    // Convert blob to base64
+    const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
+      reader.onloadend = () => {
+        if (reader.result) {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to read blob'));
+        }
+      };
+      reader.onerror = () => reject(new Error('FileReader error'));
       reader.readAsDataURL(blob);
     });
     
-    // Get image dimensions
+    console.log('  ✅ Converted to base64');
+    
+    // Create image element to get dimensions
     const img = await new Promise((resolve, reject) => {
       const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = reject;
+      
+      image.onload = () => {
+        console.log('  ✅ Image loaded:', image.width, 'x', image.height);
+        resolve(image);
+      };
+      
+      image.onerror = (e) => {
+        console.error('  ❌ Image load error:', e);
+        reject(new Error('Failed to load image'));
+      };
+      
       image.src = base64;
     });
     
-    // Calculate scaled dimensions
-    let width = img.width * 0.264583; // px to mm
+    // Calculate scaled dimensions (px to mm: 1px = 0.264583mm)
+    let width = img.width * 0.264583;
     let height = img.height * 0.264583;
     
-    // Scale to fit
+    // Scale to fit maxWidth
     if (width > maxWidth) {
       height = (maxWidth / width) * height;
       width = maxWidth;
     }
     
+    // Scale to fit maxHeight
     if (height > maxHeight) {
       width = (maxHeight / height) * width;
       height = maxHeight;
     }
     
-    // Add to PDF
-    pdf.addImage(base64, 'JPEG', x, y, width, height);
+    console.log('  ✅ Scaled dimensions:', Math.round(width), 'x', Math.round(height), 'mm');
     
+    // Determine format from blob type
+    let format = 'JPEG';
+    if (blob.type.includes('png')) format = 'PNG';
+    else if (blob.type.includes('webp')) format = 'WEBP';
+    
+    // Add to PDF
+    pdf.addImage(base64, format, x, y, width, height);
+    
+    console.log('✅ Image embedded successfully');
     return height;
     
   } catch (error) {
     console.error('❌ Failed to embed image:', error);
+    console.error('   URL:', imageUrl);
+    console.error('   Full error:', error);
     
-    // Draw placeholder
-    pdf.setDrawColor(200, 200, 200);
-    pdf.rect(x, y, maxWidth, maxHeight);
+    // Draw error placeholder
+    pdf.setDrawColor(220, 53, 69);
+    pdf.setFillColor(255, 240, 245);
+    pdf.rect(x, y, maxWidth, maxHeight, 'FD');
+    
     pdf.setFontSize(8);
+    pdf.setTextColor(220, 53, 69);
+    pdf.text('Image not available', x + maxWidth / 2, y + maxHeight / 2 - 3, { align: 'center' });
+    
+    pdf.setFontSize(6);
     pdf.setTextColor(150, 150, 150);
-    pdf.text('Image not available', x + maxWidth / 2, y + maxHeight / 2, { align: 'center' });
+    const errorMsg = error.message.substring(0, 40);
+    pdf.text(errorMsg, x + maxWidth / 2, y + maxHeight / 2 + 2, { align: 'center' });
+    
+    pdf.setTextColor(0, 0, 0);
     
     return maxHeight;
   }
 }
+
+/**
+ * USAGE NOTE:
+ * 
+ * This version REQUIRES the supabase client to be imported.
+ * Add this import at the top of pdfHelpers.js:
+ * 
+ * import { supabase } from '../supabase/client';
+ * 
+ * PROS:
+ * ✅ Completely bypasses CORS
+ * ✅ Works with public AND private buckets
+ * ✅ More reliable
+ * 
+ * CONS:
+ * ❌ Slightly slower (extra API call)
+ * ❌ Requires authenticated supabase client
+ */
 
 /**
  * Embed signature in PDF
@@ -278,31 +369,80 @@ export async function embedImage(pdf, imageUrl, x, y, maxWidth, maxHeight) {
  */
 export async function embedSignature(pdf, signatureUrl, x, y, width, height) {
   try {
-    // Fetch signature
-    const response = await fetch(signatureUrl);
+    console.log('🖊️ Embedding signature:', signatureUrl);
+    
+    // Validate URL
+    if (!signatureUrl || !signatureUrl.startsWith('http')) {
+      throw new Error('Invalid signature URL');
+    }
+    
+    // Fetch signature with proper CORS settings
+    const response = await fetch(signatureUrl, {
+      mode: 'cors',
+      credentials: 'omit',
+      headers: {
+        'Accept': 'image/*'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
     const blob = await response.blob();
     
+    if (!blob || blob.size === 0) {
+      throw new Error('Empty signature blob');
+    }
+    
+    console.log('  ✅ Fetched blob:', blob.size, 'bytes, type:', blob.type);
+    
     // Convert to base64
-    const base64 = await new Promise((resolve) => {
+    const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
+      reader.onloadend = () => {
+        if (reader.result) {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to read blob'));
+        }
+      };
+      reader.onerror = () => reject(new Error('FileReader error'));
       reader.readAsDataURL(blob);
     });
     
+    console.log('  ✅ Converted to base64');
+    
+    // Determine format
+    const format = blob.type.includes('png') ? 'PNG' : 'JPEG';
+    
     // Add to PDF
-    pdf.addImage(base64, 'PNG', x, y, width, height);
+    pdf.addImage(base64, format, x, y, width, height);
+    
+    console.log('✅ Signature embedded successfully');
     
   } catch (error) {
-    console.error('❌ Failed to embed signature:', error);
+    console.error('❌ Failed to embed signature:', error.message);
+    console.error('   URL:', signatureUrl);
     
-    // Draw placeholder
-    pdf.setDrawColor(200, 200, 200);
-    pdf.rect(x, y, width, height);
-    pdf.setFontSize(8);
+    // Draw error placeholder
+    pdf.setDrawColor(220, 53, 69);
+    pdf.setFillColor(255, 240, 245);
+    pdf.rect(x, y, width, height, 'FD');
+    
+    pdf.setFontSize(7);
+    pdf.setTextColor(220, 53, 69);
+    pdf.text('Signature failed', x + width / 2, y + height / 2 - 2, { align: 'center' });
+    
+    pdf.setFontSize(6);
     pdf.setTextColor(150, 150, 150);
-    pdf.text('Signature not available', x + width / 2, y + height / 2, { align: 'center' });
+    const errorMsg = error.message.substring(0, 20);
+    pdf.text(errorMsg, x + width / 2, y + height / 2 + 2, { align: 'center' });
+    
+    pdf.setTextColor(0, 0, 0);
   }
 }
+
 
 /**
  * Check if page break is needed

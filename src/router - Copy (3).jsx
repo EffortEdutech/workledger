@@ -8,10 +8,11 @@
  * @created January 29, 2026
  * @updated February 6, 2026 - Session 19: Report routes reorganized
  * @updated February 7, 2026 - Session 20: Template management routes (replaced demo)
- * @updated February 12, 2026 - Session 6: Layout management routes added
- *   - /reports/layouts → LayoutList (browse layouts)
- *   - /reports/layouts/new → LayoutEditor (create mode)
- *   - /reports/layouts/:id → LayoutEditor (edit mode)
+ *   - /templates → TemplateListPage (production management)
+ *   - /templates/new → TemplateBuilder (create mode)
+ *   - /templates/:id → TemplateDetail (view + preview + test)
+ *   - /templates/:id/edit → TemplateBuilder (edit mode)
+ *   - /demo/templates → redirect to /templates
  */
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
@@ -57,10 +58,6 @@ import WorkEntryDetail from './pages/workEntries/WorkEntryDetail';
 // Report Pages (Session 18 + 19)
 import ReportHistory from './pages/reports/ReportHistory';
 import GenerateReport from './pages/reports/GenerateReport';
-
-// Layout Management Pages (Session 6 - NEW!)
-import LayoutList from './pages/reports/layouts/LayoutList';
-import LayoutEditor from './pages/reports/layouts/LayoutEditor';
 
 // Placeholder Components (will be replaced in future sessions)
 const PlaceholderPage = ({ title }) => (
@@ -295,35 +292,6 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-
-// Layout Routes (Session 8)
-  {
-    path: '/reports/layouts',
-    element: (
-      <ProtectedRoute>
-        <LayoutList />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/reports/layouts/new',
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/reports/layouts/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
-      </ProtectedRoute>
-    ),
-  },
-
-
-
   
   // ============================================
   // REPORT ROUTES (Session 19 - Reorganized)
@@ -345,40 +313,6 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <GenerateReport />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // ============================================
-  // LAYOUT MANAGEMENT ROUTES (Session 6 - NEW!)
-  // ============================================
-  
-  // /reports/layouts → LayoutList (Browse layouts)
-  {
-    path: ROUTES.REPORT_LAYOUTS,
-    element: (
-      <ProtectedRoute>
-        <LayoutList />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // /reports/layouts/new → LayoutEditor (Create new layout)
-  {
-    path: ROUTES.REPORT_LAYOUT_NEW,
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // /reports/layouts/:id → LayoutEditor (Edit existing layout)
-  {
-    path: ROUTES.REPORT_LAYOUT_DETAIL,
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
       </ProtectedRoute>
     ),
   },

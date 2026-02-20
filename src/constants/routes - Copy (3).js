@@ -8,7 +8,6 @@
  * @created January 29, 2026
  * @updated February 6, 2026 - Session 19: Added REPORT_GENERATE, REPORT_HISTORY
  * @updated February 7, 2026 - Session 20: Fixed TEMPLATES from /demo/templates to /templates
- * @updated February 12, 2026 - Session 6: Added REPORT_LAYOUTS routes
  */
 
 /**
@@ -62,15 +61,10 @@ export const PROTECTED_ROUTES = {
   // Reports (Session 19 - Updated)
   REPORTS: '/reports',                   // ReportHistory landing page
   REPORT_GENERATE: '/reports/generate',  // GenerateReport page (custom reports)
-  REPORT_HISTORY: '/reports',            // Alias – same as REPORTS
+  REPORT_HISTORY: '/reports',            // Alias — same as REPORTS
   REPORT_MONTHLY: '/reports/monthly',    // Future: dedicated monthly page
   REPORT_SLA: '/reports/sla',
   REPORT_CUSTOM: '/reports/custom',
-  
-  // Report Layouts (Session 6 - NEW!)
-  REPORT_LAYOUTS: '/reports/layouts',           // Layout list page
-  REPORT_LAYOUT_NEW: '/reports/layouts/new',    // Create new layout
-  REPORT_LAYOUT_DETAIL: '/reports/layouts/:id', // View/edit layout
   
   // User Profile
   PROFILE: '/profile',
@@ -105,14 +99,13 @@ export const ROUTE_GROUPS = {
   MAIN: [
     { path: PROTECTED_ROUTES.DASHBOARD, label: 'Dashboard', icon: '🏠' },
     { path: PROTECTED_ROUTES.WORK_ENTRIES, label: 'Work Entries', icon: '📋' },
-    { path: PROTECTED_ROUTES.PROJECTS, label: 'Projects', icon: '🗂️' },
+    { path: PROTECTED_ROUTES.PROJECTS, label: 'Projects', icon: '🏗️' },
     { path: PROTECTED_ROUTES.CONTRACTS, label: 'Contracts', icon: '📄' },
     { path: PROTECTED_ROUTES.REPORTS, label: 'Reports', icon: '📊' }
   ],
   ADMIN: [
     { path: PROTECTED_ROUTES.ORGANIZATIONS, label: 'Organizations', icon: '🏢' },
     { path: PROTECTED_ROUTES.TEMPLATES, label: 'Templates', icon: '📝' },
-    { path: PROTECTED_ROUTES.REPORT_LAYOUTS, label: 'Report Layouts', icon: '🎨', badge: 'New' }, // NEW!
     { path: PROTECTED_ROUTES.ADMIN_USERS, label: 'Users', icon: '👥' }
   ],
   USER: [
@@ -162,9 +155,7 @@ export const getBreadcrumbs = (path) => {
   let currentPath = '';
   segments.forEach((segment, index) => {
     currentPath += `/${segment}`;
-    // Skip UUID segments in breadcrumbs
     if (/^[a-f0-9-]{36}$/i.test(segment)) return;
-    
     const label = segment
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))

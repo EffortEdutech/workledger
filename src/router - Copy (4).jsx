@@ -295,35 +295,6 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-
-// Layout Routes (Session 8)
-  {
-    path: '/reports/layouts',
-    element: (
-      <ProtectedRoute>
-        <LayoutList />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/reports/layouts/new',
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/reports/layouts/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
-      </ProtectedRoute>
-    ),
-  },
-
-
-
   
   // ============================================
   // REPORT ROUTES (Session 19 - Reorganized)

@@ -1,13 +1,18 @@
 /**
- * WorkLedger - Report Service (CORRECTED - Proper Joins)
+ * WorkLedger - Report Service (Refactored)
  * 
- * Fixed to use correct database schema:
- * - contracts table does NOT have client_name
- * - client_name is in projects table
- * - Must join contracts -> projects to get client_name
+ * Orchestrates report generation using Render Engine architecture.
+ * Supports both new layout-driven and legacy template-driven generation.
+ * 
+ * Flow:
+ * 1. Fetch work entries with relations
+ * 2. Fetch report layout (if layoutId provided)
+ * 3. Generate Render Trees using RenderEngineCore
+ * 4. Route to HTMLAdapter or PDFAdapter
+ * 5. Return result
  * 
  * @module services/api/reportService
- * @updated February 12, 2026 - Schema-correct version
+ * @updated February 12, 2026 - Session 2 - Render Engine integration
  */
 
 import { supabase } from '../supabase/client';
@@ -16,9 +21,21 @@ import { htmlAdapter } from '../render/adapters/htmlAdapter';
 import { pdfAdapter } from '../render/adapters/pdfAdapter';
 import { layoutRegistryService } from '../layoutRegistryService';
 
+// Legacy PDF service (fallback for backward compatibility)
+// import { pdfService as legacyPDFService } from '../pdf/pdfService';
+
 class ReportService {
   /**
    * Generate report with layout selection
+   * 
+   * @param {Array<string>} entryIds - Work entry IDs
+   * @param {Object} options - Generation options
+   * @param {string} options.layoutId - Optional layout ID (new architecture)
+   * @param {string} options.outputFormat - 'pdf' | 'html' | 'preview'
+   * @param {string} options.orientation - 'portrait' | 'landscape'
+   * @param {string} options.pageSize - 'a4' | 'letter'
+   * @param {Object} options.entrySelections - Per-entry field selections
+   * @returns {Promise<Object>} { success, blob?, html?, filename?, format }
    */
   async generateReport(entryIds, options = {}) {
     try {
@@ -27,19 +44,24 @@ class ReportService {
       console.log('  Layout ID:', options.layoutId);
       console.log('  Output:', options.outputFormat || 'pdf');
       
+      // Validate inputs
       if (!entryIds || entryIds.length === 0) {
         throw new Error('No work entries provided');
       }
       
+      // Fetch work entries with all relations
       const entries = await this.fetchWorkEntries(entryIds);
       
       if (!entries || entries.length === 0) {
         throw new Error('No work entries found');
       }
       
+      // Determine which generation path to use
       if (options.layoutId) {
+        // NEW: Layout-driven generation using Render Engine
         return await this.generateWithRenderEngine(entries, options);
       } else {
+        // LEGACY: Template-driven generation (backward compatibility)
         console.log('⚠️  Using legacy generation (no layoutId provided)');
         return await this.generateLegacy(entries, options);
       }
@@ -54,30 +76,38 @@ class ReportService {
   }
   
   /**
-   * Generate using Render Engine
+   * NEW: Generate report using Render Engine architecture
    */
   async generateWithRenderEngine(entries, options) {
     try {
       console.log('🚀 Using Render Engine architecture');
       
+      // 1. Fetch report layout
       const layout = await layoutRegistryService.getLayout(options.layoutId);
+      
       console.log('  Layout:', layout.layout_name);
       
+      // 2. Generate Render Trees for each entry
       const renderTrees = [];
+      
       for (const entry of entries) {
         const renderTree = renderEngineCore.generateRenderTree(
           layout.layout_schema,
           entry,
           layout.binding_rules
         );
+        
         renderTrees.push(renderTree);
       }
       
       console.log(`✅ Generated ${renderTrees.length} Render Trees`);
       
+      // 3. Select output format
       if (options.outputFormat === 'html' || options.outputFormat === 'preview') {
+        // HTML for preview
         return await this.generateHTML(renderTrees, entries, layout);
       } else {
+        // PDF for final output (default)
         return await this.generatePDF(renderTrees, entries, layout, options);
       }
       
@@ -88,20 +118,24 @@ class ReportService {
   }
   
   /**
-   * Generate HTML
+   * Generate HTML for preview
    */
   async generateHTML(renderTrees, entries, layout) {
     console.log('🌐 Generating HTML...');
     
     const htmlParts = renderTrees.map((tree, index) => {
       const html = htmlAdapter.render(tree);
+      
+      // Add page break between entries (except last)
       if (index < renderTrees.length - 1) {
         return html + '<div style="page-break-after: always; height: 40px;"></div>';
       }
+      
       return html;
     });
     
     const fullHTML = htmlParts.join('\n');
+    
     console.log('✅ HTML generated');
     
     return {
@@ -119,11 +153,13 @@ class ReportService {
   async generatePDF(renderTrees, entries, layout, options) {
     console.log('📄 Generating PDF...');
     
+    // Create first page
     let pdf = await pdfAdapter.render(
       renderTrees[0],
       entries[0].attachments || []
     );
     
+    // Add subsequent entries as new pages
     for (let i = 1; i < renderTrees.length; i++) {
       pdf.addPage();
       pdf = await pdfAdapter.render(
@@ -133,8 +169,10 @@ class ReportService {
       );
     }
     
+    // Add page numbers
     this.addPageNumbers(pdf);
     
+    // Generate blob
     const blob = pdf.output('blob');
     const filename = this.generateFilename(entries[0].template, entries, layout);
     
@@ -152,15 +190,36 @@ class ReportService {
   }
   
   /**
-   * Legacy generation
+   * LEGACY: Generate using old pdfService (fallback)
    */
   async generateLegacy(entries, options) {
     console.log('⚠️  Using legacy PDF generation');
+    
+    // For now, throw error to force use of layoutId
+    // In production, this would call the old pdfService
     throw new Error('Legacy generation not available. Please select a report layout.');
+    
+    // Uncomment when ready to support legacy:
+    /*
+    const legacyOptions = {
+      orientation: options.orientation || 'portrait',
+      pageSize: options.pageSize || 'a4',
+      output: options.outputFormat || 'download',
+      entrySelections: options.entrySelections
+    };
+    
+    return await legacyPDFService.generatePDF(
+      {
+        entries,
+        metadata: this.extractMetadata(entries)
+      },
+      legacyOptions
+    );
+    */
   }
   
   /**
-   * Fetch work entries with relations
+   * Fetch work entries with all relations
    */
   async fetchWorkEntries(entryIds) {
     console.log('📥 Fetching work entries...');
@@ -173,14 +232,10 @@ class ReportService {
           id,
           contract_number,
           contract_name,
+          client_name,
+          site_location,
           contract_category,
-          contract_type,
-          project:projects!contracts_project_id_fkey(
-            id,
-            project_name,
-            client_name,
-            site_address
-          )
+          contract_type
         ),
         template:templates!work_entries_template_id_fkey(
           id,
@@ -189,14 +244,16 @@ class ReportService {
           contract_category,
           fields_schema
         ),
-        attachments:attachments!attachments_work_entry_id_fkey(
+        attachments!work_entries_attachments_work_entry_id_fkey(
           id,
           file_name,
           file_type,
           storage_url,
           storage_path,
+          caption,
           field_id,
-          created_at
+          metadata,
+          uploaded_at
         )
       `)
       .in('id', entryIds)
@@ -204,12 +261,14 @@ class ReportService {
     
     if (error) throw error;
     
+    // Get creator profiles separately (Supabase auth.users limitation)
     const userIds = [...new Set(data.map(e => e.created_by))];
     const { data: profiles } = await supabase
       .from('user_profiles')
       .select('id, full_name')
       .in('id', userIds);
     
+    // Map profiles to entries
     const profileMap = {};
     (profiles || []).forEach(p => {
       profileMap[p.id] = p;
@@ -228,163 +287,20 @@ class ReportService {
   }
   
   /**
-   * Get report history - CORRECTED
-   * 
-   * Fixed to properly join contracts -> projects to get client_name
+   * Extract metadata for headers/footers (legacy support)
    */
-  async getReportHistory(filters = {}) {
-    try {
-      console.log('📋 Fetching report history...');
-      
-      // Simple query first
-      let query = supabase
-        .from('generated_reports')
-        .select('*')
-        .order('generated_at', { ascending: false })
-        .limit(filters.limit || 50);
-      
-      if (filters.contractId) {
-        query = query.eq('contract_id', filters.contractId);
-      }
-      
-      if (filters.offset) {
-        query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        // Get unique contract IDs
-        const contractIds = [...new Set(data.map(r => r.contract_id).filter(Boolean))];
-        
-        // CORRECTED: Fetch contracts WITH projects join to get client_name
-        let contracts = [];
-        if (contractIds.length > 0) {
-          const { data: contractData, error: contractError } = await supabase
-            .from('contracts')
-            .select(`
-              id,
-              contract_number,
-              contract_name,
-              contract_category,
-              project:projects!contracts_project_id_fkey(
-                client_name
-              )
-            `)
-            .in('id', contractIds);
-          
-          if (contractError) {
-            console.error('⚠️ Failed to fetch contracts:', contractError);
-            contracts = [];
-          } else {
-            contracts = contractData || [];
-          }
-        }
-        
-        // Get unique user IDs
-        const userIds = [...new Set(data.map(r => r.generated_by).filter(Boolean))];
-        
-        // Fetch user profiles
-        let profiles = [];
-        if (userIds.length > 0) {
-          const { data: profileData } = await supabase
-            .from('user_profiles')
-            .select('id, full_name')
-            .in('id', userIds);
-          
-          profiles = profileData || [];
-        }
-        
-        // Map data
-        const contractMap = {};
-        contracts.forEach(c => {
-          contractMap[c.id] = {
-            id: c.id,
-            contract_number: c.contract_number,
-            contract_name: c.contract_name,
-            contract_category: c.contract_category,
-            client_name: c.project?.client_name || null
-          };
-        });
-        
-        const profileMap = {};
-        profiles.forEach(p => {
-          profileMap[p.id] = p;
-        });
-        
-        // Enrich reports
-        const enrichedData = data.map(report => ({
-          ...report,
-          contract: contractMap[report.contract_id] || null,
-          generated_by_profile: profileMap[report.generated_by] || null
-        }));
-        
-        console.log(`✅ Fetched ${enrichedData.length} reports`);
-        return enrichedData;
-      }
-      
-      console.log('✅ No reports found');
-      return [];
-      
-    } catch (error) {
-      console.error('❌ Failed to fetch report history:', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Get report statistics
-   */
-  async getReportStats(filters = {}) {
-    try {
-      console.log('📊 Fetching report stats...');
-      
-      let query = supabase
-        .from('generated_reports')
-        .select('id, contract_id, generated_at, report_type');
-      
-      if (filters.contractId) {
-        query = query.eq('contract_id', filters.contractId);
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
-      const stats = {
-        total: data.length,
-        thisMonth: 0,
-        thisWeek: 0,
-        today: 0,
-        byType: {}
-      };
-      
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay());
-      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-      
-      data.forEach(report => {
-        const generatedAt = new Date(report.generated_at);
-        
-        if (generatedAt >= startOfMonth) stats.thisMonth++;
-        if (generatedAt >= startOfWeek) stats.thisWeek++;
-        if (generatedAt >= startOfDay) stats.today++;
-        
-        const type = report.report_type || 'Unknown';
-        stats.byType[type] = (stats.byType[type] || 0) + 1;
-      });
-      
-      console.log('✅ Stats calculated:', stats);
-      return stats;
-      
-    } catch (error) {
-      console.error('❌ Failed to fetch report stats:', error);
-      throw error;
-    }
+  extractMetadata(entries) {
+    const firstEntry = entries[0];
+    
+    return {
+      generatedAt: new Date().toISOString(),
+      totalEntries: entries.length,
+      dateRange: {
+        from: entries[0].entry_date,
+        to: entries[entries.length - 1].entry_date
+      },
+      contract: firstEntry.contract
+    };
   }
   
   /**
@@ -400,7 +316,7 @@ class ReportService {
   }
   
   /**
-   * Add page numbers
+   * Add page numbers to PDF
    */
   addPageNumbers(pdf) {
     const pageCount = pdf.internal.getNumberOfPages();
@@ -421,7 +337,7 @@ class ReportService {
   }
   
   /**
-   * Download PDF
+   * Download PDF blob
    */
   downloadPDF(blob, filename) {
     const url = URL.createObjectURL(blob);
@@ -437,7 +353,7 @@ class ReportService {
   }
   
   /**
-   * Open in new tab
+   * Open PDF in new tab
    */
   openPDFInNewTab(blob) {
     const url = URL.createObjectURL(blob);
@@ -447,7 +363,7 @@ class ReportService {
   }
   
   /**
-   * Preview in iframe
+   * Preview PDF in iframe (alternative to HTML preview)
    */
   previewPDFInIframe(blob, iframeElement) {
     const url = URL.createObjectURL(blob);
@@ -457,5 +373,5 @@ class ReportService {
   }
 }
 
-// Export singleton
+// Export singleton instance
 export const reportService = new ReportService();

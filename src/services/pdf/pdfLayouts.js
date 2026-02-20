@@ -384,112 +384,139 @@ export function renderMetricsCards(pdf, section, data, layout, yPos) {
 }
 
 /**
- * Render signature box
+ * Render signature box(es)
  * 
  * @param {Object} pdf - jsPDF instance
- * @param {Object} section - Section definition
+ * @param {Object} section - Section definition with fields
  * @param {Object} data - Work entry data
  * @param {number} yPos - Current Y position
- * @param {Object|null} signatureAttachment - Signature attachment (may include .caption, .capturedAt)
+ * @param {Array|Object} signatures - Signature data (array or single object)
  * @returns {Promise<number>} New Y position
  */
-export async function renderSignatureBox(pdf, section, data, yPos, signatureAttachment = null) {
+export async function renderSignatureBox(pdf, section, data, yPos, signatures = null) {
   const marginLeft = 20;
   
-  // Section title (e.g., "Worker Sign-Off", "Supervisor Approval")
+  // Convert signatures to array if single object
+  const sigArray = Array.isArray(signatures) ? signatures : (signatures ? [signatures] : []);
+  
+  // Section title (e.g., "Signatures", "Sign-Off")
   pdf.setFontSize(11);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(0, 0, 0);
-  pdf.text(section.section_name, marginLeft, yPos);
+  pdf.text(section.section_name || 'Signatures', marginLeft, yPos);
   yPos += 6;
   
   // Separator line
   drawHorizontalLine(pdf, yPos, marginLeft);
   yPos += 5;
   
-  yPos = checkPageBreak(pdf, yPos, 45);
-  
-  const sigWidth = 60;
-  const sigHeight = 30;
-  
-  // Signature box
-  pdf.setDrawColor(180, 180, 180);
-  pdf.setLineWidth(0.5);
-  pdf.rect(marginLeft, yPos, sigWidth, sigHeight);
-  
-  // Embed signature if available
-  if (signatureAttachment?.storage_url) {
-    await embedSignature(
-      pdf,
-      signatureAttachment.storage_url,
-      marginLeft,
-      yPos,
-      sigWidth,
-      sigHeight
-    );
-  } else {
-    // Placeholder
-    pdf.setFontSize(8);
-    pdf.setTextColor(180, 180, 180);
-    pdf.text(
-      'Not Signed',
-      marginLeft + sigWidth / 2,
-      yPos + sigHeight / 2,
-      { align: 'center' }
-    );
-    pdf.setTextColor(0, 0, 0);
-  }
-  
-  yPos += sigHeight + 3;
-  
-  // Signed date/time (from enriched attachment data)
-  if (signatureAttachment?.capturedAt) {
-    pdf.setFontSize(7);
+  // If no signatures, show "Not Signed" message
+  if (sigArray.length === 0) {
+    yPos = checkPageBreak(pdf, yPos, 20);
+    pdf.setFontSize(9);
     pdf.setFont('helvetica', 'italic');
-    pdf.setTextColor(100, 100, 100);
-    pdf.text(`Signed: ${signatureAttachment.capturedAt}`, marginLeft, yPos);
-    yPos += 4;
+    pdf.setTextColor(150, 150, 150);
+    pdf.text('Not signed yet', marginLeft, yPos);
     pdf.setTextColor(0, 0, 0);
-  }
-
-  // Signer name from enriched data (shown if present)
-  if (signatureAttachment?.signerName) {
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(0, 0, 0);
-    pdf.text(`Signed by: ${signatureAttachment.signerName}`, marginLeft, yPos);
-    yPos += 5;
+    yPos += 10;
+    return yPos;
   }
   
-  // Name, date, and other fields below the signature
-  section.fields.forEach(field => {
-    if (field.field_type === 'signature') return;
+  // Render each signature
+  for (let i = 0; i < sigArray.length; i++) {
+    const sig = sigArray[i];
     
-    const fieldPath = `${section.section_id}.${field.field_id}`;
-    const value = data[fieldPath];
-    const formattedValue = formatFieldValue(field, value);
+    yPos = checkPageBreak(pdf, yPos, 50);
     
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setTextColor(80, 80, 80);
-    pdf.text(getFieldLabel(field) + ':', marginLeft, yPos);
+    // Signature label (e.g., "Worker", "Supervisor")
+    if (sig.name || sig.role) {
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(80, 80, 80);
+      pdf.text(sig.name || sig.role || `Signature ${i + 1}`, marginLeft, yPos);
+      yPos += 5;
+    }
     
-    pdf.setFont('helvetica', 'normal');
+    const sigWidth = 60;
+    const sigHeight = 30;
+    
+    // Signature box border
+    pdf.setDrawColor(180, 180, 180);
+    pdf.setLineWidth(0.5);
+    pdf.rect(marginLeft, yPos, sigWidth, sigHeight);
+    
+    // FIXED: Use sig.url instead of sig.storage_url
+    const signatureUrl = sig.url || sig.storage_url;
+    
+    // Embed signature if available
+    if (signatureUrl) {
+      console.log('🖊️ Embedding signature:', signatureUrl);
+      try {
+        await embedSignature(
+          pdf,
+          signatureUrl,
+          marginLeft,
+          yPos,
+          sigWidth,
+          sigHeight
+        );
+        console.log('✅ Signature embedded');
+      } catch (error) {
+        console.error('❌ Failed to embed signature:', error);
+        // Show error placeholder
+        pdf.setFontSize(7);
+        pdf.setTextColor(220, 53, 69);
+        pdf.text(
+          'Failed to load',
+          marginLeft + sigWidth / 2,
+          yPos + sigHeight / 2,
+          { align: 'center' }
+        );
+      }
+    } else {
+      // Placeholder for unsigned
+      pdf.setFontSize(8);
+      pdf.setTextColor(180, 180, 180);
+      pdf.text(
+        'Not signed',
+        marginLeft + sigWidth / 2,
+        yPos + sigHeight / 2,
+        { align: 'center' }
+      );
+    }
+    
     pdf.setTextColor(0, 0, 0);
-    pdf.text(formattedValue, marginLeft + 25, yPos);
+    yPos += sigHeight + 3;
     
-    yPos += 5;
-  });
+    // Signature date/timestamp
+    if (sig.date) {
+      pdf.setFontSize(7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      const dateStr = new Date(sig.date).toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      pdf.text(`Signed: ${dateStr}`, marginLeft, yPos);
+      yPos += 5;
+    }
+    
+    pdf.setTextColor(0, 0, 0);
+    yPos += 5; // Gap between signatures
+  }
   
-  return yPos + 5;
+  return yPos + 3;
 }
 
 /**
  * Render photo grid
  * 
  * @param {Object} pdf - jsPDF instance
- * @param {Array} photos - Array of photo attachments (may include .caption, .sectionTitle)
- * @param {Object} layout - Layout configuration (may include .title for section heading)
+ * @param {Array} photos - Array of photo attachments (from renderEngine)
+ * @param {Object} layout - Layout configuration
  * @param {number} yPos - Current Y position
  * @returns {Promise<number>} New Y position
  */
@@ -501,38 +528,15 @@ export async function renderPhotoGrid(pdf, photos, layout, yPos) {
   const pageWidth = pdf.internal.pageSize.width;
   const contentWidth = pageWidth - marginLeft - marginRight;
   
-  // Section title — use descriptive title from layout or first photo's sectionTitle
-  const title = layout?.title || photos[0]?.sectionTitle || 'Photo Documentation';
-  pdf.setFontSize(11);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setTextColor(0, 0, 0);
-  pdf.text(title, marginLeft, yPos);
-  yPos += 5;
-
-  // Location context line (WHERE) — from enriched photo data
-  const location = photos[0]?.location || '';
-  if (location) {
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100, 100, 100);
-    const locText = `Location: ${location}`;
-    const locLines = pdf.splitTextToSize(locText, contentWidth);
-    pdf.text(locLines[0], marginLeft, yPos);
-    yPos += 4;
+  // Section title
+  const sectionTitle = layout?.title || '';
+  if (sectionTitle) {
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(sectionTitle, marginLeft, yPos);
+    yPos += 6;
   }
-
-  // Entry date context (WHEN — work date)
-  const entryDate = photos[0]?.entryDate || '';
-  if (entryDate) {
-    pdf.setFontSize(8);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100, 100, 100);
-    pdf.text(`Work Date: ${entryDate}`, marginLeft, yPos);
-    yPos += 4;
-  }
-
-  pdf.setTextColor(0, 0, 0);
-  yPos += 2;
   
   // Photo dimensions
   const columns = layout?.columns || 2;
@@ -546,24 +550,30 @@ export async function renderPhotoGrid(pdf, photos, layout, yPos) {
   for (const photo of photos) {
     yPos = checkPageBreak(pdf, yPos, photoHeight + 14);
     
+    // FIXED: Use photo.url instead of photo.storage_url
+    const imageUrl = photo.url || photo.storage_url;  // ← FIX!
+    
+    if (!imageUrl) {
+      console.warn('⚠️ Photo missing URL, skipping:', photo);
+      continue;
+    }
+    
     // Embed photo
     await embedImage(
       pdf,
-      photo.storage_url,
+      imageUrl,  // ← Now uses correct property!
       xPos,
       yPos,
       photoWidth,
       photoHeight
     );
     
-    // Descriptive caption (from enriched data, NOT raw filename)
-    const caption = photo.caption || photo.sectionTitle || '';
+    // Caption
+    const caption = photo.caption || '';
     if (caption) {
       pdf.setFontSize(7);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(60, 60, 60);
-      
-      // Truncate caption if too long for column width
       const truncated = pdf.splitTextToSize(caption, photoWidth);
       pdf.text(
         truncated[0],
@@ -573,18 +583,27 @@ export async function renderPhotoGrid(pdf, photos, layout, yPos) {
       );
     }
     
-    // Timestamp line
-    const timestamp = photo.capturedAt || '';
-    if (timestamp) {
-      pdf.setFontSize(6);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(120, 120, 120);
-      pdf.text(
-        timestamp,
-        xPos + photoWidth / 2,
-        yPos + photoHeight + (caption ? 8 : 4),
-        { align: 'center' }
-      );
+    // Timestamp
+    if (layout?.show_timestamps !== false) {
+      const timestamp = photo.timestamp || '';
+      if (timestamp) {
+        pdf.setFontSize(6);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(120, 120, 120);
+        const formattedTime = new Date(timestamp).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        pdf.text(
+          formattedTime,
+          xPos + photoWidth / 2,
+          yPos + photoHeight + (caption ? 8 : 4),
+          { align: 'center' }
+        );
+      }
     }
     
     pdf.setTextColor(0, 0, 0);
@@ -607,3 +626,9 @@ export async function renderPhotoGrid(pdf, photos, layout, yPos) {
   
   return yPos + 5;
 }
+
+
+
+
+
+

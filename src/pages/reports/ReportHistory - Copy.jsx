@@ -174,35 +174,24 @@ export default function ReportHistory() {
   const loadReports = async (contractId) => {
     try {
       setLoadingReports(true);
-      
-      // Build filters object
-      const filters = { contractId };
+      const filters = {};
       if (showFilter !== 'all') filters.status = showFilter;
       if (typeFilter !== 'all') filters.reportType = typeFilter;
 
-      // reportService.getReportHistory returns array directly, not {success, data}
-      const reports = await reportService.getReportHistory(filters);
-      setReports(reports || []);
-      
-      console.log('✅ Loaded reports:', reports?.length || 0);
+      const result = await reportService.getReportHistory(contractId, filters);
+      if (result.success) {
+        setReports(result.data);
+      }
     } catch (error) {
       console.error('❌ Failed to load reports:', error);
-      setReports([]); // Clear on error
     } finally {
       setLoadingReports(false);
     }
   };
 
   const loadStats = async (contractId) => {
-    try {
-      // reportService.getReportStats expects filters object
-      const stats = await reportService.getReportStats({ contractId });
-      setStats(stats);
-      console.log('✅ Loaded stats:', stats);
-    } catch (error) {
-      console.error('❌ Failed to load stats:', error);
-      setStats({ totalReports: 0, totalEntries: 0, lastGenerated: null, byType: {} });
-    }
+    const s = await reportService.getReportStats(contractId);
+    setStats(s);
   };
 
   // Reload when filters change

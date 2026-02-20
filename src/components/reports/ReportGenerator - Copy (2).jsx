@@ -13,14 +13,12 @@
  *         ☐ Photos before:
  *         ☐ Worker signature
  *         ...
- *   2. Select Report Layout (NEW)
- *   3. Report Options (Orientation, Page Size, Output)
- *   4. Preview + Generate PDF buttons (NEW)
+ *   2. Report Options (Orientation, Page Size, Output)
+ *   3. Generate PDF button
  * 
  * @module components/reports/ReportGenerator
  * @created February 5, 2026 - Session 18
  * @updated February 6, 2026 - Per-entry granular field selection
- * @updated February 12, 2026 - Report System Upgrade - Layout Selection + Preview
  */
 
 import React, { useState, useEffect } from 'react';
@@ -46,7 +44,6 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
 
   // NEW: Layout selection and preview state
   const [selectedLayoutId, setSelectedLayoutId] = useState(null);
-  const [showPreview, setShowPreview] = useState(false);
   
   /**
    * Per-entry selections map
@@ -73,6 +70,7 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
   
   const [pdfBlob, setPdfBlob] = useState(null);
   const [pdfFilename, setPdfFilename] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
 
   // ============================================
   // DERIVED STATE
@@ -99,8 +97,7 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
         .from('contracts')
         .select(`
           *,
-          project:projects(id, project_name, client_name),
-          template:templates(id, template_id, template_name, contract_category, default_layout_id)
+          project:projects(id, project_name, client_name)
         `)
         .eq('id', contractId)
         .single();
@@ -113,7 +110,7 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
         .from('work_entries')
         .select(`
           *,
-          template:templates(id, template_name, fields_schema, pdf_layout, default_layout_id)
+          template:templates(id, template_name, fields_schema, pdf_layout)
         `)
         .eq('contract_id', contractId)
         .in('status', ['draft', 'submitted', 'approved'])
@@ -202,22 +199,17 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
    */
   const toggleEntry = (entryId) => {
     setEntrySelections(prev => {
-      const current = prev[entryId];
-      if (current?.selected) {
-        // Deselecting: remove entry
-        const updated = { ...prev };
-        delete updated[entryId];
-        return updated;
+      if (prev[entryId]?.selected) {
+        // Uncheck — remove entry
+        const next = { ...prev };
+        delete next[entryId];
+        return next;
       } else {
-        // Selecting: auto-expand and select all fields
+        // Check — initialize with all fields selected
         const entry = workEntries.find(e => e.id === entryId);
-        const entryFields = getFieldsForEntry(entry);
-        
-        // Create fields map with all fields checked
-        const fieldsMap = {};
-        entryFields.forEach(f => {
-          fieldsMap[f.key] = true;
-        });
+        const fields = getFieldsForEntry(entry);
+        const fieldMap = {};
+        fields.forEach(f => { fieldMap[f.key] = true; });
         
         return {
           ...prev,
@@ -225,7 +217,7 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
             selected: true,
             expanded: true,
             includeLogo: true,
-            fields: fieldsMap
+            fields: fieldMap
           }
         };
       }
@@ -233,7 +225,33 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
   };
 
   /**
-   * Toggle expand/collapse for an entry's fields
+   * Select all entries with all fields
+   */
+  const selectAll = () => {
+    const selections = {};
+    workEntries.forEach(entry => {
+      const fields = getFieldsForEntry(entry);
+      const fieldMap = {};
+      fields.forEach(f => { fieldMap[f.key] = true; });
+      selections[entry.id] = {
+        selected: true,
+        expanded: false, // don't auto-expand all
+        includeLogo: true,
+        fields: fieldMap
+      };
+    });
+    setEntrySelections(selections);
+  };
+
+  /**
+   * Deselect all entries
+   */
+  const deselectAll = () => {
+    setEntrySelections({});
+  };
+
+  /**
+   * Toggle expand/collapse for an entry's details
    */
   const toggleExpand = (entryId) => {
     setEntrySelections(prev => ({
@@ -246,7 +264,7 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
   };
 
   /**
-   * Toggle logo inclusion for an entry
+   * Toggle Include Logo for an entry
    */
   const toggleLogo = (entryId) => {
     setEntrySelections(prev => ({
@@ -259,7 +277,7 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
   };
 
   /**
-   * Toggle a single field in an entry
+   * Toggle a single field for an entry
    */
   const toggleField = (entryId, fieldKey) => {
     setEntrySelections(prev => ({
@@ -279,18 +297,16 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
    */
   const selectAllFields = (entryId) => {
     const entry = workEntries.find(e => e.id === entryId);
-    const entryFields = getFieldsForEntry(entry);
-    
-    const fieldsMap = {};
-    entryFields.forEach(f => {
-      fieldsMap[f.key] = true;
-    });
+    const fields = getFieldsForEntry(entry);
+    const fieldMap = {};
+    fields.forEach(f => { fieldMap[f.key] = true; });
     
     setEntrySelections(prev => ({
       ...prev,
       [entryId]: {
         ...prev[entryId],
-        fields: fieldsMap
+        includeLogo: true,
+        fields: fieldMap
       }
     }));
   };
@@ -299,60 +315,23 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
    * Deselect all fields for an entry
    */
   const deselectAllFields = (entryId) => {
+    const entry = workEntries.find(e => e.id === entryId);
+    const fields = getFieldsForEntry(entry);
+    const fieldMap = {};
+    fields.forEach(f => { fieldMap[f.key] = false; });
+    
     setEntrySelections(prev => ({
       ...prev,
       [entryId]: {
         ...prev[entryId],
-        fields: {}
+        includeLogo: false,
+        fields: fieldMap
       }
     }));
   };
 
-  // ============================================
-  // FIELD DISPLAY HELPERS
-  // ============================================
-
   /**
-   * Format field value for display
-   */
-  const formatFieldDisplay = (value, type) => {
-    if (!value) return null;
-    
-    if (type === 'photo' || type === 'signature') {
-      return `📎 ${Array.isArray(value) ? value.length : 1} ${Array.isArray(value) && value.length !== 1 ? 'files' : 'file'}`;
-    }
-    
-    if (type === 'checkbox') {
-      return value ? '✓ Yes' : '✗ No';
-    }
-    
-    if (typeof value === 'object') {
-      return JSON.stringify(value);
-    }
-    
-    const str = String(value);
-    return str.length > 50 ? str.substring(0, 50) + '...' : str;
-  };
-
-  /**
-   * Get type indicator icon
-   */
-  const getFieldTypeIndicator = (type) => {
-    const indicators = {
-      photo: '📷',
-      signature: '✍️',
-      checkbox: '☑️',
-      number: '#️⃣'
-    };
-    return indicators[type] || null;
-  };
-
-  // ============================================
-  // REPORT GENERATION HANDLERS
-  // ============================================
-
-  /**
-   * Handle preview button click (NEW)
+   * Handle preview button click
    */
   const handlePreview = () => {
     if (selectedEntryIds.length === 0) {
@@ -366,19 +345,15 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
     }
     
     setShowPreview(true);
-  };
+  };  
 
-  /**
-   * Handle Generate PDF button
-   */
+  // ============================================
+  // PDF GENERATION
+  // ============================================
+
   const handleGenerate = async () => {
     if (selectedEntryIds.length === 0) {
       setError('Please select at least one entry');
-      return;
-    }
-    
-    if (!selectedLayoutId) {
-      setError('Please select a report layout');
       return;
     }
     
@@ -387,57 +362,59 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
       setError(null);
       setSuccess(null);
       
-      // Close preview if open
-      setShowPreview(false);
+      // Build options with per-entry field selections
+      const mergedOptions = {
+        ...pageOptions,
+        entrySelections // pass the full per-entry map
+      };
       
       console.log('📄 Generating PDF for', selectedEntryIds.length, 'entries');
-      console.log('📋 Layout:', selectedLayoutId);
-      console.log('📋 Options:', pageOptions);
+      console.log('📋 Per-entry selections:', entrySelections);
       
-      const result = await reportService.generateReport(selectedEntryIds, {
-        layoutId: selectedLayoutId,  // NEW: Pass layout ID
-        outputFormat: 'pdf',
-        orientation: pageOptions.orientation,
-        pageSize: pageOptions.pageSize,
-        entrySelections
-      });
+      const result = await reportService.generateReport(selectedEntryIds, mergedOptions);
       
       if (!result.success) {
-        throw new Error(result.error || 'PDF generation failed');
+        throw new Error(result.error);
       }
       
-      console.log('✅ PDF generated:', result.filename);
-      
-      // Handle output based on user preference
-      if (pageOptions.output === 'download') {
-        reportService.downloadPDF(result.blob, result.filename);
-        setSuccess(`PDF downloaded: ${result.filename}`);
-      } else if (pageOptions.output === 'newtab') {
-        reportService.openPDFInNewTab(result.blob);
-        setSuccess('PDF opened in new tab');
-      } else if (pageOptions.output === 'preview') {
-        setPdfBlob(result.blob);
-        setPdfFilename(result.filename);
-        setShowPreview(true);
-        setSuccess('PDF ready for preview');
-      }
-      
-      // Notify parent
+      console.log('✅ PDF generated successfully');
+
+      // Notify parent to save to report history
       if (onReportGenerated) {
-        onReportGenerated(result);
+
+      onReportGenerated(selectedEntryIds, mergedOptions);
+
+      }
+
+      setPdfBlob(result.blob);
+      setPdfFilename(result.filename);
+      
+      switch (pageOptions.output) {
+        case 'download':
+          reportService.downloadPDF(result.blob, result.filename);
+          setSuccess(`PDF downloaded: ${result.filename}`);
+          break;
+        case 'newtab':
+          reportService.openPDFInNewTab(result.blob);
+          setSuccess('PDF opened in new tab');
+          break;
+        case 'preview':
+          setShowPreview(true);
+          setSuccess('PDF ready for preview');
+          break;
+        default:
+          reportService.downloadPDF(result.blob, result.filename);
+          setSuccess(`PDF downloaded: ${result.filename}`);
       }
       
     } catch (err) {
-      console.error('❌ PDF generation failed:', err);
+      console.error('❌ Failed to generate PDF:', err);
       setError(err.message);
     } finally {
       setGenerating(false);
     }
   };
 
-  /**
-   * Handle download from preview modal
-   */
   const handleDownload = () => {
     if (pdfBlob && pdfFilename) {
       reportService.downloadPDF(pdfBlob, pdfFilename);
@@ -446,199 +423,208 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
   };
 
   // ============================================
+  // DISPLAY HELPERS
+  // ============================================
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB');
+  };
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      draft: 'bg-gray-100 text-gray-700',
+      submitted: 'bg-blue-100 text-blue-800',
+      approved: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800'
+    };
+    return styles[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  /**
+   * Format field value for display in the checkbox list
+   */
+  const formatFieldDisplay = (value, type) => {
+    if (value === null || value === undefined || value === '') return '';
+    if (type === 'photo' || type === 'signature' || type === 'file') return '';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (Array.isArray(value)) return value.join(', ');
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
+
+  /**
+   * Get field type icon/indicator
+   */
+  const getFieldTypeIndicator = (type) => {
+    switch (type) {
+      case 'photo': return '📷';
+      case 'signature': return '✍️';
+      case 'file': return '📎';
+      default: return null;
+    }
+  };
+
+  /**
+   * Count selected fields for an entry
+   */
+  const getSelectedFieldCount = (entryId) => {
+    const selection = entrySelections[entryId];
+    if (!selection?.fields) return 0;
+    const logoCount = selection.includeLogo ? 1 : 0;
+    const fieldCount = Object.values(selection.fields).filter(Boolean).length;
+    return logoCount + fieldCount;
+  };
+
+  /**
+   * Get total field count for an entry
+   */
+  const getTotalFieldCount = (entry) => {
+    const fields = getFieldsForEntry(entry);
+    return fields.length + 1; // +1 for logo
+  };
+
+  // ============================================
   // RENDER
   // ============================================
-  
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <LoadingSpinner />
-        <span className="ml-3 text-gray-600">Loading contract data...</span>
-      </div>
-    );
-  }
-  
-  if (!contract) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-800">Contract not found</p>
+      <div className="flex justify-center items-center py-12">
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
   
   return (
     <div className="space-y-6">
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-red-800">Error</p>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
-            </div>
-            <button
-              onClick={() => setError(null)}
-              className="text-red-600 hover:text-red-800"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-      
       {/* Success Message */}
       {success && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <div className="flex items-center">
+            <svg className="h-5 w-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-green-800">Success</p>
-              <p className="text-sm text-green-700 mt-1">{success}</p>
-            </div>
-            <button
-              onClick={() => setSuccess(null)}
-              className="text-green-600 hover:text-green-800"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <p className="text-sm text-green-900">{success}</p>
           </div>
         </div>
       )}
       
-      {/* Contract Info Header */}
-      <div className="bg-gradient-to-r from-primary-50 to-primary-100 border border-primary-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              {contract.contract_name}
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {contract.project?.client_name} • {contract.contract_number}
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="inline-flex items-center px-3 py-1 bg-primary-600 text-white text-sm font-medium rounded-full">
-              {contract.contract_category || 'Contract'}
-            </div>
-          </div>
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm text-red-900">{error}</p>
         </div>
-      </div>
+      )}
       
       {/* ============================================ */}
-      {/* SECTION 1: Work Entry Selection              */}
+      {/* SECTION 1: Select Work Entries               */}
       {/* ============================================ */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          Select Work Entries
-        </h3>
-        
-        {workEntries.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p className="font-medium">No work entries found</p>
-            <p className="text-sm mt-1">Create work entries for this contract to generate reports.</p>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Select Work Entries
+          </h3>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={selectAll}
+              disabled={generating || workEntries.length === 0}
+            >
+              Select All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={deselectAll}
+              disabled={generating || selectedEntryIds.length === 0}
+            >
+              Deselect All
+            </Button>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {workEntries.map(entry => {
+        </div>
+        
+        {/* Entry List */}
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+          {workEntries.length === 0 ? (
+            <div className="text-center py-8">
+              <svg className="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p className="mt-2 text-sm text-gray-500">No work entries found for this contract</p>
+              <p className="text-xs text-gray-400 mt-1">Create work entries first, then come back to generate reports</p>
+            </div>
+          ) : (
+            workEntries.map(entry => {
+              const isSelected = entrySelections[entry.id]?.selected;
+              const isExpanded = entrySelections[entry.id]?.expanded;
               const selection = entrySelections[entry.id];
-              const isSelected = selection?.selected ?? false;
-              const isExpanded = selection?.expanded ?? false;
-              const entryFields = isSelected ? getFieldsForEntry(entry) : [];
-              const selectedFieldsCount = entryFields.filter(f => selection?.fields?.[f.key]).length;
+              const entryFields = getFieldsForEntry(entry);
               
               return (
                 <div
                   key={entry.id}
-                  className={`border rounded-lg transition-all ${
+                  className={`border rounded-lg transition-colors ${
                     isSelected
-                      ? 'border-primary-300 bg-primary-50 shadow-sm'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-primary-300 bg-primary-50/30'
+                      : 'border-gray-200'
                   }`}
                 >
-                  {/* Entry Header */}
-                  <div className="flex items-center gap-3 p-4">
+                  {/* Entry Row (checkbox + date + status) */}
+                  <label className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50/50">
                     <input
                       type="checkbox"
-                      checked={isSelected}
+                      checked={!!isSelected}
                       onChange={() => toggleEntry(entry.id)}
                       disabled={generating}
-                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                      className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 flex-shrink-0"
                     />
-                    
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex justify-between items-center">
                         <span className="font-medium text-gray-900">
-                          {new Date(entry.entry_date).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
+                          {formatDate(entry.entry_date)}
                         </span>
-                        {entry.shift && (
-                          <span className="text-sm text-gray-500">
-                            • {entry.shift}
+                        <div className="flex items-center gap-2">
+                          {isSelected && (
+                            <span className="text-xs text-gray-500">
+                              {getSelectedFieldCount(entry.id)}/{getTotalFieldCount(entry)} fields
+                            </span>
+                          )}
+                          <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusBadge(entry.status)}`}>
+                            {entry.status}
                           </span>
-                        )}
-                        <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          entry.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          entry.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {entry.status}
-                        </span>
+                        </div>
                       </div>
-                      {entry.template && (
-                        <p className="text-sm text-gray-600 mt-0.5">
-                          {entry.template.template_name}
-                        </p>
+                      {entry.shift && (
+                        <span className="text-sm text-gray-600">Shift: {entry.shift}</span>
                       )}
                     </div>
-                    
-                    {isSelected && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-600">
-                          {selectedFieldsCount}/{entryFields.length} fields
-                        </span>
-                        <button
-                          onClick={() => toggleExpand(entry.id)}
-                          disabled={generating}
-                          className="p-1 hover:bg-white rounded transition-colors"
-                        >
-                          <svg
-                            className={`w-5 h-5 text-gray-500 transition-transform ${
-                              isExpanded ? 'rotate-180' : ''
-                            }`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  </label>
                   
-                  {/* Expanded Field Selection */}
+                  {/* Expandable Entry Details (shown when selected) */}
                   {isSelected && (
-                    <div className={`border-t border-gray-200 bg-white overflow-hidden transition-all ${
-                      isExpanded ? 'max-h-[600px] overflow-y-auto' : 'max-h-0'
-                    }`}>
+                    <div className="border-t border-gray-200">
+                      {/* Expand/Collapse Toggle */}
+                      <button
+                        onClick={() => toggleExpand(entry.id)}
+                        className="w-full flex items-center justify-between px-4 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+                      >
+                        <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                          <svg className="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          Entry Details
+                        </span>
+                        <svg
+                          className={`w-4 h-4 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      
+                      {/* Field Checkboxes */}
                       {isExpanded && (
                         <div className="px-4 py-3 space-y-1">
                           {/* Select All / Deselect All Fields */}
@@ -715,9 +701,9 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
                   )}
                 </div>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
         
         {/* Selection Summary */}
         <div className="mt-4 flex items-center justify-between">
@@ -733,71 +719,108 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
       </div>
       
       {/* ============================================ */}
-      {/* SECTION 2: Layout Selector (NEW)             */}
+      {/* SECTION 2: Report Options (Page Settings)    */}
       {/* ============================================ */}
-      {hasSelection && contract && (
+      {hasSelection && (
         <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <LayoutSelector
-            templateType={contract.contract_category || 'PMC'}
-            defaultLayoutId={contract.template?.default_layout_id}
-            onSelect={setSelectedLayoutId}
-          />
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Report Options
+          </h3>
+          
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Orientation
+              </label>
+              <select
+                value={pageOptions.orientation}
+                onChange={(e) => setPageOptions(prev => ({ ...prev, orientation: e.target.value }))}
+                disabled={generating}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="portrait">Portrait</option>
+                <option value="landscape">Landscape</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Page Size
+              </label>
+              <select
+                value={pageOptions.pageSize}
+                onChange={(e) => setPageOptions(prev => ({ ...prev, pageSize: e.target.value }))}
+                disabled={generating}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="a4">A4</option>
+                <option value="letter">Letter</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Output
+              </label>
+              <select
+                value={pageOptions.output}
+                onChange={(e) => setPageOptions(prev => ({ ...prev, output: e.target.value }))}
+                disabled={generating}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              >
+                <option value="download">📥 Download</option>
+                <option value="newtab">🔗 Open in New Tab</option>
+                <option value="preview">👁️ Preview First</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="mt-3 text-xs text-gray-500">
+            {pageOptions.output === 'download' && '📥 PDF will download automatically to your Downloads folder'}
+            {pageOptions.output === 'newtab' && '🔗 PDF will open in a new browser tab for viewing'}
+            {pageOptions.output === 'preview' && '👁️ PDF will show in preview modal, then you can download'}
+          </div>
         </div>
       )}
       
       {/* ============================================ */}
-      {/* SECTION 3: Action Buttons (UPDATED)          */}
+      {/* SECTION 3: Generate Button                   */}
       {/* ============================================ */}
-      {hasSelection && selectedLayoutId && (
+      {hasSelection && (
         <div className="flex gap-3">
-          {/* Preview Button */}
-          <button
-            onClick={handlePreview}
-            disabled={generating}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition-colors shadow-sm"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            Preview Report
-          </button>
-          
-          {/* Generate PDF Button */}
-          <button
+          <Button
             onClick={handleGenerate}
-            disabled={generating}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-primary-400 text-white font-medium rounded-lg transition-colors shadow-sm"
+            disabled={generating || selectedEntryIds.length === 0}
+            className="flex-1"
           >
             {generating ? (
               <>
-                <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <LoadingSpinner size="sm" className="mr-2" />
                 Generating PDF...
               </>
             ) : (
               <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Generate PDF ({selectedEntryIds.length})
+                Generate PDF ({selectedEntryIds.length} {selectedEntryIds.length === 1 ? 'entry' : 'entries'})
               </>
             )}
-          </button>
+          </Button>
         </div>
       )}
       
-      {/* ============================================ */}
-      {/* Print Preview Modal (NEW)                    */}
-      {/* ============================================ */}
-      {showPreview && (
-        <PrintPreview
-          entryIds={selectedEntryIds}
-          layoutId={selectedLayoutId}
+      {/* Preview Modal */}
+      {showPreview && pdfBlob && (
+        <ReportPreview
+          blob={pdfBlob}
+          filename={pdfFilename}
           onClose={() => setShowPreview(false)}
-          onGenerate={handleGenerate}
+          onDownload={handleDownload}
         />
       )}
     </div>
