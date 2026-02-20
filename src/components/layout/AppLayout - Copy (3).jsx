@@ -1,16 +1,14 @@
 /**
  * WorkLedger - App Layout Component
- *
+ * 
  * Enhanced main layout for authenticated pages with:
  * - Desktop: Sidebar navigation + Header + Breadcrumb
  * - Mobile: Header + Bottom navigation + Breadcrumb
  * - Responsive design
- * - Organization Switcher for Bina Jaya staff (Session 9)
- *
+ * 
  * @module components/layout/AppLayout
  * @created January 29, 2026
  * @updated January 31, 2026 - Added Breadcrumb navigation
- * @updated February 20, 2026 - Session 9: Added OrganizationSwitcher
  */
 
 import React, { useState } from 'react';
@@ -20,7 +18,6 @@ import { ROUTES } from '../../constants/routes';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import Breadcrumb from '../common/Breadcrumb';
-import OrganizationSwitcher from '../organizations/OrganizationSwitcher';
 
 export function AppLayout({ children }) {
   const navigate = useNavigate();
@@ -30,7 +27,7 @@ export function AppLayout({ children }) {
   const handleLogout = async () => {
     console.log('🔐 AppLayout: Logging out...');
     const result = await logout();
-
+    
     if (result.success) {
       navigate(ROUTES.LOGIN);
     }
@@ -47,7 +44,6 @@ export function AppLayout({ children }) {
         <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
-
               {/* Mobile Logo (visible on mobile only) */}
               <div className="flex items-center md:hidden">
                 <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
@@ -84,14 +80,10 @@ export function AppLayout({ children }) {
                 </button>
               </div>
 
-              {/* ── CENTER: Organization Switcher ──
-                  Renders nothing for regular client users.
-                  Shows org dropdown for Bina Jaya staff only. */}
-              <div className="flex-1 flex justify-center px-4">
-                <OrganizationSwitcher />
-              </div>
+              {/* Spacer */}
+              <div className="flex-1"></div>
 
-              {/* Right Section: User Info + Logout */}
+              {/* User Menu */}
               <div className="flex items-center space-x-4">
                 {/* User Info - Hidden on small mobile */}
                 <span className="hidden sm:block text-sm text-gray-600 truncate max-w-[150px]">
@@ -106,7 +98,6 @@ export function AppLayout({ children }) {
                   Logout
                 </button>
               </div>
-
             </div>
           </div>
         </header>
@@ -116,7 +107,7 @@ export function AppLayout({ children }) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6">
             {/* Breadcrumb Navigation */}
             <Breadcrumb />
-
+            
             {/* Page Content */}
             {children}
           </div>
