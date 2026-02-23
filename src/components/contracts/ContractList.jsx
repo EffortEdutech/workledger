@@ -1,10 +1,16 @@
 /**
  * WorkLedger - Contract List Component
- * 
+ *
  * Displays contracts in grid layout with filters and search.
- * 
+ *
+ * SESSION 13 BUGFIX: Added canCreate / canEdit / canDelete props.
+ * "New Contract" and empty-state "Create First Contract" buttons are
+ * hidden unless canCreate=true.
+ * canEdit / canDelete are passed straight down to ContractCard.
+ *
  * @module components/contracts/ContractList
  * @created January 31, 2026 - Session 10
+ * @updated February 21, 2026 - Session 13: RBAC props added
  */
 
 import React, { useState, useMemo } from 'react';
@@ -13,107 +19,89 @@ import ContractCard from './ContractCard';
 import { getContractTypeOptions } from './ContractTypeBadge';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
-import { 
-  PlusIcon, 
+import {
+  PlusIcon,
   FunnelIcon,
-  MagnifyingGlassIcon 
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 
-export function ContractList({ 
-  contracts = [], 
-  projects = [],
-  isLoading = false,
+export function ContractList({
+  contracts  = [],
+  projects   = [],
+  isLoading  = false,
   onDelete,
-  onRefresh 
+  onRefresh,
+  canCreate = false,   // ← NEW
+  canEdit   = false,   // ← NEW
+  canDelete = false,   // ← NEW
 }) {
   const navigate = useNavigate();
 
-  // Filter state
-  const [searchTerm, setSearchTerm] = useState('');
+  // ── Filter state ──────────────────────────────────────────
+  const [searchTerm,      setSearchTerm]      = useState('');
   const [selectedProject, setSelectedProject] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedCategory,setSelectedCategory]= useState('all');
+  const [selectedStatus,  setSelectedStatus]  = useState('all');
+  const [sortBy,          setSortBy]          = useState('created_at');
+  const [sortOrder,       setSortOrder]       = useState('desc');
+  const [showFilters,     setShowFilters]     = useState(false);
 
-  // Contract category options
+  // ── Options ───────────────────────────────────────────────
   const categoryOptions = [
     { value: 'all', label: 'All Categories' },
-    ...getContractTypeOptions()
+    ...getContractTypeOptions(),
   ];
 
-  // Status options
   const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'active', label: 'Active' },
+    { value: 'all',       label: 'All Statuses' },
+    { value: 'draft',     label: 'Draft' },
+    { value: 'active',    label: 'Active' },
     { value: 'suspended', label: 'Suspended' },
-    { value: 'completed', label: 'Completed' }
+    { value: 'completed', label: 'Completed' },
   ];
 
-  // Sort options
   const sortOptions = [
-    { value: 'created_at', label: 'Date Created' },
+    { value: 'created_at',    label: 'Date Created' },
     { value: 'contract_number', label: 'Contract Number' },
     { value: 'contract_name', label: 'Contract Name' },
-    { value: 'valid_from', label: 'Valid From Date' },
-    { value: 'status', label: 'Status' }
+    { value: 'valid_from',    label: 'Valid From Date' },
+    { value: 'status',        label: 'Status' },
   ];
 
-  // Filter and sort contracts
+  // ── Filter + sort ─────────────────────────────────────────
   const filteredAndSortedContracts = useMemo(() => {
     let filtered = [...contracts];
 
-    // Search filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(contract => 
-        contract.contract_number.toLowerCase().includes(search) ||
-        contract.contract_name.toLowerCase().includes(search) ||
-        (contract.project?.project_name && contract.project.project_name.toLowerCase().includes(search)) ||
-        (contract.project?.project_code && contract.project.project_code.toLowerCase().includes(search))
+      filtered = filtered.filter(c =>
+        c.contract_number.toLowerCase().includes(search) ||
+        c.contract_name.toLowerCase().includes(search) ||
+        (c.project?.project_name && c.project.project_name.toLowerCase().includes(search))
       );
     }
 
-    // Project filter
     if (selectedProject !== 'all') {
-      filtered = filtered.filter(contract => contract.project_id === selectedProject);
+      filtered = filtered.filter(c => c.project_id === selectedProject);
     }
 
-    // Category filter
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(contract => contract.contract_category === selectedCategory);
+      filtered = filtered.filter(c => c.contract_category === selectedCategory);
     }
 
-    // Status filter
     if (selectedStatus !== 'all') {
-      filtered = filtered.filter(contract => contract.status === selectedStatus);
+      filtered = filtered.filter(c => c.status === selectedStatus);
     }
 
-    // Sort
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
-
-      // Handle nested values (e.g., project.project_name)
-      if (sortBy.includes('.')) {
-        const keys = sortBy.split('.');
-        aValue = keys.reduce((obj, key) => obj?.[key], a);
-        bValue = keys.reduce((obj, key) => obj?.[key], b);
-      }
-
-      // Handle null values
       if (!aValue) return sortOrder === 'asc' ? 1 : -1;
       if (!bValue) return sortOrder === 'asc' ? -1 : 1;
-
-      // String comparison
       if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
-
-      // Compare
       if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
@@ -122,12 +110,9 @@ export function ContractList({
     return filtered;
   }, [contracts, searchTerm, selectedProject, selectedCategory, selectedStatus, sortBy, sortOrder]);
 
-  // Handle create new contract
-  const handleCreateContract = () => {
-    navigate('/contracts/new');
-  };
+  // ── Handlers ──────────────────────────────────────────────
+  const handleCreateContract = () => navigate('/contracts/new');
 
-  // Reset filters
   const handleResetFilters = () => {
     setSearchTerm('');
     setSelectedProject('all');
@@ -137,11 +122,13 @@ export function ContractList({
     setSortOrder('desc');
   };
 
-  // Check if any filters are active
-  const hasActiveFilters = searchTerm || selectedProject !== 'all' || 
-                          selectedCategory !== 'all' || selectedStatus !== 'all';
+  const hasActiveFilters =
+    searchTerm ||
+    selectedProject  !== 'all' ||
+    selectedCategory !== 'all' ||
+    selectedStatus   !== 'all';
 
-  // Loading state
+  // ── Loading ───────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -150,12 +137,13 @@ export function ContractList({
     );
   }
 
+  // ── Render ────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Header with Search and Filters */}
+      {/* Toolbar */}
       <div className="bg-white rounded-lg shadow p-4">
-        {/* Search Bar */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          {/* Search */}
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
@@ -170,6 +158,25 @@ export function ContractList({
           </div>
 
           <div className="flex gap-2">
+            {/* Sort */}
+            <select
+              value={`${sortBy}-${sortOrder}`}
+              onChange={(e) => {
+                const [field, order] = e.target.value.split('-');
+                setSortBy(field);
+                setSortOrder(order);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-primary-500 focus:border-primary-500"
+            >
+              {sortOptions.map(opt => (
+                <React.Fragment key={opt.value}>
+                  <option value={`${opt.value}-asc`}>{opt.label} ↑</option>
+                  <option value={`${opt.value}-desc`}>{opt.label} ↓</option>
+                </React.Fragment>
+              ))}
+            </select>
+
+            {/* Filters toggle */}
             <Button
               variant="secondary"
               onClick={() => setShowFilters(!showFilters)}
@@ -184,14 +191,17 @@ export function ContractList({
               )}
             </Button>
 
-            <Button
-              variant="primary"
-              onClick={handleCreateContract}
-              className="whitespace-nowrap"
-            >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              New Contract
-            </Button>
+            {/* New Contract — only shown when canCreate=true */}
+            {canCreate && (
+              <Button
+                variant="primary"
+                onClick={handleCreateContract}
+                className="whitespace-nowrap"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                New Contract
+              </Button>
+            )}
           </div>
         </div>
 
@@ -210,10 +220,8 @@ export function ContractList({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                 >
                   <option value="all">All Projects</option>
-                  {projects.map(project => (
-                    <option key={project.id} value={project.id}>
-                      {project.project_code}
-                    </option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.project_name}</option>
                   ))}
                 </select>
               </div>
@@ -221,17 +229,15 @@ export function ContractList({
               {/* Category Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contract Category
+                  Category
                 </label>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                 >
-                  {categoryOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.shortLabel || option.label}
-                    </option>
+                  {categoryOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
               </div>
@@ -246,81 +252,42 @@ export function ContractList({
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                 >
-                  {statusOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Sort By */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sort By
-                </label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                >
-                  {sortOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
+                  {statusOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Sort Order & Reset */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Sort Order:
-                </label>
-                <select
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value)}
-                  className="px-3 py-1.5 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 text-sm"
-                >
-                  <option value="asc">Ascending</option>
-                  <option value="desc">Descending</option>
-                </select>
-              </div>
-
-              {hasActiveFilters && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleResetFilters}
-                >
-                  Reset Filters
-                </Button>
-              )}
-            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Clear all filters
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* Results Count */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <p>
-          Showing <span className="font-medium text-gray-900">{filteredAndSortedContracts.length}</span> of{' '}
-          <span className="font-medium text-gray-900">{contracts.length}</span> contracts
+      {/* Results count */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600">
+          {filteredAndSortedContracts.length} contract{filteredAndSortedContracts.length !== 1 ? 's' : ''}
+          {hasActiveFilters ? ' (filtered)' : ''}
         </p>
-
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="text-primary-600 hover:text-primary-700 font-medium"
+            className="text-sm text-gray-500 hover:text-gray-700"
           >
             Refresh
           </button>
         )}
       </div>
 
-      {/* Contracts Grid */}
+      {/* Contract Grid */}
       {filteredAndSortedContracts.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAndSortedContracts.map(contract => (
@@ -328,18 +295,20 @@ export function ContractList({
               key={contract.id}
               contract={contract}
               onDelete={onDelete}
+              canEdit={canEdit}     // ← pass through
+              canDelete={canDelete} // ← pass through
             />
           ))}
         </div>
       ) : (
         /* Empty State */
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <div className="max-w-md mx-auto">
+        <div className="bg-white rounded-lg shadow">
+          <div className="text-center py-12">
             <svg
               className="mx-auto h-12 w-12 text-gray-400"
               fill="none"
-              viewBox="0 0 24 24"
               stroke="currentColor"
+              viewBox="0 0 24 24"
             >
               <path
                 strokeLinecap="round"
@@ -357,22 +326,17 @@ export function ContractList({
                 : 'Get started by creating your first contract.'}
             </p>
             {hasActiveFilters ? (
-              <Button
-                variant="primary"
-                onClick={handleResetFilters}
-                className="mt-6"
-              >
+              <Button variant="primary" onClick={handleResetFilters} className="mt-6">
                 Clear Filters
               </Button>
             ) : (
-              <Button
-                variant="primary"
-                onClick={handleCreateContract}
-                className="mt-6"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Create First Contract
-              </Button>
+              /* Empty state CTA — only shown when canCreate=true */
+              canCreate && (
+                <Button variant="primary" onClick={handleCreateContract} className="mt-6">
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Create First Contract
+                </Button>
+              )
             )}
           </div>
         </div>

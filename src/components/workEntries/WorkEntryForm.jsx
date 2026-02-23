@@ -8,10 +8,11 @@
  * @created February 1, 2026 - Session 13
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DynamicForm } from '../templates/DynamicForm';
 import { contractService } from '../../services/api/contractService';
 import { templateService } from '../../services/api/templateService';
+import { useOrganization } from '../../context/OrganizationContext';
 import Button from '../common/Button';
 
 /**
@@ -33,6 +34,9 @@ export default function WorkEntryForm({
   onSubmit,
   onCancel
 }) {
+  // Organisation context — filters contracts to the currently selected org
+  const { currentOrg } = useOrganization();
+
   // Form state
   const [selectedContract, setSelectedContract] = useState(null);
   const [template, setTemplate] = useState(null);
@@ -52,10 +56,30 @@ export default function WorkEntryForm({
   // Error state
   const [error, setError] = useState(null);
 
-  // Load contracts on mount
+  // Load contracts — re-runs automatically when org switcher changes
+  const loadContracts = useCallback(async () => {
+    try {
+      setLoadingContracts(true);
+      const contractsData = await contractService.getUserContracts(currentOrg?.id ?? null);
+
+      // Only show active contracts with at least one template assigned
+      const activeContracts = (contractsData || []).filter(
+        c => c.status === 'active' && c.contract_templates?.length > 0
+      );
+      setContracts(activeContracts);
+
+    } catch (err) {
+      console.error('Error loading contracts:', err);
+      setError('Failed to load contracts');
+    } finally {
+      setLoadingContracts(false);
+    }
+  }, [currentOrg?.id]);
+
+  // Load contracts on mount and whenever org switches
   useEffect(() => {
     loadContracts();
-  }, []);
+  }, [loadContracts]);
 
   // If editing, load contract and template
   useEffect(() => {
@@ -63,28 +87,6 @@ export default function WorkEntryForm({
       loadExistingData();
     }
   }, [mode, initialData]);
-
-  /**
-   * Load available contracts
-   */
-  const loadContracts = async () => {
-    try {
-      setLoadingContracts(true);
-      const contractsData = await contractService.getUserContracts();
-      
-      // Filter only active contracts
-      const activeContracts = (contractsData || []).filter(
-        c => c.status === 'active'
-      );
-      setContracts(activeContracts);
-      
-    } catch (err) {
-      console.error('Error loading contracts:', err);
-      setError('Failed to load contracts');
-    } finally {
-      setLoadingContracts(false);
-    }
-  };
 
   /**
    * Load existing data for edit mode

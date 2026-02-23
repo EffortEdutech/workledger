@@ -1,10 +1,15 @@
 /**
  * WorkLedger - New Contract Page
- * 
+ *
  * Page for creating a new contract.
- * 
+ *
+ * SESSION 13 FIX: Templates now loaded via templateService.getTemplates()
+ * instead of a direct supabase query. The direct query was silently returning
+ * [] due to RLS on the templates table.
+ *
  * @module pages/contracts/NewContract
  * @created January 31, 2026 - Session 10
+ * @updated February 21, 2026 - Session 13: use templateService for templates
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,72 +19,85 @@ import ContractForm from '../../components/contracts/ContractForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { contractService } from '../../services/api/contractService';
 import { projectService } from '../../services/api/projectService';
-import { supabase } from '../../services/supabase/client';
+import { templateService } from '../../services/api/templateService';
+import { useOrganization } from '../../context/OrganizationContext';
 
 export function NewContract() {
   const navigate = useNavigate();
-  const [projects, setProjects] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { currentOrg } = useOrganization();
+
+  const [projects, setProjects]     = useState([]);
+  const [templates, setTemplates]   = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Load projects and templates
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentOrg?.id]);
 
   const loadData = async () => {
     try {
       setLoading(true);
 
-      // Load projects
-      const projectsData = await projectService.getUserProjects();
-      setProjects(projectsData || []);
+      const orgId = currentOrg?.id ?? null;
 
-      // Load templates
-      const { data: templatesData, error } = await supabase
-        .from('templates')
-        .select('*')
-        .order('template_name');
+      const [projectsData, templatesData] = await Promise.all([
+        projectService.getUserProjects(orgId),
+        templateService.getTemplates(),          // ← FIXED (no RLS issue)
+      ]);
 
-      if (error) throw error;
+      setProjects(projectsData   || []);
       setTemplates(templatesData || []);
 
-      console.log('✅ Loaded projects and templates');
-    } catch (error) {
-      console.error('❌ Error loading data:', error);
+      console.log('✅ Loaded projects:', projectsData?.length || 0);
+      console.log('✅ Loaded templates:', templatesData?.length || 0);
+    } catch (err) {
+      console.error('❌ Error loading data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle form submit
   const handleSubmit = async (projectId, data) => {
     try {
       setSubmitting(true);
-      console.log('📝 Creating contract:', data);
 
-      const contract = await contractService.createContract(projectId, data);
-      
-      if (contract) {
-        console.log('✅ Contract created successfully:', contract.id);
-        // Redirect to contract detail page
-        navigate(`/contracts/${contract.id}`);
+      // 1. Extract template_ids from payload (not a DB column)
+      const { template_ids = [], ...contractData } = data;
+
+      console.log('📝 Creating contract:', contractData);
+      const result = await contractService.createContract(projectId, contractData);
+
+      if (!result.success) {
+        alert(result.error || 'Failed to create contract. Please try again.');
+        return;
       }
-    } catch (error) {
-      console.error('❌ Error creating contract:', error);
+
+      const contractId = result.data.id;
+      console.log('✅ Contract created:', contractId);
+
+      // 2. Assign selected templates to the junction table.
+      //    First template in the list becomes the default.
+      if (template_ids.length > 0) {
+        for (let i = 0; i < template_ids.length; i++) {
+          await contractService.addContractTemplate(contractId, template_ids[i], {
+            isDefault: i === 0,
+          });
+        }
+        console.log('✅ Templates assigned:', template_ids.length);
+      }
+
+      navigate(`/contracts/${contractId}`);
+    } catch (err) {
+      console.error('❌ Error creating contract:', err);
       alert('Failed to create contract. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Handle cancel
-  const handleCancel = () => {
-    navigate('/contracts');
-  };
+  const handleCancel = () => navigate('/contracts');
 
-  // Loading state
   if (loading) {
     return (
       <AppLayout>
@@ -90,72 +108,28 @@ export function NewContract() {
     );
   }
 
-  // No projects warning
-  if (projects.length === 0) {
-    return (
-      <AppLayout>
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-yellow-900 mb-2">
-              No Projects Found
-            </h3>
-            <p className="text-yellow-800 mb-4">
-              You need to create a project before you can create contracts.
-            </p>
-            <button
-              onClick={() => navigate('/projects/new')}
-              className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors"
-            >
-              Create Project
-            </button>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  // No templates warning
-  if (templates.length === 0) {
-    return (
-      <AppLayout>
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-red-900 mb-2">
-              No Templates Found
-            </h3>
-            <p className="text-red-800 mb-4">
-              System templates are required to create contracts. Please contact support.
-            </p>
-            <button
-              onClick={() => navigate('/contracts')}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-            >
-              Back to Contracts
-            </button>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto">
-        {/* Page Header */}
+      <div className="max-w-3xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Create New Contract</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Fill in the contract details and select the appropriate template.
+          <h1 className="text-3xl font-bold text-gray-900">New Contract</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Create a new contract and link it to a template.
+            {currentOrg && (
+              <span className="ml-1 font-medium text-primary-700">
+                — {currentOrg.name}
+              </span>
+            )}
           </p>
         </div>
 
-        {/* Contract Form */}
         <ContractForm
           projects={projects}
           templates={templates}
+          mode="create"
           onSubmit={handleSubmit}
           onCancel={handleCancel}
-          isLoading={submitting}
+          isSubmitting={submitting}
         />
       </div>
     </AppLayout>

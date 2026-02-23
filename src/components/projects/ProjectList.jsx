@@ -1,10 +1,16 @@
 /**
  * WorkLedger - Project List Component
- * 
+ *
  * Displays projects in grid layout with filters and search.
- * 
+ *
+ * SESSION 13 BUGFIX: Added canCreate / canEdit / canDelete props.
+ * "New Project" button and empty-state "Create First Project" button are
+ * now hidden unless canCreate=true.
+ * canEdit / canDelete are passed straight down to ProjectCard.
+ *
  * @module components/projects/ProjectList
  * @created January 30, 2026 - Session 9
+ * @updated February 21, 2026 - Session 13: RBAC props added
  */
 
 import React, { useState, useMemo } from 'react';
@@ -12,88 +18,80 @@ import { useNavigate } from 'react-router-dom';
 import ProjectCard from './ProjectCard';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
-import { 
-  PlusIcon, 
+import {
+  PlusIcon,
   FunnelIcon,
-  MagnifyingGlassIcon 
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 
-export function ProjectList({ 
-  projects = [], 
-  organizations = [],
-  isLoading = false,
+export function ProjectList({
+  projects       = [],
+  organizations  = [],
+  isLoading      = false,
   onDelete,
-  onRefresh 
+  onRefresh,
+  canCreate = false,   // ← NEW
+  canEdit   = false,   // ← NEW
+  canDelete = false,   // ← NEW
 }) {
   const navigate = useNavigate();
 
-  // Filter state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedOrg, setSelectedOrg] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [showFilters, setShowFilters] = useState(false);
+  // ── Filter state ──────────────────────────────────────────
+  const [searchTerm,    setSearchTerm]    = useState('');
+  const [selectedOrg,   setSelectedOrg]   = useState('all');
+  const [selectedStatus,setSelectedStatus]= useState('all');
+  const [sortBy,        setSortBy]        = useState('created_at');
+  const [sortOrder,     setSortOrder]     = useState('desc');
+  const [showFilters,   setShowFilters]   = useState(false);
 
-  // Status options
+  // ── Options ───────────────────────────────────────────────
   const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'active', label: 'Active' },
+    { value: 'all',       label: 'All Statuses' },
+    { value: 'active',    label: 'Active' },
     { value: 'completed', label: 'Completed' },
-    { value: 'on_hold', label: 'On Hold' },
-    { value: 'cancelled', label: 'Cancelled' }
+    { value: 'on_hold',   label: 'On Hold' },
+    { value: 'cancelled', label: 'Cancelled' },
   ];
 
-  // Sort options
   const sortOptions = [
-    { value: 'created_at', label: 'Date Created' },
+    { value: 'created_at',   label: 'Date Created' },
     { value: 'project_name', label: 'Project Name' },
-    { value: 'client_name', label: 'Client Name' },
-    { value: 'start_date', label: 'Start Date' },
-    { value: 'status', label: 'Status' }
+    { value: 'client_name',  label: 'Client Name' },
+    { value: 'start_date',   label: 'Start Date' },
+    { value: 'status',       label: 'Status' },
   ];
 
-  // Filter and sort projects
+  // ── Filter + sort ─────────────────────────────────────────
   const filteredAndSortedProjects = useMemo(() => {
     let filtered = [...projects];
 
-    // Search filter
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(project => 
-        project.project_name.toLowerCase().includes(search) ||
-        project.client_name.toLowerCase().includes(search) ||
-        project.project_code.toLowerCase().includes(search) ||
-        (project.site_address && project.site_address.toLowerCase().includes(search))
+      filtered = filtered.filter(p =>
+        p.project_name.toLowerCase().includes(search) ||
+        p.client_name.toLowerCase().includes(search) ||
+        p.project_code.toLowerCase().includes(search) ||
+        (p.site_address && p.site_address.toLowerCase().includes(search))
       );
     }
 
-    // Organization filter
     if (selectedOrg !== 'all') {
-      filtered = filtered.filter(project => project.organization_id === selectedOrg);
+      filtered = filtered.filter(p => p.organization_id === selectedOrg);
     }
 
-    // Status filter
     if (selectedStatus !== 'all') {
-      filtered = filtered.filter(project => project.status === selectedStatus);
+      filtered = filtered.filter(p => p.status === selectedStatus);
     }
 
-    // Sort
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
-
-      // Handle null values
       if (!aValue) return sortOrder === 'asc' ? 1 : -1;
       if (!bValue) return sortOrder === 'asc' ? -1 : 1;
-
-      // String comparison
       if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
-
-      // Compare
       if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
       return 0;
@@ -102,12 +100,9 @@ export function ProjectList({
     return filtered;
   }, [projects, searchTerm, selectedOrg, selectedStatus, sortBy, sortOrder]);
 
-  // Handle create new project
-  const handleCreateProject = () => {
-    navigate('/projects/new');
-  };
+  // ── Handlers ──────────────────────────────────────────────
+  const handleCreateProject = () => navigate('/projects/new');
 
-  // Reset filters
   const handleResetFilters = () => {
     setSearchTerm('');
     setSelectedOrg('all');
@@ -116,10 +111,10 @@ export function ProjectList({
     setSortOrder('desc');
   };
 
-  // Check if any filters are active
-  const hasActiveFilters = searchTerm || selectedOrg !== 'all' || selectedStatus !== 'all';
+  const hasActiveFilters =
+    searchTerm || selectedOrg !== 'all' || selectedStatus !== 'all';
 
-  // Loading state
+  // ── Loading ───────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -128,12 +123,13 @@ export function ProjectList({
     );
   }
 
+  // ── Render ────────────────────────────────────────────────
   return (
     <div className="space-y-6">
-      {/* Header with Search and Filters */}
+      {/* Toolbar */}
       <div className="bg-white rounded-lg shadow p-4">
-        {/* Search Bar */}
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          {/* Search */}
           <div className="flex-1 relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
@@ -148,6 +144,25 @@ export function ProjectList({
           </div>
 
           <div className="flex gap-2">
+            {/* Sort */}
+            <select
+              value={`${sortBy}-${sortOrder}`}
+              onChange={(e) => {
+                const [field, order] = e.target.value.split('-');
+                setSortBy(field);
+                setSortOrder(order);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 text-sm"
+            >
+              {sortOptions.map(opt => (
+                <React.Fragment key={opt.value}>
+                  <option value={`${opt.value}-asc`}>{opt.label} ↑</option>
+                  <option value={`${opt.value}-desc`}>{opt.label} ↓</option>
+                </React.Fragment>
+              ))}
+            </select>
+
+            {/* Filters toggle */}
             <Button
               variant="secondary"
               onClick={() => setShowFilters(!showFilters)}
@@ -162,14 +177,17 @@ export function ProjectList({
               )}
             </Button>
 
-            <Button
-              variant="primary"
-              onClick={handleCreateProject}
-              className="whitespace-nowrap"
-            >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              New Project
-            </Button>
+            {/* New Project — only shown when canCreate=true */}
+            {canCreate && (
+              <Button
+                variant="primary"
+                onClick={handleCreateProject}
+                className="whitespace-nowrap"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                New Project
+              </Button>
+            )}
           </div>
         </div>
 
@@ -189,9 +207,7 @@ export function ProjectList({
                 >
                   <option value="all">All Organizations</option>
                   {organizations.map(org => (
-                    <option key={org.id} value={org.id}>
-                      {org.name}
-                    </option>
+                    <option key={org.id} value={org.id}>{org.name}</option>
                   ))}
                 </select>
               </div>
@@ -206,82 +222,42 @@ export function ProjectList({
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                 >
-                  {statusOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
+                  {statusOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
-                </select>
-              </div>
-
-              {/* Sort By */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sort By
-                </label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                >
-                  {sortOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Sort Order */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sort Order
-                </label>
-                <select
-                  value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="asc">Ascending</option>
-                  <option value="desc">Descending</option>
                 </select>
               </div>
             </div>
 
-            {/* Reset Filters Button */}
             {hasActiveFilters && (
-              <div className="flex justify-end">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleResetFilters}
-                >
-                  Reset Filters
-                </Button>
-              </div>
+              <button
+                onClick={handleResetFilters}
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Clear all filters
+              </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Results Count */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <p>
-          Showing <span className="font-medium text-gray-900">{filteredAndSortedProjects.length}</span> of{' '}
-          <span className="font-medium text-gray-900">{projects.length}</span> projects
+      {/* Results count */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-600">
+          {filteredAndSortedProjects.length} project{filteredAndSortedProjects.length !== 1 ? 's' : ''}
+          {hasActiveFilters ? ' (filtered)' : ''}
         </p>
-
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="text-primary-600 hover:text-primary-700 font-medium"
+            className="text-sm text-gray-500 hover:text-gray-700"
           >
             Refresh
           </button>
         )}
       </div>
 
-      {/* Projects Grid */}
+      {/* Project Grid */}
       {filteredAndSortedProjects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAndSortedProjects.map(project => (
@@ -289,24 +265,26 @@ export function ProjectList({
               key={project.id}
               project={project}
               onDelete={onDelete}
+              canEdit={canEdit}     // ← pass through
+              canDelete={canDelete} // ← pass through
             />
           ))}
         </div>
       ) : (
         /* Empty State */
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <div className="max-w-md mx-auto">
+        <div className="bg-white rounded-lg shadow">
+          <div className="text-center py-12">
             <svg
               className="mx-auto h-12 w-12 text-gray-400"
               fill="none"
-              viewBox="0 0 24 24"
               stroke="currentColor"
+              viewBox="0 0 24 24"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
               />
             </svg>
             <h3 className="mt-4 text-lg font-medium text-gray-900">
@@ -318,22 +296,17 @@ export function ProjectList({
                 : 'Get started by creating your first project.'}
             </p>
             {hasActiveFilters ? (
-              <Button
-                variant="primary"
-                onClick={handleResetFilters}
-                className="mt-6"
-              >
+              <Button variant="primary" onClick={handleResetFilters} className="mt-6">
                 Clear Filters
               </Button>
             ) : (
-              <Button
-                variant="primary"
-                onClick={handleCreateProject}
-                className="mt-6"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Create First Project
-              </Button>
+              /* Empty state CTA — only shown when canCreate=true */
+              canCreate && (
+                <Button variant="primary" onClick={handleCreateProject} className="mt-6">
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Create First Project
+                </Button>
+              )
             )}
           </div>
         </div>

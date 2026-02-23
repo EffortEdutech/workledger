@@ -1,44 +1,61 @@
 /**
  * WorkLedger - Contract List Page
- * 
+ *
  * Main page for displaying all contracts with filters and search.
- * 
+ *
+ * SESSION 10 WIRING (restored):
+ *   - useOrganization() provides currentOrg from the org switcher
+ *   - loadData wrapped in useCallback([currentOrg?.id]) so it re-runs
+ *     automatically whenever the active org changes
+ *   - currentOrg?.id passed to both service calls so the query
+ *     filters correctly (null = all orgs for super_admin)
+ *
+ * SESSION 13 RBAC: canCreate/canEdit/canDelete passed to ContractList
+ *
  * @module pages/contracts/ContractListPage
  * @created January 31, 2026 - Session 10
+ * @updated February 21, 2026 - Session 13: RBAC props
+ * @updated February 21, 2026 - Session 13 fix: org wiring restored
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '../../components/layout/AppLayout';
 import ContractList from '../../components/contracts/ContractList';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { contractService } from '../../services/api/contractService';
 import { projectService } from '../../services/api/projectService';
+import { useOrganization } from '../../context/OrganizationContext';
+import { useRole } from '../../hooks/useRole';
 
 export function ContractListPage() {
+  const { currentOrg } = useOrganization();
+  const { can } = useRole();
+
   const [contracts, setContracts] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [projects, setProjects]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
 
-  // Load contracts and projects on mount
-  useEffect(() => {
-    loadData();
-  }, []);
+  // ── Permission flags (passed down to ContractList → ContractCard) ──
+  const canCreate = can('CREATE_CONTRACT');
+  const canEdit   = can('EDIT_CONTRACT');
+  const canDelete = can('DELETE_CONTRACT');
 
-  // Load all data
-  const loadData = async () => {
+  // ── Load data — re-runs when org switcher changes ──────────────────
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Load contracts and projects in parallel
+      const orgId = currentOrg?.id ?? null;
+
       const [contractsData, projectsData] = await Promise.all([
-        contractService.getUserContracts(),
-        projectService.getUserProjects()
+        contractService.getUserContracts(orgId),
+        projectService.getUserProjects(orgId),
       ]);
 
       setContracts(contractsData || []);
-      setProjects(projectsData || []);
+      setProjects(projectsData  || []);
 
       console.log('✅ Loaded contracts:', contractsData?.length || 0);
     } catch (err) {
@@ -47,16 +64,17 @@ export function ContractListPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentOrg?.id]); // ← re-runs on every org switch
 
-  // Handle delete contract
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // ── Delete handler ─────────────────────────────────────────────────
   const handleDelete = async (id) => {
     try {
       await contractService.deleteContract(id);
-      
-      // Refresh list
       await loadData();
-      
       console.log('✅ Contract deleted successfully');
     } catch (err) {
       console.error('❌ Error deleting contract:', err);
@@ -64,7 +82,7 @@ export function ContractListPage() {
     }
   };
 
-  // Loading state
+  // ── Loading state ──────────────────────────────────────────────────
   if (loading) {
     return (
       <AppLayout>
@@ -75,7 +93,7 @@ export function ContractListPage() {
     );
   }
 
-  // Error state
+  // ── Error state ────────────────────────────────────────────────────
   if (error) {
     return (
       <AppLayout>
@@ -94,14 +112,21 @@ export function ContractListPage() {
     );
   }
 
+  // ── Main render ────────────────────────────────────────────────────
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
+
         {/* Page Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Contracts</h1>
           <p className="mt-2 text-sm text-gray-600">
             Manage your contracts, templates, and work entry requirements.
+            {currentOrg && (
+              <span className="ml-2 font-medium text-primary-700">
+                — {currentOrg.name}
+              </span>
+            )}
           </p>
         </div>
 
@@ -110,6 +135,9 @@ export function ContractListPage() {
           contracts={contracts}
           projects={projects}
           isLoading={loading}
+          canCreate={canCreate}
+          canEdit={canEdit}
+          canDelete={canDelete}
           onDelete={handleDelete}
           onRefresh={loadData}
         />

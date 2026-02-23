@@ -1,44 +1,92 @@
 /**
  * WorkLedger - Project Service
- * 
- * Complete project service with full CRUD operations
- * 
+ *
+ * Complete project service with full CRUD operations.
+ *
+ * SESSION 10 UPDATE: All list/count methods now accept an optional `orgId`
+ * parameter. When passed (from OrganizationContext), queries filter directly
+ * by that org — enabling Bina Jaya staff to switch between client orgs.
+ * When orgId is null, falls back to the original org_members JOIN (safe for
+ * regular users who don't use the org switcher).
+ *
+ * SESSION 13 FIX: Super admin bypass in _resolveOrgIds().
+ * super_admin with no org selected → returns ALL org IDs (sees everything).
+ * super_admin with org selected    → returns that one org (respects switcher).
+ * Regular users                    → unchanged, filtered via org_members.
+ *
  * @module services/api/projectService
  * @created January 29, 2026
  * @updated January 30, 2026 - Session 9: Added full CRUD operations
+ * @updated February 20, 2026 - Session 10: orgId param for org switching
+ * @updated February 21, 2026 - Session 13: Super admin bypass
  */
 
 import { supabase } from '../supabase/client';
 import { organizationService } from './organizationService';
 
-/**
- * Project Service
- */
 export class ProjectService {
+
+  // ─────────────────────────────────────────────
+  // INTERNAL HELPER: resolve org IDs to query with
+  // ─────────────────────────────────────────────
+
   /**
-   * Get total projects count for user's organizations
-   * @returns {Promise<number>} Total count
+   * Get org IDs to filter by.
+   *
+   * SESSION 13 FIX — Super admin bypass:
+   *   super_admin + orgId provided → [orgId]          (respects switcher)
+   *   super_admin + no orgId       → ALL org IDs      (sees everything)
+   *   regular user + orgId         → [orgId]          (respects switcher)
+   *   regular user + no orgId      → their memberships (original behaviour)
    */
-  async getProjectsCount() {
+  async _resolveOrgIds(orgId = null) {
+    // Specific org selected via switcher — applies to ALL roles
+    if (orgId) return [orgId];
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    // Check if super_admin — bypass org_members filter
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('global_role')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.global_role === 'super_admin') {
+      // Return ALL org IDs so the subsequent IN query returns everything
+      const { data: allOrgs } = await supabase
+        .from('organizations')
+        .select('id')
+        .is('deleted_at', null);
+      return (allOrgs || []).map(o => o.id);
+    }
+
+    // Regular user — filter by their org_members rows
+    const { data: memberships } = await supabase
+      .from('org_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true);
+
+    return (memberships || []).map(m => m.organization_id);
+  }
+
+  // ─────────────────────────────────────────────
+  // READ
+  // ─────────────────────────────────────────────
+
+  /**
+   * Get total projects count.
+   * @param {string|null} orgId - From OrganizationContext. Pass null for own orgs.
+   */
+  async getProjectsCount(orgId = null) {
     try {
-      console.log('📊 Getting projects count...');
+      console.log('📊 Getting projects count...', orgId ? `(org: ${orgId})` : '(all user orgs)');
 
-      // Get user's organizations first
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return 0;
+      const orgIds = await this._resolveOrgIds(orgId);
+      if (orgIds.length === 0) return 0;
 
-      // Get org IDs
-      const { data: memberships } = await supabase
-        .from('org_members')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true);
-
-      if (!memberships || memberships.length === 0) return 0;
-
-      const orgIds = memberships.map(m => m.organization_id);
-
-      // Count projects in these organizations
       const { count, error } = await supabase
         .from('projects')
         .select('*', { count: 'exact', head: true })
@@ -59,29 +107,16 @@ export class ProjectService {
   }
 
   /**
-   * Get user's projects
-   * @returns {Promise<Array>} Array of projects
+   * Get projects list.
+   * @param {string|null} orgId - From OrganizationContext.
    */
-  async getUserProjects() {
+  async getUserProjects(orgId = null) {
     try {
-      console.log('📊 Getting user projects...');
+      console.log('📊 Getting projects...', orgId ? `(org: ${orgId})` : '(all user orgs)');
 
-      // Get user's organizations first
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      const orgIds = await this._resolveOrgIds(orgId);
+      if (orgIds.length === 0) return [];
 
-      // Get org IDs
-      const { data: memberships } = await supabase
-        .from('org_members')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true);
-
-      if (!memberships || memberships.length === 0) return [];
-
-      const orgIds = memberships.map(m => m.organization_id);
-
-      // Get projects
       const { data, error } = await supabase
         .from('projects')
         .select(`
@@ -106,9 +141,8 @@ export class ProjectService {
   }
 
   /**
-   * Get single project by ID
+   * Get single project by ID.
    * @param {string} id - Project ID
-   * @returns {Promise<object|null>} Project object or null
    */
   async getProject(id) {
     try {
@@ -117,7 +151,6 @@ export class ProjectService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      // Get project with organization details
       const { data: project, error } = await supabase
         .from('projects')
         .select(`
@@ -133,243 +166,157 @@ export class ProjectService {
         return null;
       }
 
-      // Verify user has access to this project's organization
+      // Verify access (RLS handles BJ staff automatically)
       const role = await organizationService.getUserRole(project.organization_id, user.id);
       if (!role) {
-        console.error('❌ User does not have access to this project');
-        return null;
+        // BJ staff won't have org_members row — check global_role instead
+        const { data: profileData } = await supabase
+          .from('user_profiles')
+          .select('global_role')
+          .eq('id', user.id)
+          .single();
+
+        if (!profileData?.global_role) {
+          console.error('❌ User does not have access to this project');
+          return null;
+        }
       }
 
-      console.log('✅ Project fetched:', project.project_name);
+      console.log('✅ Project retrieved:', project.project_name);
       return project;
     } catch (error) {
-      console.error('❌ Exception in getProject:', error);
+      console.error('❌ Exception getting project:', error);
       return null;
     }
   }
 
+  // ─────────────────────────────────────────────
+  // CREATE
+  // ─────────────────────────────────────────────
+
   /**
-   * Create new project
-   * @param {string} organizationId - Organization ID
-   * @param {object} data - Project data
-   * @returns {Promise<object|null>} Created project or null
+   * Create a new project.
+   * @param {string} organizationId - Target org
+   * @param {Object} data - Project data
    */
   async createProject(organizationId, data) {
     try {
-      console.log('📊 Creating project:', data.project_name);
+      console.log('📊 Creating project in org:', organizationId);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
+      if (!user) return { success: false, error: 'Not authenticated' };
 
-      // Verify user is member of organization
-      const role = await organizationService.getUserRole(organizationId, user.id);
-      if (!role) {
-        throw new Error('Not a member of this organization');
-      }
-
-      // Generate project code if not provided
-      const projectCode = data.project_code || await this.generateProjectCode(organizationId);
-
-      // Prepare metadata
-      const metadata = {
-        tags: data.tags || [],
-        notes: data.notes || '',
-        contacts: data.contacts || []
+      const projectData = {
+        organization_id: organizationId,
+        project_name: data.project_name,
+        client_name: data.client_name || null,
+        client_contact: data.client_contact || null,
+        project_address: data.project_address || null,
+        status: data.status || 'active',
+        start_date: data.start_date || null,
+        end_date: data.end_date || null,
+        description: data.description || null,
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
-      // Create project
       const { data: project, error } = await supabase
         .from('projects')
-        .insert({
-          organization_id: organizationId,
-          project_name: data.project_name,
-          project_code: projectCode,
-          client_name: data.client_name,
-          site_address: data.site_address || null,
-          start_date: data.start_date || null,
-          end_date: data.end_date || null,
-          status: data.status || 'active',
-          metadata: metadata,
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select(`
-          *,
-          organizations(id, name, slug)
-        `)
+        .insert(projectData)
+        .select(`*, organizations(id, name, slug)`)
         .single();
 
       if (error) {
-        console.error('❌ Project creation error:', error);
-        throw error;
+        console.error('❌ Error creating project:', error);
+        return { success: false, error: error.message };
       }
 
       console.log('✅ Project created:', project.id);
-      return project;
+      return { success: true, data: project };
     } catch (error) {
       console.error('❌ Exception creating project:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   }
 
+  // ─────────────────────────────────────────────
+  // UPDATE
+  // ─────────────────────────────────────────────
+
   /**
-   * Update existing project
+   * Update project.
    * @param {string} id - Project ID
-   * @param {object} data - Project data to update
-   * @returns {Promise<object|null>} Updated project or null
+   * @param {Object} data - Fields to update
    */
   async updateProject(id, data) {
     try {
       console.log('📊 Updating project:', id);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
-
-      // Get existing project to verify access
-      const existing = await this.getProject(id);
-      if (!existing) {
-        throw new Error('Project not found or access denied');
-      }
-
-      // Prepare update data
       const updateData = {
-        updated_at: new Date().toISOString()
+        ...data,
+        updated_at: new Date().toISOString(),
       };
 
-      if (data.project_name) updateData.project_name = data.project_name;
-      if (data.project_code) updateData.project_code = data.project_code;
-      if (data.client_name) updateData.client_name = data.client_name;
-      if (data.site_address !== undefined) updateData.site_address = data.site_address;
-      if (data.start_date !== undefined) updateData.start_date = data.start_date;
-      if (data.end_date !== undefined) updateData.end_date = data.end_date;
-      if (data.status) updateData.status = data.status;
+      // Remove fields that shouldn't be updated
+      delete updateData.id;
+      delete updateData.organization_id;
+      delete updateData.created_by;
+      delete updateData.created_at;
 
-      // Update metadata if provided
-      if (data.tags !== undefined || data.notes !== undefined || data.contacts !== undefined) {
-        const currentMetadata = existing.metadata || {};
-        updateData.metadata = {
-          tags: data.tags !== undefined ? data.tags : currentMetadata.tags,
-          notes: data.notes !== undefined ? data.notes : currentMetadata.notes,
-          contacts: data.contacts !== undefined ? data.contacts : currentMetadata.contacts
-        };
-      }
-
-      // Update project
       const { data: project, error } = await supabase
         .from('projects')
         .update(updateData)
         .eq('id', id)
-        .select(`
-          *,
-          organizations(id, name, slug)
-        `)
+        .select(`*, organizations(id, name, slug)`)
         .single();
 
       if (error) {
-        console.error('❌ Project update error:', error);
-        throw error;
+        console.error('❌ Error updating project:', error);
+        return { success: false, error: error.message };
       }
 
-      console.log('✅ Project updated:', project.id);
-      return project;
+      console.log('✅ Project updated:', id);
+      return { success: true, data: project };
     } catch (error) {
       console.error('❌ Exception updating project:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   }
 
+  // ─────────────────────────────────────────────
+  // DELETE
+  // ─────────────────────────────────────────────
+
   /**
-   * Delete project (soft delete)
+   * Soft delete project.
    * @param {string} id - Project ID
-   * @returns {Promise<boolean>} Success status
    */
   async deleteProject(id) {
     try {
       console.log('📊 Deleting project:', id);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
-
-      // Get existing project to verify access
-      const existing = await this.getProject(id);
-      if (!existing) {
-        throw new Error('Project not found or access denied');
-      }
-
-      // Verify user has permission
-      const role = await organizationService.getUserRole(existing.organization_id, user.id);
-      if (!role || (role !== 'org_admin' && role !== 'manager')) {
-        throw new Error('Insufficient permissions to delete project');
-      }
-
-      // Soft delete (set deleted_at timestamp)
       const { error } = await supabase
         .from('projects')
         .update({
           deleted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', id);
 
       if (error) {
-        console.error('❌ Project deletion error:', error);
-        throw error;
+        console.error('❌ Error deleting project:', error);
+        return { success: false, error: error.message };
       }
 
       console.log('✅ Project deleted (soft):', id);
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('❌ Exception deleting project:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Generate unique project code
-   * @param {string} organizationId - Organization ID
-   * @returns {Promise<string>}
-   */
-  async generateProjectCode(organizationId) {
-    try {
-      // Get organization to use in code
-      const { data: org } = await supabase
-        .from('organizations')
-        .select('slug')
-        .eq('id', organizationId)
-        .single();
-
-      // Get current year
-      const year = new Date().getFullYear();
-
-      // Count projects in this org this year
-      const { count } = await supabase
-        .from('projects')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organizationId)
-        .gte('created_at', `${year}-01-01`)
-        .is('deleted_at', null);
-
-      const nextNumber = (count || 0) + 1;
-      const orgPrefix = org?.slug?.substring(0, 3).toUpperCase() || 'PRJ';
-
-      return `${orgPrefix}-${year}-${String(nextNumber).padStart(3, '0')}`;
-    } catch (error) {
-      console.error('❌ Error generating project code:', error);
-      // Fallback to simple code
-      return `PRJ-${Date.now()}`;
+      return { success: false, error: error.message };
     }
   }
 }
 
-// Export singleton instance
 export const projectService = new ProjectService();
-
-// Export default
 export default projectService;

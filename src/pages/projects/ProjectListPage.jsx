@@ -1,44 +1,61 @@
 /**
  * WorkLedger - Project List Page
- * 
+ *
  * Main page for displaying all projects with filters and search.
- * 
+ *
+ * SESSION 10 WIRING (restored):
+ *   - useOrganization() provides currentOrg from the org switcher
+ *   - loadData wrapped in useCallback([currentOrg?.id]) so it re-runs
+ *     automatically whenever the active org changes
+ *   - currentOrg?.id passed to service so the query filters correctly
+ *     (null = all orgs for super_admin)
+ *
+ * SESSION 13 RBAC: canCreate/canEdit/canDelete passed to ProjectList
+ *
  * @module pages/projects/ProjectListPage
  * @created January 30, 2026 - Session 9
+ * @updated February 21, 2026 - Session 13: RBAC props
+ * @updated February 21, 2026 - Session 13 fix: org wiring restored
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '../../components/layout/AppLayout';
 import ProjectList from '../../components/projects/ProjectList';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { projectService } from '../../services/api/projectService';
 import { organizationService } from '../../services/api/organizationService';
+import { useOrganization } from '../../context/OrganizationContext';
+import { useRole } from '../../hooks/useRole';
 
 export function ProjectListPage() {
-  const [projects, setProjects] = useState([]);
+  const { currentOrg } = useOrganization();
+  const { can } = useRole();
+
+  const [projects, setProjects]           = useState([]);
   const [organizations, setOrganizations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState(null);
 
-  // Load projects and organizations on mount
-  useEffect(() => {
-    loadData();
-  }, []);
+  // ── Permission flags ───────────────────────────────────────────────
+  const canCreate = can('CREATE_PROJECT');
+  const canEdit   = can('EDIT_PROJECT');
+  const canDelete = can('DELETE_PROJECT');
 
-  // Load all data
-  const loadData = async () => {
+  // ── Load data — re-runs when org switcher changes ──────────────────
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Load projects and organizations in parallel
+      const orgId = currentOrg?.id ?? null;
+
       const [projectsData, orgsData] = await Promise.all([
-        projectService.getUserProjects(),
-        organizationService.getUserOrganizations()
+        projectService.getUserProjects(orgId),
+        organizationService.getUserOrganizations(),
       ]);
 
-      setProjects(projectsData || []);
-      setOrganizations(orgsData || []);
+      setProjects(projectsData      || []);
+      setOrganizations(orgsData     || []);
 
       console.log('✅ Loaded projects:', projectsData?.length || 0);
     } catch (err) {
@@ -47,16 +64,17 @@ export function ProjectListPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentOrg?.id]); // ← re-runs on every org switch
 
-  // Handle delete project
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // ── Delete handler ─────────────────────────────────────────────────
   const handleDelete = async (id) => {
     try {
       await projectService.deleteProject(id);
-      
-      // Refresh list
       await loadData();
-      
       console.log('✅ Project deleted successfully');
     } catch (err) {
       console.error('❌ Error deleting project:', err);
@@ -64,7 +82,7 @@ export function ProjectListPage() {
     }
   };
 
-  // Loading state
+  // ── Loading state ──────────────────────────────────────────────────
   if (loading) {
     return (
       <AppLayout>
@@ -75,7 +93,7 @@ export function ProjectListPage() {
     );
   }
 
-  // Error state
+  // ── Error state ────────────────────────────────────────────────────
   if (error) {
     return (
       <AppLayout>
@@ -94,14 +112,21 @@ export function ProjectListPage() {
     );
   }
 
+  // ── Main render ────────────────────────────────────────────────────
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
+
         {/* Page Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
           <p className="mt-2 text-sm text-gray-600">
             Manage your projects, contracts, and work entries.
+            {currentOrg && (
+              <span className="ml-2 font-medium text-primary-700">
+                — {currentOrg.name}
+              </span>
+            )}
           </p>
         </div>
 
@@ -110,6 +135,9 @@ export function ProjectListPage() {
           projects={projects}
           organizations={organizations}
           isLoading={loading}
+          canCreate={canCreate}
+          canEdit={canEdit}
+          canDelete={canDelete}
           onDelete={handleDelete}
           onRefresh={loadData}
         />

@@ -6,11 +6,13 @@
  * - Mobile: Header + Bottom navigation + Breadcrumb
  * - Responsive design
  * - Organization Switcher for Bina Jaya staff (Session 9)
+ * - Org switch toast notification (Session 10)
  *
  * @module components/layout/AppLayout
  * @created January 29, 2026
  * @updated January 31, 2026 - Added Breadcrumb navigation
  * @updated February 20, 2026 - Session 9: Added OrganizationSwitcher
+ * @updated February 20, 2026 - Session 10: Added OrgSwitchToast
  */
 
 import React, { useState } from 'react';
@@ -21,6 +23,7 @@ import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import Breadcrumb from '../common/Breadcrumb';
 import OrganizationSwitcher from '../organizations/OrganizationSwitcher';
+import OrgSwitchToast from '../organizations/OrgSwitchToast';
 
 export function AppLayout({ children }) {
   const navigate = useNavigate();
@@ -30,7 +33,6 @@ export function AppLayout({ children }) {
   const handleLogout = async () => {
     console.log('🔐 AppLayout: Logging out...');
     const result = await logout();
-
     if (result.success) {
       navigate(ROUTES.LOGIN);
     }
@@ -71,7 +73,7 @@ export function AppLayout({ children }) {
                   </svg>
                 </button>
 
-                {/* Home Icon - Always Visible */}
+                {/* Home Icon */}
                 <button
                   onClick={() => navigate(ROUTES.DASHBOARD)}
                   className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -84,21 +86,18 @@ export function AppLayout({ children }) {
                 </button>
               </div>
 
-              {/* ── CENTER: Organization Switcher ──
-                  Renders nothing for regular client users.
-                  Shows org dropdown for Bina Jaya staff only. */}
+              {/* CENTER: Organization Switcher
+                  Renders nothing for regular users.
+                  Shows org dropdown for BJ staff only. */}
               <div className="flex-1 flex justify-center px-4">
                 <OrganizationSwitcher />
               </div>
 
               {/* Right Section: User Info + Logout */}
               <div className="flex items-center space-x-4">
-                {/* User Info - Hidden on small mobile */}
                 <span className="hidden sm:block text-sm text-gray-600 truncate max-w-[150px]">
                   {profile?.full_name || user?.email}
                 </span>
-
-                {/* Logout Button */}
                 <button
                   onClick={handleLogout}
                   className="px-3 py-1.5 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
@@ -114,10 +113,7 @@ export function AppLayout({ children }) {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6">
-            {/* Breadcrumb Navigation */}
             <Breadcrumb />
-
-            {/* Page Content */}
             {children}
           </div>
         </main>
@@ -134,6 +130,9 @@ export function AppLayout({ children }) {
 
       {/* Bottom Navigation - Mobile Only */}
       <BottomNav />
+
+      {/* Org Switch Toast - fires automatically when org changes (BJ staff only) */}
+      <OrgSwitchToast />
     </div>
   );
 }

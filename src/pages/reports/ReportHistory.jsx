@@ -17,8 +17,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../services/supabase/client';
 import { reportService } from '../../services/api/reportService';
+import { contractService } from '../../services/api/contractService';
+import { useOrganization } from '../../context/OrganizationContext';
 import AppLayout from '../../components/layout/AppLayout';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ReportPreview from '../../components/reports/ReportPreview';
@@ -93,6 +94,7 @@ const STATUS_STYLES = {
 // ============================================
 export default function ReportHistory() {
   const navigate = useNavigate();
+  const { currentOrg } = useOrganization();
 
   // --- State ---
   const [contracts, setContracts] = useState([]);
@@ -103,8 +105,8 @@ export default function ReportHistory() {
   const [loading, setLoading] = useState(true);
   const [loadingReports, setLoadingReports] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [showFilter, setShowFilter] = useState('all'); // 'all' | 'active' | 'archived'
-  const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'custom' | 'monthly' | 'weekly'
+  const [showFilter, setShowFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
 
   // Monthly/Weekly picker state
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -120,40 +122,37 @@ export default function ReportHistory() {
   const [previewFilename, setPreviewFilename] = useState('');
 
   // ============================================
-  // LOAD CONTRACTS
+  // LOAD CONTRACTS — org-aware (SESSION 14 FIX)
   // ============================================
-  useEffect(() => {
-    loadContracts();
-  }, []);
-
-  const loadContracts = async () => {
+  const loadContracts = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('contracts')
-        .select(`
-          id, contract_number, contract_name, contract_type, contract_category, status,
-          valid_from, valid_until,
-          project:projects (id, project_name, client_name, project_code)
-        `)
-        .is('deleted_at', null)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
+      setSelectedContractId('');
+      setSelectedContract(null);
+      setReports([]);
 
-      if (error) throw error;
+      // Use contractService so RLS + org filter is respected for all roles
+      const orgId = currentOrg?.id ?? null;
+      const data  = await contractService.getUserContracts(orgId);
 
-      setContracts(data || []);
+      // Only show active contracts in the report selector
+      const active = (data || []).filter(c => c.status === 'active');
+      setContracts(active);
 
       // Auto-select first
-      if (data && data.length > 0) {
-        setSelectedContractId(data[0].id);
+      if (active.length > 0) {
+        setSelectedContractId(active[0].id);
       }
     } catch (error) {
       console.error('❌ Failed to load contracts:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentOrg?.id]); // ← re-runs when org switcher changes
+
+  useEffect(() => {
+    loadContracts();
+  }, [loadContracts]);
 
   // ============================================
   // LOAD REPORTS WHEN CONTRACT CHANGES
@@ -415,7 +414,14 @@ export default function ReportHistory() {
 
         {/* ===== CONTRACT SELECTOR ===== */}
         <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Select Contract</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">Select Contract</label>
+            {currentOrg && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                📁 {currentOrg.name}
+              </span>
+            )}
+          </div>
           <select
             value={selectedContractId}
             onChange={(e) => setSelectedContractId(e.target.value)}

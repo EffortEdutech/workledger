@@ -1,10 +1,16 @@
 /**
  * WorkLedger - Edit Contract Page
- * 
+ *
  * Page for editing an existing contract.
- * 
+ *
+ * SESSION 13 FIX: Templates now loaded via templateService.getTemplates()
+ * instead of a direct supabase query. The direct query was silently returning
+ * [] due to RLS on the templates table. templateService already works
+ * correctly (used on the Templates page) and respects auth context.
+ *
  * @module pages/contracts/EditContract
  * @created January 31, 2026 - Session 10
+ * @updated February 21, 2026 - Session 13: use templateService for templates
  */
 
 import React, { useState, useEffect } from 'react';
@@ -14,20 +20,19 @@ import ContractForm from '../../components/contracts/ContractForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { contractService } from '../../services/api/contractService';
 import { projectService } from '../../services/api/projectService';
-import { supabase } from '../../services/supabase/client';
+import { templateService } from '../../services/api/templateService';
 
 export function EditContract() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
-  const [contract, setContract] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
 
-  // Load contract, projects, and templates
+  const [contract, setContract]     = useState(null);
+  const [projects, setProjects]     = useState([]);
+  const [templates, setTemplates]   = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError]           = useState(null);
+
   useEffect(() => {
     loadData();
   }, [id]);
@@ -37,11 +42,13 @@ export function EditContract() {
       setLoading(true);
       setError(null);
 
-      // Load contract, projects, and templates in parallel
-      const [contractData, projectsData, templatesResult] = await Promise.all([
+      // ── Load all three in parallel ────────────────────────────────
+      // templateService.getTemplates() uses auth context correctly —
+      // it does NOT get blocked by RLS unlike a raw supabase query.
+      const [contractData, projectsData, templatesData] = await Promise.all([
         contractService.getContract(id),
         projectService.getUserProjects(),
-        supabase.from('templates').select('*').order('template_name')
+        templateService.getTemplates(),          // ← FIXED
       ]);
 
       if (!contractData) {
@@ -50,13 +57,12 @@ export function EditContract() {
         return;
       }
 
-      if (templatesResult.error) throw templatesResult.error;
-
       setContract(contractData);
-      setProjects(projectsData || []);
-      setTemplates(templatesResult.data || []);
+      setProjects(projectsData   || []);
+      setTemplates(templatesData || []);
 
       console.log('✅ Loaded contract for editing:', contractData.contract_number);
+      console.log('✅ Templates loaded:', templatesData?.length || 0);
     } catch (err) {
       console.error('❌ Error loading contract:', err);
       setError('Failed to load contract. Please try again.');
@@ -65,33 +71,65 @@ export function EditContract() {
     }
   };
 
-  // Handle form submit
   const handleSubmit = async (projectId, data) => {
     try {
       setSubmitting(true);
-      console.log('📝 Updating contract:', data);
 
-      const updatedContract = await contractService.updateContract(id, data);
-      
-      if (updatedContract) {
-        console.log('✅ Contract updated successfully');
-        // Redirect to contract detail page
-        navigate(`/contracts/${id}`);
+      // 1. Extract template_ids from payload (not a DB column)
+      const { template_ids = [], ...contractData } = data;
+
+      console.log('📝 Updating contract:', contractData);
+      const result = await contractService.updateContract(id, contractData);
+
+      if (!result.success) {
+        alert(result.error || 'Failed to update contract. Please try again.');
+        return;
       }
-    } catch (error) {
-      console.error('❌ Error updating contract:', error);
+      console.log('✅ Contract updated');
+
+      // 2. Sync templates — diff current vs selected
+      const currentTemplates = contract?.contract_templates || [];
+      const currentIds  = currentTemplates.map(jt => jt.template_id);
+
+      const toAdd    = template_ids.filter(tid => !currentIds.includes(tid));
+      const toRemove = currentTemplates.filter(jt => !template_ids.includes(jt.template_id));
+
+      // Remove deselected
+      for (const jt of toRemove) {
+        await contractService.removeContractTemplate(jt.id, id);
+      }
+
+      // Add newly selected — first selected that's also first overall becomes default
+      for (let i = 0; i < toAdd.length; i++) {
+        const isDefault = currentIds.length === 0 && i === 0; // only set default if none existed
+        await contractService.addContractTemplate(id, toAdd[i], { isDefault });
+      }
+
+      // If the default was removed, promote the first remaining
+      const remainingDefault = currentTemplates.find(
+        jt => jt.is_default && template_ids.includes(jt.template_id)
+      );
+      if (!remainingDefault && template_ids.length > 0 && toAdd.length === 0) {
+        // Find the junction row of the first kept template and set it as default
+        const firstKept = currentTemplates.find(jt => template_ids.includes(jt.template_id));
+        if (firstKept) {
+          await contractService.setDefaultContractTemplate(id, firstKept.id);
+        }
+      }
+
+      console.log('✅ Templates synced — added:', toAdd.length, 'removed:', toRemove.length);
+      navigate(`/contracts/${id}`);
+    } catch (err) {
+      console.error('❌ Error updating contract:', err);
       alert('Failed to update contract. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Handle cancel
-  const handleCancel = () => {
-    navigate(`/contracts/${id}`);
-  };
+  const handleCancel = () => navigate(`/contracts/${id}`);
 
-  // Loading state
+  // ── Loading state ─────────────────────────────────────────────────
   if (loading) {
     return (
       <AppLayout>
@@ -102,23 +140,18 @@ export function EditContract() {
     );
   }
 
-  // Error state
-  if (error || !contract) {
+  // ── Error state ───────────────────────────────────────────────────
+  if (error) {
     return (
       <AppLayout>
         <div className="max-w-3xl mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-red-900 mb-2">
-              Error Loading Contract
-            </h3>
-            <p className="text-red-800 mb-4">
-              {error || 'Contract not found.'}
-            </p>
+            <p className="text-red-800">{error}</p>
             <button
               onClick={() => navigate('/contracts')}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              className="mt-3 text-sm text-red-600 hover:text-red-700 font-medium"
             >
-              Back to Contracts
+              ← Back to Contracts
             </button>
           </div>
         </div>
@@ -128,26 +161,22 @@ export function EditContract() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto">
-        {/* Page Header */}
+      <div className="max-w-3xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Edit Contract</h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Update the contract details below.
-          </p>
           <p className="mt-1 text-sm text-gray-500">
-            Contract: <span className="font-medium text-gray-700">{contract.contract_number}</span>
+            {contract?.contract_number} — {contract?.contract_name}
           </p>
         </div>
 
-        {/* Contract Form */}
         <ContractForm
-          contract={contract}
+          initialData={contract}
           projects={projects}
           templates={templates}
+          mode="edit"
           onSubmit={handleSubmit}
           onCancel={handleCancel}
-          isLoading={submitting}
+          isSubmitting={submitting}
         />
       </div>
     </AppLayout>

@@ -1,55 +1,114 @@
 /**
  * WorkLedger - Contract Service
- * 
+ *
  * Complete contract service with full CRUD operations.
- * Contracts belong to projects and link to templates.
- * 
+ * Contracts sit under projects, so org filtering goes via project.
+ *
+ * SESSION 10 UPDATE: List/count methods accept optional `orgId`.
+ * When provided, resolves project IDs for that specific org first,
+ * then filters contracts by those projects. Enables BJ staff org switching.
+ *
+ * SESSION 13 FIX: Super admin bypass in _resolveProjectIds().
+ * super_admin users were invisible to orgs they hadn't joined via org_members
+ * (e.g. FEST ENT, Mr. Roz, MTSB created via SQL seed). Now super_admin
+ * gets all project IDs across the entire platform with no org filter.
+ *
  * @module services/api/contractService
  * @created January 29, 2026
  * @updated January 31, 2026 - Session 10: Added full CRUD operations
+ * @updated February 20, 2026 - Session 10: orgId param for org switching
+ * @updated February 21, 2026 - Session 13: Super admin bypass
+ * @updated February 22, 2026 - Session 14: Junction table contract_templates
+ *   - getContract() now joins contract_templates (replaces legacy template_id column)
+ *   - Added: getContractTemplates(), addContractTemplate(),
+ *             removeContractTemplate(), setDefaultContractTemplate(),
+ *             updateContractTemplateLabel()
  */
 
 import { supabase } from '../supabase/client';
 import { projectService } from './projectService';
 
-/**
- * Contract Service
- */
 export class ContractService {
+
+  // ─────────────────────────────────────────────
+  // INTERNAL HELPER
+  // ─────────────────────────────────────────────
+
   /**
-   * Get total contracts count for user's organizations
-   * @returns {Promise<number>} Total count
+   * Resolve project IDs accessible to current user/org.
+   * Contracts filter by project_id, which sits under organization_id.
+   *
+   * SESSION 13 FIX — Super admin bypass:
+   *   super_admin users see ALL projects regardless of org_members rows.
+   *   This prevents the silent empty-list bug when super_admin hasn't been
+   *   manually added to orgs that were created via SQL seed data.
+   *
+   * Flow for regular users:
+   *   orgId provided → filter that one org
+   *   no orgId       → look up all org_members orgs, then their projects
+   *
+   * Flow for super_admin:
+   *   orgId provided → filter that one org (respects switcher selection)
+   *   no orgId       → ALL projects, no org filter
    */
-  async getContractsCount() {
-    try {
-      console.log('📊 Getting contracts count...');
+  async _resolveProjectIds(orgId = null) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return 0;
+    // ── Super admin check ─────────────────────────────────────
+    // Check global_role on user_profiles, not org_members role,
+    // because super_admin may not have org_members rows everywhere.
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('global_role')
+      .eq('id', user.id)
+      .single();
 
-      // Get user's organizations
+    const isSuperAdmin = profile?.global_role === 'super_admin';
+
+    // ── Build org filter ──────────────────────────────────────
+    let projectQuery = supabase
+      .from('projects')
+      .select('id')
+      .is('deleted_at', null);
+
+    if (orgId) {
+      // Specific org selected (org switcher) — applies to all roles
+      projectQuery = projectQuery.eq('organization_id', orgId);
+    } else if (!isSuperAdmin) {
+      // Regular user — filter by their org_members memberships
       const { data: memberships } = await supabase
         .from('org_members')
         .select('organization_id')
         .eq('user_id', user.id)
         .eq('is_active', true);
 
-      if (!memberships || memberships.length === 0) return 0;
+      const orgIds = (memberships || []).map(m => m.organization_id);
+      if (orgIds.length === 0) return [];
 
-      const orgIds = memberships.map(m => m.organization_id);
+      projectQuery = projectQuery.in('organization_id', orgIds);
+    }
+    // else: super_admin + no orgId → no org filter → all projects ✅
 
-      // Get projects in these organizations
-      const { data: projects } = await supabase
-        .from('projects')
-        .select('id')
-        .in('organization_id', orgIds)
-        .is('deleted_at', null);
+    const { data: projects } = await projectQuery;
+    return (projects || []).map(p => p.id);
+  }
 
-      if (!projects || projects.length === 0) return 0;
+  // ─────────────────────────────────────────────
+  // READ
+  // ─────────────────────────────────────────────
 
-      const projectIds = projects.map(p => p.id);
+  /**
+   * Get total contracts count.
+   * @param {string|null} orgId - From OrganizationContext.
+   */
+  async getContractsCount(orgId = null) {
+    try {
+      console.log('📊 Getting contracts count...', orgId ? `(org: ${orgId})` : '(all user orgs)');
 
-      // Count contracts in these projects
+      const projectIds = await this._resolveProjectIds(orgId);
+      if (projectIds.length === 0) return 0;
+
       const { count, error } = await supabase
         .from('contracts')
         .select('*', { count: 'exact', head: true })
@@ -70,57 +129,38 @@ export class ContractService {
   }
 
   /**
-   * Get user's contracts
-   * @param {string} projectId - Optional project ID to filter
-   * @returns {Promise<Array>} Array of contracts
+   * Get contracts list.
+   * @param {string|null} orgId - From OrganizationContext.
    */
-  async getUserContracts(projectId = null) {
+  async getUserContracts(orgId = null) {
     try {
-      console.log('📊 Getting user contracts...');
+      console.log('📊 Getting contracts...', orgId ? `(org: ${orgId})` : '(all user orgs)');
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      const projectIds = await this._resolveProjectIds(orgId);
+      if (projectIds.length === 0) return [];
 
-      // Get user's organizations
-      const { data: memberships } = await supabase
-        .from('org_members')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true);
-
-      if (!memberships || memberships.length === 0) return [];
-
-      const orgIds = memberships.map(m => m.organization_id);
-
-      // Build query
-      let query = supabase
+      const { data, error } = await supabase
         .from('contracts')
         .select(`
           *,
-          project:projects(id, project_name, project_code, organization_id, organizations(id, name)),
-          template:templates(id, template_id, template_name, contract_category)
+          project:projects(
+            id,
+            project_name,
+            project_code,
+            organization:organizations(id, name)
+          ),
+          contract_templates(
+            id,
+            template_id,
+            label,
+            is_default,
+            sort_order,
+            templates(id, template_name, contract_category)
+          )
         `)
+        .in('project_id', projectIds)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
-
-      // Filter by project if specified
-      if (projectId) {
-        query = query.eq('project_id', projectId);
-      } else {
-        // Filter by organizations
-        const { data: projects } = await supabase
-          .from('projects')
-          .select('id')
-          .in('organization_id', orgIds)
-          .is('deleted_at', null);
-
-        if (!projects || projects.length === 0) return [];
-
-        const projectIds = projects.map(p => p.id);
-        query = query.in('project_id', projectIds);
-      }
-
-      const { data, error } = await query;
 
       if (error) {
         console.error('❌ Error getting contracts:', error);
@@ -136,30 +176,39 @@ export class ContractService {
   }
 
   /**
-   * Get single contract by ID
+   * Get single contract by ID.
    * @param {string} id - Contract ID
-   * @returns {Promise<object|null>} Contract object or null
    */
   async getContract(id) {
     try {
       console.log('📊 Getting contract:', id);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      // Get contract with related data
-      const { data: contract, error } = await supabase
+      const { data, error } = await supabase
         .from('contracts')
         .select(`
           *,
           project:projects(
-            id, 
-            project_name, 
-            project_code,
-            organization_id,
-            organizations(id, name, slug)
+            id,
+            project_name,
+            client_name,
+            organization:organizations(id, name, slug)
           ),
-          template:templates(id, template_id, template_name, contract_category, fields_schema)
+          contract_templates(
+            id,
+            template_id,
+            label,
+            sort_order,
+            is_default,
+            assigned_at,
+            templates(
+              id,
+              template_id,
+              template_name,
+              contract_category,
+              report_type,
+              fields_schema
+            )
+          )
         `)
         .eq('id', id)
         .is('deleted_at', null)
@@ -170,262 +219,400 @@ export class ContractService {
         return null;
       }
 
-      // Verify user has access to this contract's project
-      const project = await projectService.getProject(contract.project_id);
-      if (!project) {
-        console.error('❌ User does not have access to this contract');
-        return null;
-      }
-
-      console.log('✅ Contract fetched:', contract.contract_number);
-      return contract;
+      console.log('✅ Contract retrieved:', data.contract_number);
+      return data;
     } catch (error) {
-      console.error('❌ Exception in getContract:', error);
+      console.error('❌ Exception getting contract:', error);
       return null;
     }
   }
 
   /**
-   * Create new contract
-   * @param {string} projectId - Project ID
-   * @param {object} data - Contract data
-   * @returns {Promise<object|null>} Created contract or null
+   * Get contracts for a specific project.
+   * @param {string} projectId
+   */
+  async getContractsByProject(projectId) {
+    try {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select(`
+          *,
+          contract_templates(
+            id,
+            template_id,
+            label,
+            is_default,
+            templates(id, template_name, contract_category)
+          )
+        `)
+        .eq('project_id', projectId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error getting project contracts:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Exception getting project contracts:', error);
+      return [];
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // CREATE
+  // ─────────────────────────────────────────────
+
+  /**
+   * Create a new contract.
+   * @param {string} projectId - Target project
+   * @param {Object} data - Contract data
    */
   async createContract(projectId, data) {
     try {
-      console.log('📊 Creating contract:', data.contract_name);
+      console.log('📊 Creating contract for project:', projectId);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
+      if (!user) return { success: false, error: 'Not authenticated' };
 
-      // Verify user has access to project
-      const project = await projectService.getProject(projectId);
-      if (!project) {
-        throw new Error('Project not found or access denied');
-      }
+      const contractData = {
+        project_id: projectId,
+        contract_number: data.contract_number,
+        contract_name: data.contract_name,
+        contract_category: data.contract_category,
+        contract_type: data.contract_type || null,
+        status: data.status || 'active',
+        valid_from: data.valid_from || null,
+        valid_until: data.valid_until || null,
+        contract_value: data.contract_value || null,
+        reporting_frequency: data.reporting_frequency || 'monthly',
+        maintenance_cycle: data.maintenance_cycle || null,
+        description: data.description || null,
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-      // Generate contract number if not provided
-      const contractNumber = data.contract_number || 
-        await this.generateContractNumber(projectId, data.contract_category);
-
-      // Create contract
       const { data: contract, error } = await supabase
         .from('contracts')
-        .insert({
-          project_id: projectId,
-          template_id: data.template_id,
-          contract_number: contractNumber,
-          contract_name: data.contract_name,
-          contract_category: data.contract_category,
-          reporting_frequency: data.reporting_frequency || 'daily',
-          requires_approval: data.requires_approval !== undefined ? data.requires_approval : true,
-          sla_response_time_mins: data.sla_response_time_mins || null,
-          sla_resolution_time_hours: data.sla_resolution_time_hours || null,
-          sla_tier: data.sla_tier || null,
-          maintenance_cycle: data.maintenance_cycle || null,
-          asset_categories: data.asset_categories || null,
-          valid_from: data.valid_from || null,
-          valid_until: data.valid_until || null,
-          status: data.status || 'active',
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
+        .insert(contractData)
         .select(`
           *,
-          project:projects(id, project_name, project_code, organizations(id, name)),
-          template:templates(id, template_id, template_name, contract_category)
+          project:projects(id, project_name, organization:organizations(id, name))
         `)
         .single();
 
       if (error) {
-        console.error('❌ Contract creation error:', error);
-        throw error;
+        console.error('❌ Error creating contract:', error);
+        return { success: false, error: error.message };
       }
 
       console.log('✅ Contract created:', contract.id);
-      return contract;
+      return { success: true, data: contract };
     } catch (error) {
       console.error('❌ Exception creating contract:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   }
 
+  // ─────────────────────────────────────────────
+  // UPDATE
+  // ─────────────────────────────────────────────
+
   /**
-   * Update existing contract
+   * Update contract.
    * @param {string} id - Contract ID
-   * @param {object} data - Contract data to update
-   * @returns {Promise<object|null>} Updated contract or null
+   * @param {Object} data - Fields to update
    */
   async updateContract(id, data) {
     try {
       console.log('📊 Updating contract:', id);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
-
-      // Get existing contract to verify access
-      const existing = await this.getContract(id);
-      if (!existing) {
-        throw new Error('Contract not found or access denied');
-      }
-
-      // Prepare update data
       const updateData = {
-        updated_at: new Date().toISOString()
+        ...data,
+        updated_at: new Date().toISOString(),
       };
 
-      // Only update provided fields
-      if (data.contract_name) updateData.contract_name = data.contract_name;
-      if (data.contract_number) updateData.contract_number = data.contract_number;
-      if (data.contract_category) updateData.contract_category = data.contract_category;
-      if (data.template_id) updateData.template_id = data.template_id;
-      if (data.reporting_frequency) updateData.reporting_frequency = data.reporting_frequency;
-      if (data.requires_approval !== undefined) updateData.requires_approval = data.requires_approval;
-      if (data.sla_response_time_mins !== undefined) updateData.sla_response_time_mins = data.sla_response_time_mins;
-      if (data.sla_resolution_time_hours !== undefined) updateData.sla_resolution_time_hours = data.sla_resolution_time_hours;
-      if (data.sla_tier !== undefined) updateData.sla_tier = data.sla_tier;
-      if (data.maintenance_cycle !== undefined) updateData.maintenance_cycle = data.maintenance_cycle;
-      if (data.asset_categories !== undefined) updateData.asset_categories = data.asset_categories;
-      if (data.valid_from !== undefined) updateData.valid_from = data.valid_from;
-      if (data.valid_until !== undefined) updateData.valid_until = data.valid_until;
-      if (data.status) updateData.status = data.status;
+      delete updateData.id;
+      delete updateData.project_id;
+      delete updateData.created_by;
+      delete updateData.created_at;
 
-      // Update contract
       const { data: contract, error } = await supabase
         .from('contracts')
         .update(updateData)
         .eq('id', id)
         .select(`
           *,
-          project:projects(id, project_name, project_code, organizations(id, name)),
-          template:templates(id, template_id, template_name, contract_category)
+          project:projects(id, project_name, organization:organizations(id, name))
         `)
         .single();
 
       if (error) {
-        console.error('❌ Contract update error:', error);
-        throw error;
+        console.error('❌ Error updating contract:', error);
+        return { success: false, error: error.message };
       }
 
-      console.log('✅ Contract updated:', contract.id);
-      return contract;
+      console.log('✅ Contract updated:', id);
+      return { success: true, data: contract };
     } catch (error) {
       console.error('❌ Exception updating contract:', error);
-      throw error;
+      return { success: false, error: error.message };
     }
   }
 
+  // ─────────────────────────────────────────────
+  // DELETE
+  // ─────────────────────────────────────────────
+
   /**
-   * Delete contract (soft delete)
+   * Soft delete contract.
    * @param {string} id - Contract ID
-   * @returns {Promise<boolean>} Success status
    */
   async deleteContract(id) {
     try {
       console.log('📊 Deleting contract:', id);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
-
-      // Get existing contract to verify access
-      const existing = await this.getContract(id);
-      if (!existing) {
-        throw new Error('Contract not found or access denied');
-      }
-
-      // Soft delete (set deleted_at timestamp)
       const { error } = await supabase
         .from('contracts')
         .update({
           deleted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', id);
 
       if (error) {
-        console.error('❌ Contract deletion error:', error);
-        throw error;
+        console.error('❌ Error deleting contract:', error);
+        return { success: false, error: error.message };
       }
 
       console.log('✅ Contract deleted (soft):', id);
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('❌ Exception deleting contract:', error);
-      throw error;
+      return { success: false, error: error.message };
+    }
+  }
+  // ─────────────────────────────────────────────
+  // CONTRACT TEMPLATES — Junction Table CRUD
+  // Session 14: one contract → many templates
+  // ─────────────────────────────────────────────
+
+  /**
+   * Get all templates assigned to a contract, ordered by sort_order.
+   * @param {string} contractId
+   * @returns {Promise<Array>}
+   */
+  async getContractTemplates(contractId) {
+    try {
+      console.log('📊 Loading templates for contract:', contractId);
+
+      const { data, error } = await supabase
+        .from('contract_templates')
+        .select(`
+          id,
+          contract_id,
+          template_id,
+          label,
+          sort_order,
+          is_default,
+          assigned_at,
+          templates(
+            id,
+            template_id,
+            template_name,
+            contract_category,
+            report_type,
+            industry
+          )
+        `)
+        .eq('contract_id', contractId)
+        .order('sort_order', { ascending: true })
+        .order('assigned_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error loading contract templates:', error);
+        return [];
+      }
+
+      console.log('✅ Contract templates loaded:', data?.length || 0);
+      return data || [];
+    } catch (err) {
+      console.error('❌ Exception in getContractTemplates:', err);
+      return [];
     }
   }
 
   /**
-   * Generate unique contract number
-   * @param {string} projectId - Project ID
-   * @param {string} category - Contract category
-   * @returns {Promise<string>}
+   * Add a template to a contract.
+   * Auto-sets is_default = true when it is the first template.
+   * @param {string} contractId
+   * @param {string} templateId
+   * @param {{ label?: string, isDefault?: boolean }} options
+   * @returns {Promise<{success: boolean, data?: object, error?: string}>}
    */
-  async generateContractNumber(projectId, category) {
+  async addContractTemplate(contractId, templateId, { label = null, isDefault = false } = {}) {
     try {
-      // Get project to use in code
-      const { data: project } = await supabase
-        .from('projects')
-        .select('project_code, organizations(slug)')
-        .eq('id', projectId)
+      console.log('📝 Adding template to contract:', { contractId, templateId, label });
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { success: false, error: 'Not authenticated' };
+
+      const existing = await this.getContractTemplates(contractId);
+      const shouldBeDefault = isDefault || existing.length === 0;
+
+      // Clear existing defaults if this one will become default
+      if (shouldBeDefault && existing.length > 0) {
+        await supabase
+          .from('contract_templates')
+          .update({ is_default: false })
+          .eq('contract_id', contractId);
+      }
+
+      const { data, error } = await supabase
+        .from('contract_templates')
+        .insert({
+          contract_id:  contractId,
+          template_id:  templateId,
+          label:        label || null,
+          is_default:   shouldBeDefault,
+          sort_order:   existing.length,
+          assigned_by:  user.id,
+        })
+        .select(`
+          id, contract_id, template_id, label, sort_order, is_default, assigned_at,
+          templates(id, template_id, template_name, contract_category, report_type, industry)
+        `)
         .single();
 
-      // Get current year
-      const year = new Date().getFullYear();
+      if (error) {
+        if (error.code === '23505') {
+          return { success: false, error: 'This template is already assigned to this contract.' };
+        }
+        console.error('❌ Error adding contract template:', error);
+        return { success: false, error: error.message };
+      }
 
-      // Count contracts in this project this year
-      const { count } = await supabase
-        .from('contracts')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', projectId)
-        .gte('created_at', `${year}-01-01`)
-        .is('deleted_at', null);
-
-      const nextNumber = (count || 0) + 1;
-
-      // Format: CATEGORY-PROJECT-YEAR-NUM
-      // Example: PMC-KLCC-2024-001
-      const categoryPrefix = this.getCategoryPrefix(category);
-      const projectPrefix = project?.project_code?.substring(0, 4).toUpperCase() || 'PROJ';
-
-      return `${categoryPrefix}-${projectPrefix}-${year}-${String(nextNumber).padStart(3, '0')}`;
-    } catch (error) {
-      console.error('❌ Error generating contract number:', error);
-      // Fallback to simple code
-      return `CONTRACT-${Date.now()}`;
+      console.log('✅ Template added to contract:', data.id);
+      return { success: true, data };
+    } catch (err) {
+      console.error('❌ Exception in addContractTemplate:', err);
+      return { success: false, error: err.message };
     }
   }
 
   /**
-   * Get category prefix for contract number
-   * @param {string} category - Contract category
-   * @returns {string}
+   * Remove a template assignment from a contract.
+   * Auto-promotes next template as default if the removed one was default.
+   * @param {string} contractTemplateId - Junction table row ID
+   * @param {string} contractId
+   * @returns {Promise<{success: boolean, error?: string}>}
    */
-  getCategoryPrefix(category) {
-    const prefixes = {
-      'preventive-maintenance': 'PMC',
-      'comprehensive-maintenance': 'CMC',
-      'annual-maintenance': 'AMC',
-      'sla-based-maintenance': 'SLA',
-      'corrective-maintenance': 'COR',
-      'emergency-on-call': 'EMG',
-      'time-and-material': 'T&M',
-      'construction-daily-diary': 'CON'
-    };
+  async removeContractTemplate(contractTemplateId, contractId) {
+    try {
+      console.log('🗑️ Removing contract template:', contractTemplateId);
 
-    return prefixes[category] || 'CTR';
+      const { data: row } = await supabase
+        .from('contract_templates')
+        .select('is_default')
+        .eq('id', contractTemplateId)
+        .single();
+
+      const wasDefault = row?.is_default || false;
+
+      const { error } = await supabase
+        .from('contract_templates')
+        .delete()
+        .eq('id', contractTemplateId);
+
+      if (error) {
+        console.error('❌ Error removing contract template:', error);
+        return { success: false, error: error.message };
+      }
+
+      // Promote first remaining template as default if needed
+      if (wasDefault && contractId) {
+        const { data: remaining } = await supabase
+          .from('contract_templates')
+          .select('id')
+          .eq('contract_id', contractId)
+          .order('sort_order')
+          .limit(1);
+
+        if (remaining?.length > 0) {
+          await supabase
+            .from('contract_templates')
+            .update({ is_default: true })
+            .eq('id', remaining[0].id);
+          console.log('✅ Promoted new default:', remaining[0].id);
+        }
+      }
+
+      console.log('✅ Contract template removed');
+      return { success: true };
+    } catch (err) {
+      console.error('❌ Exception in removeContractTemplate:', err);
+      return { success: false, error: err.message };
+    }
   }
+
+  /**
+   * Set a specific assignment as the default template for its contract.
+   * Clears is_default on all other assignments for the same contract.
+   * @param {string} contractId
+   * @param {string} contractTemplateId - Junction row ID to promote
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async setDefaultContractTemplate(contractId, contractTemplateId) {
+    try {
+      console.log('⭐ Setting default template:', contractTemplateId);
+
+      const { error: clearError } = await supabase
+        .from('contract_templates')
+        .update({ is_default: false })
+        .eq('contract_id', contractId);
+
+      if (clearError) return { success: false, error: clearError.message };
+
+      const { error } = await supabase
+        .from('contract_templates')
+        .update({ is_default: true })
+        .eq('id', contractTemplateId);
+
+      if (error) return { success: false, error: error.message };
+
+      console.log('✅ Default template set');
+      return { success: true };
+    } catch (err) {
+      console.error('❌ Exception in setDefaultContractTemplate:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Update the custom label of a contract-template assignment.
+   * e.g. rename "PMC Daily Checklist" → "HVAC Unit A Checklist"
+   * @param {string} contractTemplateId
+   * @param {string|null} label
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  async updateContractTemplateLabel(contractTemplateId, label) {
+    try {
+      const { error } = await supabase
+        .from('contract_templates')
+        .update({ label: label || null })
+        .eq('id', contractTemplateId);
+
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }
+
 }
 
-// Export singleton instance
 export const contractService = new ContractService();
-
-// Export default
 export default contractService;

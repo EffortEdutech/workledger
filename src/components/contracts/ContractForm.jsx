@@ -1,558 +1,476 @@
 /**
  * WorkLedger - Contract Form Component
- * 
- * Form for creating and editing contracts with conditional fields based on contract category.
- * 
+ *
+ * Reusable form for creating and editing contracts.
+ *
+ * SESSION 14 CHANGE: Template assignment removed from this form.
+ * Templates are now managed via ContractTemplateManager on the
+ * ContractDetail page (many-to-many junction table).
+ *
+ * After creating a contract, the user is redirected to ContractDetail
+ * where they can assign one or more templates.
+ *
  * @module components/contracts/ContractForm
  * @created January 31, 2026 - Session 10
+ * @updated February 22, 2026 - Session 14: remove template section
  */
 
 import React, { useState, useEffect } from 'react';
-import Input from '../common/Input';
-import Select from '../common/Select';
-import Button from '../common/Button';
-import ContractTypeBadge, { getContractTypeOptions } from './ContractTypeBadge';
+import { useNavigate } from 'react-router-dom';
 
-export function ContractForm({ 
-  contract = null, 
-  projects = [],
-  templates = [],
-  onSubmit, 
+// ─────────────────────────────────────────────────────────────
+// OPTIONS — values must match database column constraints exactly
+// ─────────────────────────────────────────────────────────────
+
+const CONTRACT_CATEGORY_OPTIONS = [
+  { value: '',                          label: 'Select Category' },
+  { value: 'preventive-maintenance',    label: 'Preventive Maintenance (PMC)' },
+  { value: 'comprehensive-maintenance', label: 'Comprehensive Maintenance (CMC)' },
+  { value: 'corrective-maintenance',    label: 'Corrective Maintenance' },
+  { value: 'annual-maintenance',        label: 'Annual Maintenance (AMC)' },
+  { value: 'sla-based-maintenance',     label: 'SLA-Based Maintenance' },
+  { value: 'emergency-on-call',         label: 'Emergency / 24-7 Callout' },
+  { value: 'time-and-material',         label: 'Time & Material (T&M)' },
+  { value: 'construction-daily-diary',  label: 'Construction Daily Diary' },
+  { value: 'custom',                    label: 'Custom' },
+];
+
+const REPORTING_FREQUENCY_OPTIONS = [
+  { value: '',          label: 'Select Frequency' },
+  { value: 'daily',     label: 'Daily' },
+  { value: 'weekly',    label: 'Weekly' },
+  { value: 'biweekly',  label: 'Bi-Weekly (Every 2 Weeks)' },
+  { value: 'monthly',   label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly (Every 3 Months)' },
+  { value: 'annually',  label: 'Annually' },
+  { value: 'adhoc',     label: 'Ad-Hoc / As Required' },
+  { value: 'per-visit', label: 'Per Visit / Per Incident' },
+];
+
+const MAINTENANCE_CYCLE_OPTIONS = [
+  { value: '',           label: 'Select Cycle' },
+  { value: 'daily',      label: 'Daily' },
+  { value: 'weekly',     label: 'Weekly' },
+  { value: 'biweekly',   label: 'Bi-Weekly (Every 2 Weeks)' },
+  { value: 'monthly',    label: 'Monthly' },
+  { value: 'bimonthly',  label: 'Bi-Monthly (Every 2 Months)' },
+  { value: 'quarterly',  label: 'Quarterly (Every 3 Months)' },
+  { value: 'biannually', label: 'Bi-Annually (Every 6 Months)' },
+  { value: 'annually',   label: 'Annually' },
+  { value: 'as-needed',  label: 'As Needed / Ad-Hoc' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'active',    label: 'Active' },
+  { value: 'draft',     label: 'Draft' },
+  { value: 'suspended', label: 'Suspended' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+// ─────────────────────────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────────────────────────
+
+export default function ContractForm({
+  initialData  = null,
+  projects     = [],
+  templates    = [],   // all available templates passed from parent
+  mode         = 'create',
+  onSubmit,
   onCancel,
-  isLoading = false 
+  isSubmitting = false,
 }) {
-  // Form state
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
-    project_id: contract?.project_id || '',
-    contract_number: contract?.contract_number || '',
-    contract_name: contract?.contract_name || '',
-    contract_category: contract?.contract_category || '',
-    template_id: contract?.template_id || '',
-    reporting_frequency: contract?.reporting_frequency || 'daily',
-    requires_approval: contract?.requires_approval !== undefined ? contract.requires_approval : true,
-    valid_from: contract?.valid_from || '',
-    valid_until: contract?.valid_until || '',
-    status: contract?.status || 'active',
-    // SLA fields
-    sla_response_time_mins: contract?.sla_response_time_mins || '',
-    sla_resolution_time_hours: contract?.sla_resolution_time_hours || '',
-    sla_tier: contract?.sla_tier || '',
-    // Maintenance fields
-    maintenance_cycle: contract?.maintenance_cycle || '',
-    asset_categories: contract?.asset_categories || []
+    project_id:          '',
+    contract_number:     '',
+    contract_name:       '',
+    contract_category:   '',
+    contract_type:       '',
+    status:              'active',
+    valid_from:          '',
+    valid_until:         '',
+    contract_value:      '',
+    reporting_frequency: '',
+    maintenance_cycle:   '',
+    description:         '',
   });
 
-  // UI state
+  // IDs of templates the user has selected for this contract
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState([]);
   const [errors, setErrors] = useState({});
-  const [filteredTemplates, setFilteredTemplates] = useState([]);
-  const [assetCategoryInput, setAssetCategoryInput] = useState('');
 
-  // Contract type options
-  const contractTypeOptions = getContractTypeOptions();
-
-  // Reporting frequency options
-  const frequencyOptions = [
-    { value: 'daily', label: 'Daily' },
-    { value: 'weekly', label: 'Weekly' },
-    { value: 'monthly', label: 'Monthly' },
-    { value: 'adhoc', label: 'Ad-hoc' }
-  ];
-
-  // Status options
-  const statusOptions = [
-    { value: 'draft', label: 'Draft' },
-    { value: 'active', label: 'Active' },
-    { value: 'suspended', label: 'Suspended' },
-    { value: 'completed', label: 'Completed' }
-  ];
-
-  // SLA tier options
-  const slaTierOptions = [
-    { value: '', label: 'Select tier...' },
-    { value: 'Gold', label: 'Gold (Premium)' },
-    { value: 'Silver', label: 'Silver (Standard)' },
-    { value: 'Bronze', label: 'Bronze (Basic)' }
-  ];
-
-  // Maintenance cycle options
-  const maintenanceCycleOptions = [
-    { value: '', label: 'Select cycle...' },
-    { value: 'Weekly', label: 'Weekly' },
-    { value: 'Bi-weekly', label: 'Bi-weekly' },
-    { value: 'Monthly', label: 'Monthly' },
-    { value: 'Quarterly', label: 'Quarterly' },
-    { value: 'Semi-annually', label: 'Semi-annually' },
-    { value: 'Annually', label: 'Annually' }
-  ];
-
-  // Filter templates when contract category changes
+  // Pre-fill in edit mode
   useEffect(() => {
-    if (formData.contract_category && templates.length > 0) {
-      const filtered = templates.filter(
-        t => t.contract_category === formData.contract_category
-      );
-      setFilteredTemplates(filtered);
-      
-      // Auto-select template if only one available
-      if (filtered.length === 1) {
-        setFormData(prev => ({
-          ...prev,
-          template_id: filtered[0].id
-        }));
-      }
-    } else {
-      setFilteredTemplates([]);
-    }
-  }, [formData.contract_category, templates]);
-
-  // Handle input change
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-
-    // Clear error for this field
-    if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
+    if (mode === 'edit' && initialData) {
+      setFormData({
+        project_id:          initialData.project_id          || '',
+        contract_number:     initialData.contract_number     || '',
+        contract_name:       initialData.contract_name       || '',
+        contract_category:   initialData.contract_category   || '',
+        contract_type:       initialData.contract_type       || '',
+        status:              initialData.status              || 'active',
+        valid_from:          initialData.valid_from          || '',
+        valid_until:         initialData.valid_until         || '',
+        contract_value:      initialData.contract_value      || '',
+        reporting_frequency: initialData.reporting_frequency || '',
+        maintenance_cycle:   initialData.maintenance_cycle   || '',
+        description:         initialData.description         || '',
       });
+
+      // Pre-check templates already assigned to this contract.
+      // getContract() joins contract_templates which nests the template row
+      // as `templates` (singular) — each junction row looks like:
+      //   { id, template_id, is_default, templates: { id, template_name, ... } }
+      const existingIds = (initialData.contract_templates || [])
+        .map(jt => jt.template_id)
+        .filter(Boolean);
+      setSelectedTemplateIds(existingIds);
+    }
+  }, [mode, initialData]);
+
+  const handleTemplateToggle = (templateId) => {
+    setSelectedTemplateIds(prev =>
+      prev.includes(templateId)
+        ? prev.filter(id => id !== templateId)
+        : [...prev, templateId]
+    );
+    // Clear template error if user picks one
+    if (errors.template_ids) {
+      setErrors(prev => { const e = { ...prev }; delete e.template_ids; return e; });
     }
   };
 
-  // Check if SLA fields should be shown
-  const showSLAFields = () => {
-    return formData.contract_category === 'sla-based-maintenance';
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => { const e = { ...prev }; delete e[field]; return e; });
+    }
   };
 
-  // Check if maintenance fields should be shown
-  const showMaintenanceFields = () => {
-    const maintenanceCategories = [
-      'preventive-maintenance',
-      'comprehensive-maintenance',
-      'annual-maintenance'
-    ];
-    return maintenanceCategories.includes(formData.contract_category);
+  const validate = () => {
+    const e = {};
+    if (!formData.project_id)              e.project_id          = 'Project is required';
+    if (!formData.contract_number?.trim()) e.contract_number     = 'Contract number is required';
+    if (!formData.contract_name?.trim())   e.contract_name       = 'Contract name is required';
+    if (!formData.contract_category)       e.contract_category   = 'Category is required';
+    if (!formData.status)                  e.status              = 'Status is required';
+    if (!formData.valid_from)              e.valid_from          = 'Start date is required';
+    if (!formData.valid_until)             e.valid_until         = 'End date is required';
+    if (formData.valid_from && formData.valid_until && formData.valid_until < formData.valid_from)
+                                           e.valid_until         = 'End date must be after start date';
+    if (!formData.reporting_frequency)     e.reporting_frequency = 'Reporting frequency is required';
+    if (selectedTemplateIds.length === 0)  e.template_ids        = 'At least one template must be assigned';
+    return e;
   };
 
-  // Validate form
-  const validateForm = () => {
-    const newErrors = {};
-
-    // Required fields
-    if (!formData.project_id) {
-      newErrors.project_id = 'Project is required';
-    }
-    if (!formData.contract_name || formData.contract_name.trim().length < 3) {
-      newErrors.contract_name = 'Contract name must be at least 3 characters';
-    }
-    if (!formData.contract_category) {
-      newErrors.contract_category = 'Contract category is required';
-    }
-    if (!formData.template_id) {
-      newErrors.template_id = 'Template is required';
-    }
-
-    // Date validation
-    if (formData.valid_from && formData.valid_until) {
-      const fromDate = new Date(formData.valid_from);
-      const untilDate = new Date(formData.valid_until);
-      if (untilDate < fromDate) {
-        newErrors.valid_until = 'End date must be after start date';
-      }
-    }
-
-    // SLA validation
-    if (showSLAFields()) {
-      if (!formData.sla_response_time_mins || formData.sla_response_time_mins <= 0) {
-        newErrors.sla_response_time_mins = 'Response time is required for SLA contracts';
-      }
-      if (!formData.sla_tier) {
-        newErrors.sla_tier = 'SLA tier is required';
-      }
-    }
-
-    // Maintenance validation
-    if (showMaintenanceFields()) {
-      if (!formData.maintenance_cycle) {
-        newErrors.maintenance_cycle = 'Maintenance cycle is required';
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Handle form submit
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
+    const e2 = validate();
+    if (Object.keys(e2).length > 0) {
+      setErrors(e2);
+      const firstKey = Object.keys(e2)[0];
+      document.getElementById(firstKey)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
-    // Prepare submission data
-    const submitData = {
-      contract_number: formData.contract_number.trim() || null,
-      contract_name: formData.contract_name.trim(),
-      contract_category: formData.contract_category,
-      template_id: formData.template_id,
-      reporting_frequency: formData.reporting_frequency,
-      requires_approval: formData.requires_approval,
-      valid_from: formData.valid_from || null,
-      valid_until: formData.valid_until || null,
-      status: formData.status,
-      sla_response_time_mins: showSLAFields() ? parseInt(formData.sla_response_time_mins) || null : null,
-      sla_resolution_time_hours: showSLAFields() ? parseInt(formData.sla_resolution_time_hours) || null : null,
-      sla_tier: showSLAFields() ? formData.sla_tier : null,
-      maintenance_cycle: showMaintenanceFields() ? formData.maintenance_cycle : null,
-      asset_categories: showMaintenanceFields() ? formData.asset_categories : null
+    const payload = {
+      project_id:          formData.project_id,
+      contract_number:     formData.contract_number.trim(),
+      contract_name:       formData.contract_name.trim(),
+      contract_category:   formData.contract_category   || null,
+      contract_type:       formData.contract_type?.trim()|| null,
+      status:              formData.status,
+      valid_from:          formData.valid_from           || null,
+      valid_until:         formData.valid_until          || null,
+      contract_value:      formData.contract_value ? parseFloat(formData.contract_value) : null,
+      reporting_frequency: formData.reporting_frequency  || null,
+      maintenance_cycle:   formData.maintenance_cycle    || null,
+      description:         formData.description?.trim()  || null,
+      // template IDs — parent (New/EditContract) handles junction table writes
+      template_ids:        selectedTemplateIds,
     };
 
-    onSubmit(formData.project_id, submitData);
+    onSubmit(formData.project_id, payload);
   };
 
-  // Handle add asset category
-  const handleAddAssetCategory = () => {
-    const category = assetCategoryInput.trim();
-    if (category && !formData.asset_categories.includes(category)) {
-      setFormData(prev => ({
-        ...prev,
-        asset_categories: [...prev.asset_categories, category]
-      }));
-      setAssetCategoryInput('');
-    }
-  };
+  // Style helpers
+  const fc = (name) =>
+    `mt-1 block w-full rounded-md shadow-sm text-sm
+     ${errors[name]
+       ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+       : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500'}`;
 
-  // Handle remove asset category
-  const handleRemoveAssetCategory = (categoryToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      asset_categories: prev.asset_categories.filter(cat => cat !== categoryToRemove)
-    }));
-  };
+  const lc = 'block text-sm font-medium text-gray-700';
 
+  // ─────────────────────────────────────────────────────────
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Basic Information */}
-      <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+    <form onSubmit={handleSubmit} className="space-y-8">
 
-        {/* Project Select */}
-        <Select
-          label="Project"
-          name="project_id"
-          value={formData.project_id}
-          onChange={handleChange}
-          error={errors.project_id}
-          required
-          disabled={!!contract}
-        >
-          <option value="">Select project...</option>
-          {projects.map(project => (
-            <option key={project.id} value={project.id}>
-              {project.project_code} - {project.project_name}
-            </option>
-          ))}
-        </Select>
+      {/* ── Section 1: Contract Identity ──────────────────── */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Contract Details</h2>
 
-        {/* Contract Name */}
-        <Input
-          label="Contract Name"
-          name="contract_name"
-          value={formData.contract_name}
-          onChange={handleChange}
-          error={errors.contract_name}
-          placeholder="e.g., HVAC Maintenance Contract"
-          required
-        />
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
-        {/* Contract Number */}
-        <Input
-          label="Contract Number"
-          name="contract_number"
-          value={formData.contract_number}
-          onChange={handleChange}
-          error={errors.contract_number}
-          placeholder="e.g., PMC-KLCC-2024-001 (auto-generated if empty)"
-          helpText="Leave empty to auto-generate"
-        />
-
-        {/* Contract Category */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Contract Category <span className="text-red-500">*</span>
-          </label>
-          <select
-            name="contract_category"
-            value={formData.contract_category}
-            onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-md focus:ring-primary-500 focus:border-primary-500 ${
-              errors.contract_category ? 'border-red-500' : 'border-gray-300'
-            }`}
-            required
-          >
-            <option value="">Select contract category...</option>
-            {contractTypeOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          {errors.contract_category && (
-            <p className="mt-1 text-sm text-red-600">{errors.contract_category}</p>
-          )}
-          {formData.contract_category && (
-            <div className="mt-2">
-              <ContractTypeBadge category={formData.contract_category} showFullName />
-            </div>
-          )}
-        </div>
-
-        {/* Template Select (filtered by category) */}
-        <Select
-          label="Template"
-          name="template_id"
-          value={formData.template_id}
-          onChange={handleChange}
-          error={errors.template_id}
-          required
-          disabled={!formData.contract_category}
-        >
-          <option value="">
-            {formData.contract_category 
-              ? 'Select template...' 
-              : 'Select contract category first...'}
-          </option>
-          {filteredTemplates.map(template => (
-            <option key={template.id} value={template.id}>
-              {template.template_name}
-            </option>
-          ))}
-        </Select>
-
-        {/* Status */}
-        <Select
-          label="Status"
-          name="status"
-          value={formData.status}
-          onChange={handleChange}
-          error={errors.status}
-        >
-          {statusOptions.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      {/* Reporting Configuration */}
-      <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Reporting Configuration</h3>
-
-        {/* Reporting Frequency */}
-        <Select
-          label="Reporting Frequency"
-          name="reporting_frequency"
-          value={formData.reporting_frequency}
-          onChange={handleChange}
-          error={errors.reporting_frequency}
-        >
-          {frequencyOptions.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </Select>
-
-        {/* Requires Approval */}
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            name="requires_approval"
-            id="requires_approval"
-            checked={formData.requires_approval}
-            onChange={handleChange}
-            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-          />
-          <label htmlFor="requires_approval" className="ml-2 block text-sm text-gray-700">
-            Work entries require approval
-          </label>
-        </div>
-      </div>
-
-      {/* Valid Period */}
-      <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Valid Period</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Valid From"
-            name="valid_from"
-            type="date"
-            value={formData.valid_from}
-            onChange={handleChange}
-            error={errors.valid_from}
-          />
-
-          <Input
-            label="Valid Until"
-            name="valid_until"
-            type="date"
-            value={formData.valid_until}
-            onChange={handleChange}
-            error={errors.valid_until}
-          />
-        </div>
-      </div>
-
-      {/* SLA Configuration (conditional) */}
-      {showSLAFields() && (
-        <div className="bg-indigo-50 rounded-lg shadow p-6 space-y-4 border border-indigo-200">
-          <h3 className="text-lg font-semibold text-indigo-900 mb-4">SLA Configuration</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Response Time (minutes)"
-              name="sla_response_time_mins"
-              type="number"
-              min="1"
-              value={formData.sla_response_time_mins}
-              onChange={handleChange}
-              error={errors.sla_response_time_mins}
-              placeholder="e.g., 30"
-              required
-            />
-
-            <Input
-              label="Resolution Time (hours)"
-              name="sla_resolution_time_hours"
-              type="number"
-              min="1"
-              value={formData.sla_resolution_time_hours}
-              onChange={handleChange}
-              error={errors.sla_resolution_time_hours}
-              placeholder="e.g., 4"
-            />
-          </div>
-
-          <Select
-            label="SLA Tier"
-            name="sla_tier"
-            value={formData.sla_tier}
-            onChange={handleChange}
-            error={errors.sla_tier}
-            required
-          >
-            {slaTierOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-      )}
-
-      {/* Maintenance Configuration (conditional) */}
-      {showMaintenanceFields() && (
-        <div className="bg-green-50 rounded-lg shadow p-6 space-y-4 border border-green-200">
-          <h3 className="text-lg font-semibold text-green-900 mb-4">Maintenance Configuration</h3>
-
-          <Select
-            label="Maintenance Cycle"
-            name="maintenance_cycle"
-            value={formData.maintenance_cycle}
-            onChange={handleChange}
-            error={errors.maintenance_cycle}
-            required
-          >
-            {maintenanceCycleOptions.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-
-          {/* Asset Categories */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Asset Categories
+          {/* Project */}
+          <div className="sm:col-span-2">
+            <label htmlFor="project_id" className={lc}>
+              Project <span className="text-red-500">*</span>
             </label>
-            <div className="flex gap-2 mb-3">
-              <input
-                type="text"
-                value={assetCategoryInput}
-                onChange={(e) => setAssetCategoryInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddAssetCategory())}
-                placeholder="e.g., HVAC, Lift, Pump"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleAddAssetCategory}
-                disabled={!assetCategoryInput.trim()}
-              >
-                Add
-              </Button>
-            </div>
-
-            {formData.asset_categories.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formData.asset_categories.map((category, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700"
-                  >
-                    {category}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAssetCategory(category)}
-                      className="hover:text-green-900"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
+            <select id="project_id" value={formData.project_id}
+              onChange={e => handleChange('project_id', e.target.value)}
+              className={fc('project_id')}>
+              <option value="">— Select a Project —</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.project_name}
+                  {p.organizations?.name ? ` (${p.organizations.name})` : ''}
+                </option>
+              ))}
+            </select>
+            {errors.project_id && <p className="mt-1 text-xs text-red-600">{errors.project_id}</p>}
+            {projects.length === 0 && (
+              <p className="mt-1 text-xs text-amber-600">
+                No projects found.{' '}
+                <button type="button" onClick={() => navigate('/projects/new')}
+                  className="underline">Create one first.</button>
+              </p>
             )}
           </div>
-        </div>
-      )}
 
-      {/* Form Actions */}
-      <div className="flex items-center justify-end gap-3 pt-4">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={onCancel}
-          disabled={isLoading}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Saving...' : contract ? 'Update Contract' : 'Create Contract'}
-        </Button>
+          {/* Contract Number */}
+          <div>
+            <label htmlFor="contract_number" className={lc}>
+              Contract Number <span className="text-red-500">*</span>
+            </label>
+            <input id="contract_number" type="text" value={formData.contract_number}
+              onChange={e => handleChange('contract_number', e.target.value)}
+              placeholder="e.g. PMC-KLCC-2024-001"
+              className={fc('contract_number')} />
+            {errors.contract_number && <p className="mt-1 text-xs text-red-600">{errors.contract_number}</p>}
+          </div>
+
+          {/* Status */}
+          <div>
+            <label htmlFor="status" className={lc}>
+              Status <span className="text-red-500">*</span>
+            </label>
+            <select id="status" value={formData.status}
+              onChange={e => handleChange('status', e.target.value)}
+              className={fc('status')}>
+              {STATUS_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Contract Name */}
+          <div className="sm:col-span-2">
+            <label htmlFor="contract_name" className={lc}>
+              Contract Name <span className="text-red-500">*</span>
+            </label>
+            <input id="contract_name" type="text" value={formData.contract_name}
+              onChange={e => handleChange('contract_name', e.target.value)}
+              placeholder="e.g. KLCC Tower HVAC Preventive Maintenance"
+              className={fc('contract_name')} />
+            {errors.contract_name && <p className="mt-1 text-xs text-red-600">{errors.contract_name}</p>}
+          </div>
+
+          {/* Category */}
+          <div>
+            <label htmlFor="contract_category" className={lc}>
+              Contract Category <span className="text-red-500">*</span>
+            </label>
+            <select id="contract_category" value={formData.contract_category}
+              onChange={e => handleChange('contract_category', e.target.value)}
+              className={fc('contract_category')}>
+              {CONTRACT_CATEGORY_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            {errors.contract_category && <p className="mt-1 text-xs text-red-600">{errors.contract_category}</p>}
+          </div>
+
+          {/* Contract Type (free text) */}
+          <div>
+            <label htmlFor="contract_type" className={lc}>
+              Contract Type
+              <span className="ml-1 text-xs text-gray-400">(optional)</span>
+            </label>
+            <input id="contract_type" type="text" value={formData.contract_type}
+              onChange={e => handleChange('contract_type', e.target.value)}
+              placeholder="e.g. Monthly HVAC service"
+              className={fc('contract_type')} />
+          </div>
+
+        </div>
       </div>
 
-      {/* General Error Message */}
-      {Object.keys(errors).length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm text-red-800">
-            Please fix the errors above before submitting.
+      {/* ── Section 2: Work Entry Templates ───────────────── */}
+      <div className="bg-white rounded-lg shadow p-6" id="template_ids">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">
+          Work Entry Templates <span className="text-red-500">*</span>
+        </h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Select one or more templates for this contract. Field workers will
+          only see the templates assigned here when creating a new entry.
+        </p>
+
+        {templates.length === 0 ? (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
+            No templates available.{' '}
+            <button type="button" onClick={() => navigate('/templates/new')}
+              className="underline font-medium">Create a template first.</button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {templates.map(tmpl => {
+              const checked = selectedTemplateIds.includes(tmpl.id);
+              return (
+                <label
+                  key={tmpl.id}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer
+                              transition-colors select-none
+                              ${checked
+                                ? 'bg-primary-50 border-primary-400'
+                                : 'bg-white border-gray-200 hover:border-gray-300'}`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded text-primary-600
+                               focus:ring-primary-500 border-gray-300 cursor-pointer"
+                    checked={checked}
+                    onChange={() => handleTemplateToggle(tmpl.id)}
+                  />
+                  <div className="min-w-0">
+                    <p className={`text-sm font-medium leading-tight
+                                   ${checked ? 'text-primary-900' : 'text-gray-800'}`}>
+                      {tmpl.template_name}
+                    </p>
+                    {tmpl.contract_category && (
+                      <p className="text-xs text-gray-400 mt-0.5 capitalize">
+                        {tmpl.contract_category.replace(/-/g, ' ')}
+                      </p>
+                    )}
+                  </div>
+                  {checked && selectedTemplateIds[0] === tmpl.id && (
+                    <span className="ml-auto text-xs font-medium text-primary-600
+                                     bg-primary-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                      Default
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        )}
+
+        {selectedTemplateIds.length > 0 && (
+          <p className="mt-3 text-xs text-gray-500">
+            {selectedTemplateIds.length} template{selectedTemplateIds.length > 1 ? 's' : ''} selected.
+            {selectedTemplateIds.length > 1 && ' The first selected will be set as default.'}
           </p>
+        )}
+        {errors.template_ids && (
+          <p className="mt-2 text-xs text-red-600">{errors.template_ids}</p>
+        )}
+      </div>
+
+      {/* ── Section 2: Duration & Value ───────────────────── */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Duration & Value</h2>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+          <div>
+            <label htmlFor="valid_from" className={lc}>Valid From <span className="text-red-500">*</span></label>
+            <input id="valid_from" type="date" value={formData.valid_from}
+              onChange={e => handleChange('valid_from', e.target.value)}
+              className={fc('valid_from')} />
+            {errors.valid_from && <p className="mt-1 text-xs text-red-600">{errors.valid_from}</p>}
+          </div>
+          <div>
+            <label htmlFor="valid_until" className={lc}>Valid Until <span className="text-red-500">*</span></label>
+            <input id="valid_until" type="date" value={formData.valid_until}
+              onChange={e => handleChange('valid_until', e.target.value)}
+              className={fc('valid_until')} />
+            {errors.valid_until && <p className="mt-1 text-xs text-red-600">{errors.valid_until}</p>}
+          </div>
+          <div>
+            <label htmlFor="contract_value" className={lc}>Contract Value (RM)</label>
+            <input id="contract_value" type="number" min="0" step="0.01"
+              value={formData.contract_value}
+              onChange={e => handleChange('contract_value', e.target.value)}
+              placeholder="0.00"
+              className={fc('contract_value')} />
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* ── Section 3: Reporting Configuration ────────────── */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Reporting Configuration</h2>
+
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div>
+            <label htmlFor="reporting_frequency" className={lc}>Reporting Frequency <span className="text-red-500">*</span></label>
+            <select id="reporting_frequency" value={formData.reporting_frequency}
+              onChange={e => handleChange('reporting_frequency', e.target.value)}
+              className={fc('reporting_frequency')}>
+              {REPORTING_FREQUENCY_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            {errors.reporting_frequency && <p className="mt-1 text-xs text-red-600">{errors.reporting_frequency}</p>}
+          </div>
+          <div>
+            <label htmlFor="maintenance_cycle" className={lc}>Maintenance Cycle</label>
+            <select id="maintenance_cycle" value={formData.maintenance_cycle}
+              onChange={e => handleChange('maintenance_cycle', e.target.value)}
+              className={fc('maintenance_cycle')}>
+              {MAINTENANCE_CYCLE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="description" className={lc}>Description</label>
+            <textarea id="description" rows={3} value={formData.description}
+              onChange={e => handleChange('description', e.target.value)}
+              placeholder="Additional notes about this contract..."
+              className={fc('description')} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Action Buttons ────────────────────────────────── */}
+      <div className="flex items-center justify-end gap-3 pb-8">
+        <button type="button" onClick={onCancel} disabled={isSubmitting}
+          className="px-5 py-2 text-sm font-medium text-gray-700 bg-white border
+                     border-gray-300 rounded-md shadow-sm hover:bg-gray-50 disabled:opacity-50">
+          Cancel
+        </button>
+        <button type="submit" disabled={isSubmitting}
+          className="px-6 py-2 text-sm font-medium text-white bg-primary-600
+                     border border-transparent rounded-md shadow-sm hover:bg-primary-700
+                     disabled:opacity-50 flex items-center gap-2">
+          {isSubmitting ? (
+            <>
+              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10"
+                  stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Saving…
+            </>
+          ) : (
+            mode === 'edit' ? 'Update Contract' : 'Create Contract'
+          )}
+        </button>
+      </div>
+
     </form>
   );
 }
-
-export default ContractForm;

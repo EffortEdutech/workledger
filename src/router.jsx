@@ -1,403 +1,309 @@
 /**
  * WorkLedger - Router Configuration
- * 
- * Defines all application routes using React Router v6.
- * Implements protected routes with authentication checking.
- * 
- * @file src/router.jsx
- * @created January 29, 2026
- * @updated February 6, 2026 - Session 19: Report routes reorganized
- * @updated February 7, 2026 - Session 20: Template management routes (replaced demo)
- * @updated February 12, 2026 - Session 6: Layout management routes added
- *   - /reports/layouts → LayoutList (browse layouts)
- *   - /reports/layouts/new → LayoutEditor (create mode)
- *   - /reports/layouts/:id → LayoutEditor (edit mode)
+ *
+ * Every protected route is wrapped with:
+ *   1. ProtectedRoute  — ensures user is authenticated (redirects to /login)
+ *   2. RouteGuard      — ensures user has the NAV_ permission (redirects to /dashboard)
+ *
+ * Permission map (matches Sidebar + BottomNav exactly):
+ *   NAV_DASHBOARD    → all roles
+ *   NAV_WORK_ENTRIES → all roles
+ *   NAV_PROJECTS     → all roles
+ *   NAV_CONTRACTS    → all roles
+ *   NAV_TEMPLATES    → bina_jaya_staff, org_owner, org_admin, manager
+ *   NAV_REPORTS      → bina_jaya_staff, org_owner, org_admin, manager
+ *   NAV_LAYOUTS      → bina_jaya_staff, org_owner, org_admin
+ *   NAV_USERS        → org_owner, org_admin
+ *   NAV_ORGANIZATIONS→ bina_jaya_staff, org_owner, org_admin
+ *
+ * @file src/Router.jsx
+ * @updated February 23, 2026 - Session 12: RouteGuard applied to all routes
  */
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ROUTES } from './constants/routes';
 
-// Auth Components
+// Auth
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import RouteGuard from './components/auth/RouteGuard';
+
+// Pages - Auth
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 
-// Main Pages
+// Pages - Core
 import Dashboard from './pages/Dashboard';
 
-// Organization Pages
+// Pages - Organizations
 import OrganizationList from './pages/organizations/OrganizationList';
 import NewOrganization from './pages/organizations/NewOrganization';
 import OrganizationSettings from './pages/organizations/OrganizationSettings';
 
-// Project Pages (Session 9)
+// Pages - Projects
 import ProjectListPage from './pages/projects/ProjectListPage';
 import NewProject from './pages/projects/NewProject';
 import EditProject from './pages/projects/EditProject';
 import ProjectDetail from './pages/projects/ProjectDetail';
 
-// Contract Pages (Session 10)
+// Pages - Contracts
 import ContractListPage from './pages/contracts/ContractListPage';
 import NewContract from './pages/contracts/NewContract';
 import EditContract from './pages/contracts/EditContract';
 import ContractDetail from './pages/contracts/ContractDetail';
 
-// Template Pages (Session 20 - Production)
+// Pages - Templates
 import TemplateListPage from './pages/templates/TemplateListPage';
 import TemplateBuilder from './pages/templates/TemplateBuilder';
 import TemplateDetail from './pages/templates/TemplateDetail';
 
-// Work Entry Pages (Session 13)
+// Pages - Work Entries
 import WorkEntryListPage from './pages/workEntries/WorkEntryListPage';
 import NewWorkEntry from './pages/workEntries/NewWorkEntry';
 import EditWorkEntry from './pages/workEntries/EditWorkEntry';
 import WorkEntryDetail from './pages/workEntries/WorkEntryDetail';
 
-// Report Pages (Session 18 + 19)
+// Pages - Reports
 import ReportHistory from './pages/reports/ReportHistory';
 import GenerateReport from './pages/reports/GenerateReport';
 
-// Layout Management Pages (Session 6 - NEW!)
+// Pages - Layouts
 import LayoutList from './pages/reports/layouts/LayoutList';
 import LayoutEditor from './pages/reports/layouts/LayoutEditor';
 
-// Placeholder Components (will be replaced in future sessions)
-const PlaceholderPage = ({ title }) => (
+// Pages - Users
+import UserList from './pages/users/UserList';
+import InviteUser from './pages/users/InviteUser';
+
+// Pages - Admin (BJ Staff only)
+import QuickEntry from './pages/admin/QuickEntry';
+
+// Fallbacks
+const NotFoundPage = () => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
     <div className="text-center">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">{title}</h1>
-      <p className="text-gray-600">This page will be implemented in the next sessions.</p>
+      <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+      <p className="text-gray-600 mb-6">Page not found.</p>
+      <a href="/dashboard" className="text-primary-600 hover:underline">Back to Dashboard</a>
     </div>
   </div>
 );
+const ProfilePage = () => (
+  <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <p className="text-gray-500">Profile — coming soon.</p>
+  </div>
+);
 
-const ProfilePage = () => <PlaceholderPage title="Profile" />;
-const NotFoundPage = () => <PlaceholderPage title="404 - Page Not Found" />;
+// ─────────────────────────────────────────────────────────
+// Helper: wrap a page component in ProtectedRoute + RouteGuard
+// Usage: guarded('NAV_TEMPLATES', TemplateListPage)
+// ─────────────────────────────────────────────────────────
+const guarded = (permission, Page) => (
+  <ProtectedRoute>
+    <RouteGuard permission={permission}>
+      <Page />
+    </RouteGuard>
+  </ProtectedRoute>
+);
 
-/**
- * Router Configuration
- */
+// auth-only, no extra permission (profile page etc.)
+const authed = (Page) => (
+  <ProtectedRoute>
+    <Page />
+  </ProtectedRoute>
+);
+
+// ─────────────────────────────────────────────────────────
 export const router = createBrowserRouter([
-  // ============================================
-  // PUBLIC ROUTES (No Authentication Required)
-  // ============================================
-  {
-    path: ROUTES.LOGIN,
-    element: <Login />,
-  },
-  {
-    path: ROUTES.REGISTER,
-    element: <Register />,
-  },
-  {
-    path: ROUTES.FORGOT_PASSWORD,
-    element: <ForgotPassword />,
-  },
-  
-  // ============================================
-  // PROTECTED ROUTES (Authentication Required)
-  // ============================================
 
-  // Dashboard
+  // ══════════════════════════════════════════════════════
+  // PUBLIC ROUTES
+  // ══════════════════════════════════════════════════════
+  { path: ROUTES.LOGIN,           element: <Login /> },
+  { path: ROUTES.REGISTER,        element: <Register /> },
+  { path: ROUTES.FORGOT_PASSWORD, element: <ForgotPassword /> },
+
+  // ══════════════════════════════════════════════════════
+  // DASHBOARD — all roles  (ROUTES.DASHBOARD = '/')
+  // ══════════════════════════════════════════════════════
   {
     path: ROUTES.DASHBOARD,
-    element: (
-      <ProtectedRoute>
-        <Dashboard />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_DASHBOARD', Dashboard),
   },
-  
-  // ============================================
-  // ORGANIZATION ROUTES
-  // ============================================
+
+  // ══════════════════════════════════════════════════════
+  // ORGANIZATIONS — bina_jaya_staff, org_owner, org_admin
+  // technician/worker/subcontractor/manager → redirect /dashboard
+  // ══════════════════════════════════════════════════════
   {
     path: '/organizations',
-    element: (
-      <ProtectedRoute>
-        <OrganizationList />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_ORGANIZATIONS', OrganizationList),
   },
   {
     path: '/organizations/new',
-    element: (
-      <ProtectedRoute>
-        <NewOrganization />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_ORGANIZATIONS', NewOrganization),
   },
   {
     path: '/organizations/:id/settings',
-    element: (
-      <ProtectedRoute>
-        <OrganizationSettings />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_ORGANIZATIONS', OrganizationSettings),
   },
-  
-  // ============================================
-  // PROJECT ROUTES (Session 9)
-  // ============================================
+
+  // ══════════════════════════════════════════════════════
+  // PROJECTS — all roles
+  // ══════════════════════════════════════════════════════
   {
     path: '/projects',
-    element: (
-      <ProtectedRoute>
-        <ProjectListPage />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_PROJECTS', ProjectListPage),
   },
   {
     path: '/projects/new',
-    element: (
-      <ProtectedRoute>
-        <NewProject />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_PROJECTS', NewProject),
   },
   {
     path: '/projects/:id',
-    element: (
-      <ProtectedRoute>
-        <ProjectDetail />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_PROJECTS', ProjectDetail),
   },
   {
     path: '/projects/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <EditProject />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_PROJECTS', EditProject),
   },
-  
-  // ============================================
-  // CONTRACT ROUTES (Session 10)
-  // ============================================
+
+  // ══════════════════════════════════════════════════════
+  // CONTRACTS — all roles
+  // ══════════════════════════════════════════════════════
   {
     path: '/contracts',
-    element: (
-      <ProtectedRoute>
-        <ContractListPage />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_CONTRACTS', ContractListPage),
   },
   {
     path: '/contracts/new',
-    element: (
-      <ProtectedRoute>
-        <NewContract />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_CONTRACTS', NewContract),
   },
   {
     path: '/contracts/:id',
-    element: (
-      <ProtectedRoute>
-        <ContractDetail />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_CONTRACTS', ContractDetail),
   },
   {
     path: '/contracts/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <EditContract />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_CONTRACTS', EditContract),
   },
-  
-  // ============================================
-  // TEMPLATE ROUTES (Session 20 - Production)
-  // Replaces /demo/templates with full management
-  // ============================================
-  
-  // /templates → TemplateListPage (management table)
+
+  // ══════════════════════════════════════════════════════
+  // TEMPLATES — bina_jaya_staff, org_owner, org_admin, manager
+  // technician/worker/subcontractor → redirect /dashboard
+  // ══════════════════════════════════════════════════════
   {
     path: '/templates',
-    element: (
-      <ProtectedRoute>
-        <TemplateListPage />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_TEMPLATES', TemplateListPage),
   },
-  
-  // /templates/new → TemplateBuilder (create mode)
   {
     path: '/templates/new',
-    element: (
-      <ProtectedRoute>
-        <TemplateBuilder />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_TEMPLATES', TemplateBuilder),
   },
-  
-  // /templates/:id → TemplateDetail (view + preview + test)
   {
     path: '/templates/:id',
-    element: (
-      <ProtectedRoute>
-        <TemplateDetail />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_TEMPLATES', TemplateDetail),
   },
-  
-  // /templates/:id/edit → TemplateBuilder (edit mode)
   {
     path: '/templates/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <TemplateBuilder />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_TEMPLATES', TemplateBuilder),
   },
-  
-  // /demo/templates → Redirect to /templates (backward compatibility)
-  {
-    path: '/demo/templates',
-    element: <Navigate to="/templates" replace />,
-  },
-  
-  // ============================================
-  // WORK ENTRY ROUTES (Session 13)
-  // ============================================
+  // Backward compatibility
+  { path: '/demo/templates', element: <Navigate to="/templates" replace /> },
+
+  // ══════════════════════════════════════════════════════
+  // WORK ENTRIES — all roles
+  // ══════════════════════════════════════════════════════
   {
     path: '/work',
-    element: (
-      <ProtectedRoute>
-        <WorkEntryListPage />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_WORK_ENTRIES', WorkEntryListPage),
   },
   {
     path: '/work/new',
-    element: (
-      <ProtectedRoute>
-        <NewWorkEntry />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_WORK_ENTRIES', NewWorkEntry),
   },
   {
     path: '/work/:id',
-    element: (
-      <ProtectedRoute>
-        <WorkEntryDetail />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_WORK_ENTRIES', WorkEntryDetail),
   },
   {
     path: '/work/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <EditWorkEntry />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_WORK_ENTRIES', EditWorkEntry),
   },
 
-// Layout Routes (Session 8)
+  // ══════════════════════════════════════════════════════
+  // REPORTS — bina_jaya_staff, org_owner, org_admin, manager
+  // technician/worker/subcontractor → redirect /dashboard
+  // ══════════════════════════════════════════════════════
+  {
+    path: ROUTES.REPORTS,
+    element: guarded('NAV_REPORTS', ReportHistory),
+  },
+  {
+    path: ROUTES.REPORT_GENERATE,
+    element: guarded('NAV_REPORTS', GenerateReport),
+  },
+
+  // ══════════════════════════════════════════════════════
+  // LAYOUTS — bina_jaya_staff, org_owner, org_admin
+  // manager/technician/worker/subcontractor → redirect /dashboard
+  // ══════════════════════════════════════════════════════
   {
     path: '/reports/layouts',
-    element: (
-      <ProtectedRoute>
-        <LayoutList />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_LAYOUTS', LayoutList),
   },
   {
     path: '/reports/layouts/new',
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_LAYOUTS', LayoutEditor),
   },
   {
     path: '/reports/layouts/:id/edit',
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
-      </ProtectedRoute>
-    ),
+    element: guarded('NAV_LAYOUTS', LayoutEditor),
+  },
+  // ROUTES constants (may differ from hardcoded paths above — keep both)
+  ...(ROUTES.REPORT_LAYOUTS && ROUTES.REPORT_LAYOUTS !== '/reports/layouts'
+    ? [{ path: ROUTES.REPORT_LAYOUTS,      element: guarded('NAV_LAYOUTS', LayoutList) }]
+    : []),
+  ...(ROUTES.REPORT_LAYOUT_NEW && ROUTES.REPORT_LAYOUT_NEW !== '/reports/layouts/new'
+    ? [{ path: ROUTES.REPORT_LAYOUT_NEW,   element: guarded('NAV_LAYOUTS', LayoutEditor) }]
+    : []),
+  ...(ROUTES.REPORT_LAYOUT_DETAIL
+    ? [{ path: ROUTES.REPORT_LAYOUT_DETAIL, element: guarded('NAV_LAYOUTS', LayoutEditor) }]
+    : []),
+
+  // ══════════════════════════════════════════════════════
+  // QUICK ENTRY — super_admin, bina_jaya_staff only
+  // technician/worker/manager/org_admin → redirect /
+  // ══════════════════════════════════════════════════════
+  {
+    path: '/admin/quick-entry',
+    element: guarded('NAV_QUICK_ENTRY', QuickEntry),
   },
 
+  // ══════════════════════════════════════════════════════
+  // USERS — org_owner, org_admin only
+  // everyone else → redirect /dashboard
+  // ══════════════════════════════════════════════════════
+  {
+    path: '/users',
+    element: guarded('NAV_USERS', UserList),
+  },
+  {
+    path: '/users/invite',
+    element: guarded('INVITE_USERS', InviteUser),
+  },
 
-
-  
-  // ============================================
-  // REPORT ROUTES (Session 19 - Reorganized)
-  // ============================================
-  
-  // /reports → ReportHistory (LANDING PAGE)
-  {
-    path: ROUTES.REPORTS,
-    element: (
-      <ProtectedRoute>
-        <ReportHistory />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // /reports/generate → GenerateReport (Custom report generator)
-  {
-    path: ROUTES.REPORT_GENERATE,
-    element: (
-      <ProtectedRoute>
-        <GenerateReport />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // ============================================
-  // LAYOUT MANAGEMENT ROUTES (Session 6 - NEW!)
-  // ============================================
-  
-  // /reports/layouts → LayoutList (Browse layouts)
-  {
-    path: ROUTES.REPORT_LAYOUTS,
-    element: (
-      <ProtectedRoute>
-        <LayoutList />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // /reports/layouts/new → LayoutEditor (Create new layout)
-  {
-    path: ROUTES.REPORT_LAYOUT_NEW,
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // /reports/layouts/:id → LayoutEditor (Edit existing layout)
-  {
-    path: ROUTES.REPORT_LAYOUT_DETAIL,
-    element: (
-      <ProtectedRoute>
-        <LayoutEditor />
-      </ProtectedRoute>
-    ),
-  },
-  
-  // ============================================
-  // USER ROUTES
-  // ============================================
+  // ══════════════════════════════════════════════════════
+  // PROFILE — any authenticated user (no nav permission)
+  // ══════════════════════════════════════════════════════
   {
     path: ROUTES.PROFILE,
-    element: (
-      <ProtectedRoute>
-        <ProfilePage />
-      </ProtectedRoute>
-    ),
+    element: authed(ProfilePage),
   },
-  
-  // ============================================
-  // 404 - NOT FOUND
-  // ============================================
+
+  // ══════════════════════════════════════════════════════
+  // 404
+  // ══════════════════════════════════════════════════════
   {
     path: '*',
     element: <NotFoundPage />,
@@ -406,7 +312,7 @@ export const router = createBrowserRouter([
 ], {
   future: {
     v7_startTransition: true,
-  }
+  },
 });
 
 export default router;

@@ -11,18 +11,19 @@
  *   - Backward compatible: still works with dropdown if no URL param
  * 
  * Flow:
- *   ReportHistory â†’ [+ Generate Report] â†’ /reports/generate?contractId=xxx
- *   OR direct navigation â†’ /reports/generate (shows dropdown)
+ *   ReportHistory  to  [+ Generate Report]  to  /reports/generate?contractId=xxx
+ *   OR direct navigation  to  /reports/generate (shows dropdown)
  * 
  * @module pages/reports/GenerateReport
  * @created February 5, 2026 - Session 18
  * @updated February 6, 2026 - Session 19: URL params + history saving
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../../services/supabase/client';
 import { reportService } from '../../services/api/reportService';
+import { contractService } from '../../services/api/contractService';
+import { useOrganization } from '../../context/OrganizationContext';
 import ReportGenerator from '../../components/reports/ReportGenerator';
 import AppLayout from '../../components/layout/AppLayout';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -30,85 +31,57 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 export default function GenerateReport() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+  const { currentOrg } = useOrganization();
+
   // Check if contractId was passed via URL (from ReportHistory)
   const urlContractId = searchParams.get('contractId');
-  
+
   const [loading, setLoading] = useState(true);
   const [contracts, setContracts] = useState([]);
   const [selectedContract, setSelectedContract] = useState(null);
   const [contractInfo, setContractInfo] = useState(null);
-  
-  /**
-   * Load contracts
-   */
-  useEffect(() => {
-    loadContracts();
-  }, []);
-  
-  const loadContracts = async () => {
+
+  // Load contracts - org-aware (SESSION 14 FIX)
+  const loadContracts = useCallback(async () => {
     try {
-      console.log('ðŸ“Š Loading contracts for report generation...');
+      console.log('Loading contracts for report generation...');
       setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('contracts')
-        .select(`
-          id,
-          contract_number,
-          contract_name,
-          contract_type,
-          contract_category,
-          status,
-          valid_from,
-          valid_until,
-          project:projects (
-            id,
-            project_name,
-            client_name,
-            project_code
-          )
-        `)
-        .is('deleted_at', null)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('âŒ Error loading contracts:', error);
-        throw error;
-      }
-      
-      console.log('âœ… Loaded contracts:', data?.length || 0);
-      setContracts(data || []);
-      
-      // If contractId from URL, auto-select it
+
+      const orgId = currentOrg?.id ?? null;
+      const data  = await contractService.getUserContracts(orgId);
+      const active = (data || []).filter(c => c.status === 'active');
+
+      console.log('Loaded contracts:', active.length);
+      setContracts(active);
+
       if (urlContractId) {
-        const found = (data || []).find(c => c.id === urlContractId);
+        const found = active.find(c => c.id === urlContractId);
         if (found) {
           setSelectedContract(urlContractId);
           setContractInfo(found);
-          console.log('âœ… Pre-selected from URL:', found.contract_number);
         } else {
-          console.warn('âš ï¸ URL contractId not found in active contracts:', urlContractId);
-          // Fall back to first available
-          if (data && data.length > 0) {
-            setSelectedContract(data[0].id);
-            setContractInfo(data[0]);
+          if (active.length > 0) {
+            setSelectedContract(active[0].id);
+            setContractInfo(active[0]);
           }
         }
-      } else if (data && data.length > 0) {
-        // No URL param â€” auto-select first
-        setSelectedContract(data[0].id);
-        setContractInfo(data[0]);
-        console.log('âœ… Auto-selected first:', data[0].contract_number);
+      } else if (active.length > 0) {
+        setSelectedContract(active[0].id);
+        setContractInfo(active[0]);
+      } else {
+        setSelectedContract(null);
+        setContractInfo(null);
       }
-      
     } catch (error) {
-      console.error('âŒ Failed to load contracts:', error);
+      console.error('Failed to load contracts:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentOrg?.id, urlContractId]);
+
+  useEffect(() => {
+    loadContracts();
+  }, [loadContracts]);
 
   /**
    * Handle contract change from dropdown
@@ -202,10 +175,10 @@ export default function GenerateReport() {
           </p>
         </div>
         
-        {/* Contract Selector â€” show dropdown unless pre-selected from URL */}
+        {/* Contract Selector  -  show dropdown unless pre-selected from URL */}
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           {urlContractId && contractInfo ? (
-            // Pre-selected from ReportHistory â€” show compact info, allow change
+            // Pre-selected from ReportHistory  -  show compact info, allow change
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-gray-700">Contract</label>
@@ -222,19 +195,24 @@ export default function GenerateReport() {
               </div>
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm font-medium text-blue-900">
-                  {contractInfo.contract_number} â€” {contractInfo.contract_name}
+                  {contractInfo.contract_number}  -  {contractInfo.contract_name}
                 </p>
                 <p className="text-xs text-blue-700 mt-0.5">
-                  {contractInfo.project?.client_name} Â· {contractInfo.project?.project_name} Â· {contractInfo.contract_category?.replace(/-/g, ' ').toUpperCase()}
+                  {contractInfo.project?.client_name}  ·  {contractInfo.project?.project_name}  ·  {contractInfo.contract_category?.replace(/-/g, ' ').toUpperCase()}
                 </p>
               </div>
             </div>
           ) : (
             // Standard dropdown
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Contract
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">Select Contract</label>
+                {currentOrg && (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    📁 {currentOrg.name}
+                  </span>
+                )}
+              </div>
               <select
                 value={selectedContract || ''}
                 onChange={(e) => handleContractChange(e.target.value)}
@@ -243,7 +221,7 @@ export default function GenerateReport() {
                 <option value="">-- Select Contract --</option>
                 {contracts.map(contract => (
                   <option key={contract.id} value={contract.id}>
-                    {contract.contract_number} â€” {contract.project?.client_name || 'Unknown'} â€” {contract.contract_name}
+                    {contract.contract_number}  -  {contract.project?.client_name || 'Unknown'}  -  {contract.contract_name}
                   </option>
                 ))}
               </select>
@@ -258,7 +236,7 @@ export default function GenerateReport() {
                     {contractInfo.project?.project_name}
                   </span>
                   <span className="px-2 py-1 bg-gray-100 rounded">
-                    {contractInfo.valid_from} â†’ {contractInfo.valid_until}
+                    {contractInfo.valid_from}  to  {contractInfo.valid_until}
                   </span>
                 </div>
               )}
@@ -277,15 +255,15 @@ export default function GenerateReport() {
                 await reportService.saveReportHistory({
                   contractId: selectedContract,
                   reportType: 'custom',
-                  reportTitle: `Custom Report â€” ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
+                  reportTitle: `Custom Report  -  ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`,
                   entryIds,
                   options,
                   periodStart: null,
                   periodEnd: null
                 });
-                console.log('âœ… Report saved to history');
+                console.log('✅ Report saved to history');
               } catch (err) {
-                console.warn('âš ï¸ Failed to save report to history (non-blocking):', err);
+                console.warn('⚠️ ï¸ Failed to save report to history (non-blocking):', err);
               }
             }}
           />

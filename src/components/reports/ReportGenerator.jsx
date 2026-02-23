@@ -26,6 +26,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase/client';
 import { reportService } from '../../services/api/reportService';
+import { contractService } from '../../services/api/contractService';
 import Button from '../common/Button';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ReportPreview from './ReportPreview';
@@ -94,21 +95,22 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
       setLoading(true);
       setError(null);
       
-      // Load contract
-      const { data: contractData, error: contractError } = await supabase
-        .from('contracts')
-        .select(`
-          *,
-          project:projects(id, project_name, client_name),
-          template:templates(id, template_id, template_name, contract_category, default_layout_id)
-        `)
-        .eq('id', contractId)
-        .single();
-      
-      if (contractError) throw contractError;
+      // Load contract via service — correctly joins contract_templates junction table
+      // (direct template:templates FK was removed in Session 14 schema migration)
+      const contractData = await contractService.getContract(contractId);
+      if (!contractData) throw new Error('Contract not found or access denied');
+
+      // Flatten the default template onto contract.template for backwards compatibility
+      // with any downstream code that reads contract.template.template_name etc.
+      const defaultJunction =
+        (contractData.contract_templates || []).find(jt => jt.is_default) ||
+        contractData.contract_templates?.[0];
+      contractData.template = defaultJunction?.templates ?? null;
+
       setContract(contractData);
       
       // Load work entries WITH template (for field labels)
+      // work_entries.template_id is a direct FK — this join is still valid
       const { data: entriesData, error: entriesError } = await supabase
         .from('work_entries')
         .select(`

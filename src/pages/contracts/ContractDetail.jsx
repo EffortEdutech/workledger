@@ -1,56 +1,63 @@
 /**
  * WorkLedger - Contract Detail Page
- * 
- * Page for viewing contract details with edit and delete options.
- * 
+ *
+ * Read-only view of contract information.
+ * Templates are shown as chips only — assigned via New/Edit Contract form.
+ *
+ * SESSION 14 FIX:
+ *   - Removed ContractTemplateManager (editing belongs in the form)
+ *   - Templates displayed as read-only chips from contract.contract_templates
+ *   - useRole() correctly used via can() function
+ *   - "New Work Entry" gated — only shown when at least one template assigned
+ *   - Fixed org property: project.organization (PostgREST alias, not .organizations)
+ *
  * @module pages/contracts/ContractDetail
  * @created January 31, 2026 - Session 10
+ * @updated February 22, 2026 - Session 14: clean read-only detail page
  */
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import Button from '../../components/common/Button';
 import ContractTypeBadge from '../../components/contracts/ContractTypeBadge';
 import { contractService } from '../../services/api/contractService';
-import { 
-  PencilIcon, 
+import { useRole } from '../../hooks/useRole';
+import {
+  PencilIcon,
   TrashIcon,
   CalendarIcon,
   DocumentTextIcon,
   ClockIcon,
-  WrenchScrewdriverIcon
+  WrenchScrewdriverIcon,
+  DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline';
 
 export function ContractDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
-  const [contract, setContract] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { can } = useRole();
 
-  // Load contract
-  useEffect(() => {
-    loadContract();
-  }, [id]);
+  const canEdit   = can('MANAGE_CONTRACTS');
+  const canDelete = can('MANAGE_CONTRACTS');
+
+  const [contract, setContract] = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(null);
+
+  useEffect(() => { loadContract(); }, [id]);
 
   const loadContract = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const contractData = await contractService.getContract(id);
-      
-      if (!contractData) {
+      const data = await contractService.getContract(id);
+      if (!data) {
         setError('Contract not found or you do not have permission to view it.');
-        setLoading(false);
         return;
       }
-
-      setContract(contractData);
-      console.log('✅ Loaded contract:', contractData.contract_number);
+      setContract(data);
+      console.log('✅ Loaded contract:', data.contract_number);
     } catch (err) {
       console.error('❌ Error loading contract:', err);
       setError('Failed to load contract. Please try again.');
@@ -59,76 +66,25 @@ export function ContractDetail() {
     }
   };
 
-  // Handle edit
-  const handleEdit = () => {
-    navigate(`/contracts/${id}/edit`);
-  };
-
-  // Handle delete
   const handleDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete contract "${contract.contract_number}"?`)) {
-      return;
-    }
-
+    if (!window.confirm(`Delete contract "${contract.contract_number}"? This cannot be undone.`)) return;
     try {
       await contractService.deleteContract(id);
-      console.log('✅ Contract deleted successfully');
       navigate('/contracts');
-    } catch (error) {
-      console.error('❌ Error deleting contract:', error);
-      alert('Failed to delete contract. Please try again.');
+    } catch (err) {
+      console.error('❌ Error deleting contract:', err);
+      alert('Failed to delete contract.');
     }
   };
 
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-MY', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+  const formatDate = (d) => {
+    if (!d) return 'N/A';
+    return new Date(d).toLocaleDateString('en-MY', {
+      year: 'numeric', month: 'long', day: 'numeric',
     });
   };
 
-  // Format datetime
-  const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-MY', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Status color mapping
-  const statusColors = {
-    draft: 'bg-gray-100 text-gray-800 border-gray-200',
-    active: 'bg-green-100 text-green-800 border-green-200',
-    suspended: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    completed: 'bg-blue-100 text-blue-800 border-blue-200'
-  };
-
-  // Status labels
-  const statusLabels = {
-    draft: 'Draft',
-    active: 'Active',
-    suspended: 'Suspended',
-    completed: 'Completed'
-  };
-
-  // Reporting frequency labels
-  const frequencyLabels = {
-    daily: 'Daily',
-    weekly: 'Weekly',
-    monthly: 'Monthly',
-    adhoc: 'Ad-hoc'
-  };
-
-  // Loading state
+  // ── Loading ────────────────────────────────────────────────
   if (loading) {
     return (
       <AppLayout>
@@ -139,23 +95,16 @@ export function ContractDetail() {
     );
   }
 
-  // Error state
-  if (error || !contract) {
+  // ── Error ──────────────────────────────────────────────────
+  if (error) {
     return (
       <AppLayout>
         <div className="max-w-4xl mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-red-900 mb-2">
-              Error Loading Contract
-            </h3>
-            <p className="text-red-800 mb-4">
-              {error || 'Contract not found.'}
-            </p>
-            <button
-              onClick={() => navigate('/contracts')}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-            >
-              Back to Contracts
+            <p className="text-red-800">{error}</p>
+            <button onClick={() => navigate('/contracts')}
+              className="mt-3 text-sm text-red-600 hover:text-red-700 font-medium">
+              ← Back to Contracts
             </button>
           </div>
         </div>
@@ -163,264 +112,236 @@ export function ContractDetail() {
     );
   }
 
+  // Assigned templates from the junction table.
+  // getContract() returns contract_templates: [{ id, template_id, is_default, sort_order,
+  //   templates: { id, template_name, contract_category, ... } }]
+  const assignedTemplates = (contract.contract_templates || [])
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+
+  const hasTemplates = assignedTemplates.length > 0;
+
+  // PostgREST alias: project joins as `project:projects(...)` and org as
+  // `organization:organizations(...)` inside the project join — so it's singular
+  const org  = contract.project?.organization;
+  const proj = contract.project;
+
   return (
     <AppLayout>
-      <div className="max-w-6xl mx-auto">
-        {/* Page Header */}
-        <div className="mb-6">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {contract.contract_number}
-                </h1>
-                <span 
-                  className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium border ${
-                    statusColors[contract.status] || statusColors.active
-                  }`}
-                >
-                  {statusLabels[contract.status] || 'Active'}
-                </span>
-                <ContractTypeBadge category={contract.contract_category} />
-              </div>
-              <p className="text-lg text-gray-700">{contract.contract_name}</p>
+      <div className="max-w-4xl mx-auto space-y-6">
+
+        {/* ── Header ───────────────────────────────────────── */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-3xl font-bold text-gray-900">
+                {contract.contract_number}
+              </h1>
+              <ContractTypeBadge category={contract.contract_category} />
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs
+                              font-medium border
+                              ${contract.status === 'active'
+                                ? 'bg-green-50 text-green-700 border-green-200'
+                                : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                {contract.status}
+              </span>
             </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={handleEdit}
-              >
-                <PencilIcon className="h-5 w-5 mr-2" />
-                Edit
-              </Button>
-              <Button
-                variant="danger"
-                onClick={handleDelete}
-              >
-                <TrashIcon className="h-5 w-5 mr-2" />
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Main Info */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Contract Information */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Contract Information
-              </h2>
-
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 mb-1">Project</dt>
-                  <dd className="text-sm text-gray-900">
-                    <span className="font-medium">{contract.project?.project_code}</span>
-                    <br />
-                    <span className="text-gray-600">{contract.project?.project_name}</span>
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 mb-1">Organization</dt>
-                  <dd className="text-sm text-gray-900">
-                    {contract.project?.organizations?.name || 'N/A'}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 mb-1">Valid From</dt>
-                  <dd className="flex items-center text-sm text-gray-900">
-                    <CalendarIcon className="h-5 w-5 text-gray-400 mr-2" />
-                    {formatDate(contract.valid_from)}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 mb-1">Valid Until</dt>
-                  <dd className="flex items-center text-sm text-gray-900">
-                    <CalendarIcon className="h-5 w-5 text-gray-400 mr-2" />
-                    {formatDate(contract.valid_until)}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 mb-1">Reporting Frequency</dt>
-                  <dd className="text-sm text-gray-900">
-                    {frequencyLabels[contract.reporting_frequency] || contract.reporting_frequency}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 mb-1">Requires Approval</dt>
-                  <dd className="text-sm text-gray-900">
-                    {contract.requires_approval ? 'Yes' : 'No'}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-
-            {/* Template Information */}
-            {contract.template && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <DocumentTextIcon className="h-5 w-5 mr-2" />
-                  Template Information
-                </h2>
-
-                <dl className="space-y-3">
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500 mb-1">Template Name</dt>
-                    <dd className="text-sm text-gray-900">{contract.template.template_name}</dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500 mb-1">Template ID</dt>
-                    <dd className="text-sm font-mono text-gray-600">{contract.template.template_id}</dd>
-                  </div>
-
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500 mb-1">Contract Category</dt>
-                    <dd className="text-sm text-gray-900">
-                      <ContractTypeBadge category={contract.template.contract_category} showFullName />
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            )}
-
-            {/* SLA Configuration (if applicable) */}
-            {contract.sla_tier && (
-              <div className="bg-indigo-50 rounded-lg shadow p-6 border border-indigo-200">
-                <h2 className="text-lg font-semibold text-indigo-900 mb-4 flex items-center">
-                  <ClockIcon className="h-5 w-5 mr-2" />
-                  SLA Configuration
-                </h2>
-
-                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <dt className="text-sm font-medium text-indigo-700 mb-1">SLA Tier</dt>
-                    <dd className="text-sm font-semibold text-indigo-900">{contract.sla_tier}</dd>
-                  </div>
-
-                  {contract.sla_response_time_mins && (
-                    <div>
-                      <dt className="text-sm font-medium text-indigo-700 mb-1">Response Time</dt>
-                      <dd className="text-sm text-indigo-900">{contract.sla_response_time_mins} minutes</dd>
-                    </div>
-                  )}
-
-                  {contract.sla_resolution_time_hours && (
-                    <div>
-                      <dt className="text-sm font-medium text-indigo-700 mb-1">Resolution Time</dt>
-                      <dd className="text-sm text-indigo-900">{contract.sla_resolution_time_hours} hours</dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
-            )}
-
-            {/* Maintenance Configuration (if applicable) */}
-            {contract.maintenance_cycle && (
-              <div className="bg-green-50 rounded-lg shadow p-6 border border-green-200">
-                <h2 className="text-lg font-semibold text-green-900 mb-4 flex items-center">
-                  <WrenchScrewdriverIcon className="h-5 w-5 mr-2" />
-                  Maintenance Configuration
-                </h2>
-
-                <dl className="space-y-3">
-                  <div>
-                    <dt className="text-sm font-medium text-green-700 mb-1">Maintenance Cycle</dt>
-                    <dd className="text-sm text-green-900">{contract.maintenance_cycle}</dd>
-                  </div>
-
-                  {contract.asset_categories && contract.asset_categories.length > 0 && (
-                    <div>
-                      <dt className="text-sm font-medium text-green-700 mb-1">Asset Categories</dt>
-                      <dd className="flex flex-wrap gap-2 mt-2">
-                        {contract.asset_categories.map((category, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700"
-                          >
-                            {category}
-                          </span>
-                        ))}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
-            )}
-
-            {/* Work Entries Placeholder */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Work Entries
-              </h2>
-              <p className="text-sm text-gray-500">
-                Work entry management will be implemented in Session 13.
+            <p className="text-gray-500">{contract.contract_name}</p>
+            {org && (
+              <p className="text-sm text-gray-400 mt-0.5">
+                {org.name}{proj ? ` · ${proj.project_name}` : ''}
               </p>
-            </div>
+            )}
           </div>
 
-          {/* Right Column - Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Stats */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Quick Stats
-              </h2>
-              <dl className="space-y-3">
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">Work Entries</dt>
-                  <dd className="text-sm font-medium text-gray-900">0</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">Pending Approval</dt>
-                  <dd className="text-sm font-medium text-gray-900">0</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-500">Attachments</dt>
-                  <dd className="text-sm font-medium text-gray-900">0</dd>
-                </div>
-              </dl>
-            </div>
-
-            {/* Metadata */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Metadata
-              </h2>
-              <dl className="space-y-3 text-sm">
-                <div>
-                  <dt className="text-gray-500">Created</dt>
-                  <dd className="text-gray-900 font-mono text-xs mt-1">
-                    {formatDateTime(contract.created_at)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500">Last Updated</dt>
-                  <dd className="text-gray-900 font-mono text-xs mt-1">
-                    {formatDateTime(contract.updated_at)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-gray-500">Contract ID</dt>
-                  <dd className="text-gray-900 font-mono text-xs mt-1 break-all">
-                    {contract.id}
-                  </dd>
-                </div>
-              </dl>
-            </div>
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            {canEdit && (
+              <button
+                onClick={() => navigate(`/contracts/${id}/edit`)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium
+                           text-gray-700 bg-white border border-gray-300 rounded-md
+                           shadow-sm hover:bg-gray-50"
+              >
+                <PencilIcon className="h-4 w-4" />
+                Edit
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={handleDelete}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium
+                           text-white bg-red-600 border border-transparent rounded-md
+                           shadow-sm hover:bg-red-700"
+              >
+                <TrashIcon className="h-4 w-4" />
+                Delete
+              </button>
+            )}
           </div>
         </div>
+
+        {/* ── Contract Details ──────────────────────────────── */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <DocumentTextIcon className="h-5 w-5 text-gray-400" />
+              Contract Details
+            </h2>
+          </div>
+
+          <div className="p-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <InfoRow label="Contract Type"  value={contract.contract_type || '—'} />
+            <InfoRow label="Category"       value={contract.contract_category || '—'} />
+            <InfoRow label="Status"         value={contract.status || '—'} />
+
+            <InfoRow
+              label="Valid From"
+              value={formatDate(contract.valid_from)}
+              icon={<CalendarIcon className="h-4 w-4" />}
+            />
+            <InfoRow
+              label="Valid Until"
+              value={formatDate(contract.valid_until)}
+              icon={<CalendarIcon className="h-4 w-4" />}
+            />
+            {contract.contract_value && (
+              <InfoRow
+                label="Contract Value"
+                value={`RM ${parseFloat(contract.contract_value)
+                  .toLocaleString('en-MY', { minimumFractionDigits: 2 })}`}
+              />
+            )}
+            {contract.reporting_frequency && (
+              <InfoRow
+                label="Reporting Frequency"
+                value={contract.reporting_frequency}
+                icon={<ClockIcon className="h-4 w-4" />}
+              />
+            )}
+            {contract.maintenance_cycle && (
+              <InfoRow
+                label="Maintenance Cycle"
+                value={contract.maintenance_cycle}
+                icon={<WrenchScrewdriverIcon className="h-4 w-4" />}
+              />
+            )}
+            {contract.description && (
+              <div className="sm:col-span-2 lg:col-span-3">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Description
+                </p>
+                <p className="mt-1 text-sm text-gray-700">{contract.description}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Work Entry Templates (read-only chips) ────────── */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <DocumentDuplicateIcon className="h-5 w-5 text-gray-400" />
+              Work Entry Templates
+            </h2>
+            {canEdit && (
+              <button
+                onClick={() => navigate(`/contracts/${id}/edit`)}
+                className="text-xs font-medium text-primary-600 hover:text-primary-700"
+              >
+                Edit to change →
+              </button>
+            )}
+          </div>
+
+          <div className="p-6">
+            {hasTemplates ? (
+              <>
+                <p className="text-xs text-gray-500 mb-3">
+                  Field workers will see these templates when creating a new work entry for this contract.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {assignedTemplates.map(jt => {
+                    // getContract returns nested template under `templates` key (junction → template)
+                    const tmpl = jt.templates || jt.template || {};
+                    return (
+                      <span
+                        key={jt.id}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                                    text-sm font-medium border
+                                    ${jt.is_default
+                                      ? 'bg-primary-50 text-primary-700 border-primary-200'
+                                      : 'bg-gray-50 text-gray-700 border-gray-200'}`}
+                      >
+                        {tmpl.template_name || '(Unknown template)'}
+                        {jt.is_default && (
+                          <span className="text-xs text-primary-400 font-normal ml-0.5">
+                            · default
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-sm font-medium text-gray-500">No templates assigned</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Field workers cannot create entries until templates are assigned.
+                </p>
+                {canEdit && (
+                  <button
+                    onClick={() => navigate(`/contracts/${id}/edit`)}
+                    className="mt-3 text-sm font-medium text-primary-600 hover:text-primary-700"
+                  >
+                    Click Edit to assign templates
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Quick Actions ─────────────────────────────────── */}
+        <div className="flex gap-3 pb-8">
+          {hasTemplates ? (
+            <button
+              onClick={() => navigate(`/work/new?contractId=${id}`)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium
+                         text-white bg-primary-600 rounded-md hover:bg-primary-700"
+            >
+              + New Work Entry
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-4 py-2 text-sm
+                            text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
+              ⚠️ Assign templates via Edit before creating work entries
+            </div>
+          )}
+          <button
+            onClick={() => navigate('/contracts')}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium
+                       text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            ← All Contracts
+          </button>
+        </div>
+
       </div>
     </AppLayout>
+  );
+}
+
+// ── Small helper ──────────────────────────────────────────────
+function InfoRow({ label, value, icon }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className="mt-1 text-sm text-gray-900 flex items-center gap-1.5">
+        {icon && <span className="text-gray-400">{icon}</span>}
+        {value}
+      </p>
+    </div>
   );
 }
 

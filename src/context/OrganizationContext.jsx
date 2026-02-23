@@ -1,189 +1,198 @@
 /**
  * WorkLedger - Organization Context
  *
- * Manages multi-tenancy across the app.
+ * Manages the active organization for the current session.
+ * Provides org switching for Bina Jaya staff and org-scoped data access.
  *
- * HOW IT WORKS:
- *   - Regular client users   → auto-detects their single org from org_members
- *   - Bina Jaya super_admin  → can see and switch between ALL organizations
- *   - Bina Jaya bina_jaya_staff → same as super_admin for org visibility
+ * SESSION 9: Initial implementation
+ *   - orgId, currentOrg, isBinaJayaStaff, switchOrganization
+ *   - localStorage persistence
  *
- * IMPORTANT — profile.global_role:
- *   This field is added by migration 022. It comes from user_profiles table
- *   which AuthContext already fetches via authService.getUserProfile() with select('*').
- *   So profile.global_role is available automatically once migration 022 runs. ✅
+ * SESSION 11 UPDATE: Added userOrgRole
+ *   - Fetches user's role in the ACTIVE org from org_members
+ *   - BJ staff: userOrgRole = their global_role ('super_admin' / 'bina_jaya_staff')
+ *   - Regular users: userOrgRole = org_members.role for their org
+ *   - Updates automatically when org switches
+ *   - This is the single source of truth for permission checks
  *
- * HOW TO USE orgId IN SERVICES/PAGES:
- *   const { orgId } = useOrganization();
- *   supabase.from('work_entries').select('*').eq('organization_id', orgId)
- *
- * @file src/context/OrganizationContext.jsx
- * @created February 20, 2026
- * @session Session 9 - Multi-Tenancy Foundation
+ * @module context/OrganizationContext
+ * @created February 20, 2026 - Session 9
+ * @updated February 21, 2026 - Session 11: userOrgRole added
  */
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../services/supabase/client';
 
-// ──────────────────────────────────────────────────────────
-// Context
-// ──────────────────────────────────────────────────────────
 const OrganizationContext = createContext(null);
 
-// Persist selected org for Bina Jaya staff across page refreshes
-const STORAGE_KEY = 'wl_active_org_id';
-
-// ──────────────────────────────────────────────────────────
-// Provider
-// ──────────────────────────────────────────────────────────
 export function OrganizationProvider({ children }) {
   const { user, profile, loading: authLoading } = useAuth();
 
-  const [allOrgs, setAllOrgs] = useState([]);
-  const [currentOrg, setCurrentOrgState] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [allOrgs, setAllOrgs]           = useState([]);
+  const [currentOrg, setCurrentOrg]     = useState(null);
+  const [userOrgRole, setUserOrgRole]   = useState(null);  // ← NEW Session 11
+  const [loading, setLoading]           = useState(true);
 
-  // Derived: is this user Bina Jaya platform staff?
-  // Uses global_role from user_profiles (added by migration 022)
-  const isBinaJayaStaff = Boolean(
-    profile?.global_role === 'super_admin' || 
+  // ─────────────────────────────────────────────────────────
+  // Derived: Is this user Bina Jaya platform staff?
+  // ─────────────────────────────────────────────────────────
+  const isBinaJayaStaff = !!(
+    profile?.global_role === 'super_admin' ||
     profile?.global_role === 'bina_jaya_staff'
   );
 
-  // ────────────────────────────────────────────────────────
-  // Load organizations — runs when auth state is ready
-  // ────────────────────────────────────────────────────────
-  const loadOrganizations = useCallback(async () => {
-    // Wait for AuthContext to finish loading before we act
-    if (authLoading) return;
+  // Shorthand: active org's ID (used in every service call)
+  const orgId = currentOrg?.id ?? null;
 
+  // ─────────────────────────────────────────────────────────
+  // Load organizations (runs when auth settles)
+  // ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       setAllOrgs([]);
-      setCurrentOrgState(null);
+      setCurrentOrg(null);
+      setUserOrgRole(null);
       setLoading(false);
       return;
     }
+    loadOrganizations();
+  }, [authLoading, user, profile?.global_role]);
 
+  const loadOrganizations = async () => {
     try {
       setLoading(true);
-      setError(null);
-
       let orgs = [];
 
       if (isBinaJayaStaff) {
-        // ── Bina Jaya staff: load ALL organizations ──
-        console.log('🏢 OrgContext: Loading ALL orgs (Bina Jaya staff)');
-        const { data, error: fetchError } = await supabase
+        // BJ staff can see ALL organizations
+        const { data, error } = await supabase
           .from('organizations')
-          .select('id, name, slug, subscription_tier, user_limit, settings')
+          .select('id, name, slug, subscription_tier, settings')
           .is('deleted_at', null)
           .order('name');
 
-        if (fetchError) throw fetchError;
+        if (error) throw error;
         orgs = data || [];
-
       } else {
-        // ── Regular client user: load only orgs they belong to ──
-        console.log('🏢 OrgContext: Loading user orgs via org_members');
-        const { data, error: fetchError } = await supabase
+        // Regular users: only orgs they're members of
+        const { data, error } = await supabase
           .from('org_members')
           .select(`
-            organization_id,
             role,
-            is_active,
-            organizations (
-              id,
-              name,
-              slug,
-              subscription_tier,
-              user_limit,
-              settings
-            )
+            organization:organizations(id, name, slug, subscription_tier, settings)
           `)
           .eq('user_id', user.id)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .is('organizations.deleted_at', null);
 
-        if (fetchError) throw fetchError;
-
+        if (error) throw error;
         orgs = (data || [])
-          .map(m => m.organizations)
-          .filter(Boolean);
+          .filter(m => m.organization)
+          .map(m => m.organization);
       }
 
-      console.log(`✅ OrgContext: Loaded ${orgs.length} org(s)`);
       setAllOrgs(orgs);
 
-      // ── Determine which org to activate ──
-      // Priority: 1) last saved in localStorage, 2) first in list
-      const savedOrgId = localStorage.getItem(STORAGE_KEY);
-      const savedOrg = savedOrgId ? orgs.find(o => o.id === savedOrgId) : null;
-      const activeOrg = savedOrg || orgs[0] || null;
+      // ── Restore previously selected org, or default to first ──
+      const savedOrgId = localStorage.getItem('wl_active_org_id');
+      const savedOrg = savedOrgId
+        ? orgs.find(o => o.id === savedOrgId)
+        : null;
+      const active = savedOrg || orgs[0] || null;
+      setCurrentOrg(active);
 
-      setCurrentOrgState(activeOrg);
-
-      if (activeOrg) {
-        localStorage.setItem(STORAGE_KEY, activeOrg.id);
-        console.log(`✅ OrgContext: Active org → "${activeOrg.name}"`);
-      }
-
-    } catch (err) {
-      console.error('❌ OrgContext: Failed to load organizations:', err);
-      setError(err.message);
+      console.log('✅ OrganizationContext: Loaded', orgs.length, 'orgs. Active:', active?.name);
+    } catch (error) {
+      console.error('❌ OrganizationContext: Failed to load orgs:', error);
     } finally {
       setLoading(false);
     }
-  }, [user, profile, authLoading, isBinaJayaStaff]);
+  };
 
+  // ─────────────────────────────────────────────────────────
+  // Fetch userOrgRole whenever currentOrg changes
+  // ─────────────────────────────────────────────────────────
+  // This is the KEY addition for Session 11.
+  // Every permission check reads from userOrgRole.
+  // ─────────────────────────────────────────────────────────
   useEffect(() => {
-    loadOrganizations();
-  }, [loadOrganizations]);
+    fetchUserOrgRole();
+  }, [currentOrg?.id, user?.id, profile?.global_role]);
 
-  // ────────────────────────────────────────────────────────
-  // Switch org (Bina Jaya staff only)
-  // ────────────────────────────────────────────────────────
-  const switchOrganization = useCallback((orgId) => {
-    if (!isBinaJayaStaff) {
-      console.warn('⚠️ OrgContext: Only Bina Jaya staff can switch orgs');
+  const fetchUserOrgRole = useCallback(async () => {
+    if (!user || !currentOrg) {
+      setUserOrgRole(null);
       return;
     }
 
-    const org = allOrgs.find(o => o.id === orgId);
+    // BJ staff: their "role" is their global_role — no org_members row needed
+    if (isBinaJayaStaff) {
+      setUserOrgRole(profile.global_role); // 'super_admin' or 'bina_jaya_staff'
+      return;
+    }
+
+    // Regular users: look up their role in the active org
+    try {
+      const { data, error } = await supabase
+        .from('org_members')
+        .select('role')
+        .eq('organization_id', currentOrg.id)
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (error || !data) {
+        console.warn('⚠️ No org_members row found for user in org:', currentOrg.name);
+        setUserOrgRole(null);
+      } else {
+        setUserOrgRole(data.role);
+        console.log('✅ userOrgRole:', data.role, 'in', currentOrg.name);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch userOrgRole:', error);
+      setUserOrgRole(null);
+    }
+  }, [currentOrg?.id, user?.id, isBinaJayaStaff, profile?.global_role]);
+
+  // ─────────────────────────────────────────────────────────
+  // Switch organization (BJ staff only)
+  // ─────────────────────────────────────────────────────────
+  const switchOrganization = useCallback((orgIdToSwitch) => {
+    const org = allOrgs.find(o => o.id === orgIdToSwitch);
     if (!org) {
-      console.error('❌ OrgContext: Org not found:', orgId);
+      console.warn('⚠️ switchOrganization: org not found:', orgIdToSwitch);
       return;
     }
+    setCurrentOrg(org);
+    localStorage.setItem('wl_active_org_id', org.id);
+    console.log('🔄 Switched to org:', org.name);
+  }, [allOrgs]);
 
-    console.log(`🔄 OrgContext: Switching to "${org.name}"`);
-    setCurrentOrgState(org);
-    localStorage.setItem(STORAGE_KEY, orgId);
-  }, [allOrgs, isBinaJayaStaff]);
+  // Clear org on logout (when user becomes null)
+  useEffect(() => {
+    if (!user) {
+      localStorage.removeItem('wl_active_org_id');
+    }
+  }, [user]);
 
-  // ────────────────────────────────────────────────────────
-  // Refresh (call after creating a new organization)
-  // ────────────────────────────────────────────────────────
-  const refreshOrganizations = useCallback(() => {
-    return loadOrganizations();
-  }, [loadOrganizations]);
-
-  // ────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────
   // Context value
-  // ────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────
   const value = {
     // State
     allOrgs,
     currentOrg,
     loading,
-    error,
 
-    // Computed (use these in components and services)
-    isBinaJayaStaff,
-    orgId: currentOrg?.id || null,  // ← use this in ALL Supabase queries!
+    // Derived
+    orgId,                // shorthand for currentOrg?.id
+    isBinaJayaStaff,      // true for super_admin / bina_jaya_staff
+    userOrgRole,          // ← NEW: user's role in the active org
 
-    // Actions
+    // Methods
     switchOrganization,
-    refreshOrganizations,
   };
 
   return (
@@ -193,13 +202,14 @@ export function OrganizationProvider({ children }) {
   );
 }
 
-// ──────────────────────────────────────────────────────────
-// Hook
-// ──────────────────────────────────────────────────────────
+/**
+ * useOrganization hook
+ * Access org state and switching from any component.
+ */
 export function useOrganization() {
   const context = useContext(OrganizationContext);
   if (!context) {
-    throw new Error('useOrganization must be used inside <OrganizationProvider>');
+    throw new Error('useOrganization must be used within OrganizationProvider');
   }
   return context;
 }

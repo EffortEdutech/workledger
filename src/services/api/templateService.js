@@ -396,25 +396,36 @@ export class TemplateService {
    */
   async getContractsUsingTemplate(templateId) {
     try {
+      // contracts.template_id FK was removed in Session 14 (many-to-many migration).
+      // Query through the junction table: contract_templates → contracts.
       const { data, error } = await supabase
-        .from('contracts')
+        .from('contract_templates')
         .select(`
-          id,
-          contract_number,
-          contract_name,
-          contract_type,
-          status,
-          project:projects (
-            project_name,
-            client_name
+          contract:contracts (
+            id,
+            contract_number,
+            contract_name,
+            contract_type,
+            status,
+            deleted_at,
+            created_at,
+            project:projects (
+              project_name,
+              client_name
+            )
           )
         `)
-        .eq('template_id', templateId)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
+        .eq('template_id', templateId);
 
       if (error) throw error;
-      return data || [];
+
+      // Unwrap nested contract objects and filter out soft-deleted
+      const contracts = (data || [])
+        .map(row => row.contract)
+        .filter(c => c && !c.deleted_at)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+      return contracts;
     } catch (error) {
       console.error('❌ Exception in getContractsUsingTemplate:', error);
       return [];
