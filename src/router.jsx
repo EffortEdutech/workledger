@@ -3,21 +3,24 @@
  *
  * Every protected route is wrapped with:
  *   1. ProtectedRoute  — ensures user is authenticated (redirects to /login)
- *   2. RouteGuard      — ensures user has the NAV_ permission (redirects to /dashboard)
+ *   2. RouteGuard      — ensures user has the NAV_ permission (redirects to /)
  *
  * Permission map (matches Sidebar + BottomNav exactly):
- *   NAV_DASHBOARD    → all roles
- *   NAV_WORK_ENTRIES → all roles
- *   NAV_PROJECTS     → all roles
- *   NAV_CONTRACTS    → all roles
- *   NAV_TEMPLATES    → bina_jaya_staff, org_owner, org_admin, manager
- *   NAV_REPORTS      → bina_jaya_staff, org_owner, org_admin, manager
- *   NAV_LAYOUTS      → bina_jaya_staff, org_owner, org_admin
- *   NAV_USERS        → org_owner, org_admin
- *   NAV_ORGANIZATIONS→ bina_jaya_staff, org_owner, org_admin
+ *   NAV_DASHBOARD       → all roles
+ *   NAV_WORK_ENTRIES    → all roles
+ *   NAV_PROJECTS        → all roles
+ *   NAV_CONTRACTS       → all roles
+ *   NAV_TEMPLATES       → bina_jaya_staff, org_owner, org_admin, manager
+ *   NAV_REPORTS         → bina_jaya_staff, org_owner, org_admin, manager
+ *   NAV_LAYOUTS         → bina_jaya_staff, org_owner, org_admin
+ *   NAV_USERS           → org_owner, org_admin
+ *   NAV_ORGANIZATIONS   → bina_jaya_staff, org_owner, org_admin
+ *   NAV_SUBCONTRACTORS  → bina_jaya_staff, org_owner, org_admin, manager
+ *   NAV_QUICK_ENTRY     → super_admin, bina_jaya_staff
  *
  * @file src/Router.jsx
  * @updated February 23, 2026 - Session 12: RouteGuard applied to all routes
+ * @updated February 24, 2026 - Session 15: SubcontractorList route added
  */
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
@@ -75,6 +78,9 @@ import LayoutEditor from './pages/reports/layouts/LayoutEditor';
 import UserList from './pages/users/UserList';
 import InviteUser from './pages/users/InviteUser';
 
+// Pages - Subcontractors (Session 15)
+import SubcontractorList from './pages/subcontractors/SubcontractorList';
+
 // Pages - Admin (BJ Staff only)
 import QuickEntry from './pages/admin/QuickEntry';
 
@@ -84,7 +90,7 @@ const NotFoundPage = () => (
     <div className="text-center">
       <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
       <p className="text-gray-600 mb-6">Page not found.</p>
-      <a href="/dashboard" className="text-primary-600 hover:underline">Back to Dashboard</a>
+      <a href="/" className="text-primary-600 hover:underline">Back to Dashboard</a>
     </div>
   </div>
 );
@@ -133,7 +139,6 @@ export const router = createBrowserRouter([
 
   // ══════════════════════════════════════════════════════
   // ORGANIZATIONS — bina_jaya_staff, org_owner, org_admin
-  // technician/worker/subcontractor/manager → redirect /dashboard
   // ══════════════════════════════════════════════════════
   {
     path: '/organizations',
@@ -190,7 +195,6 @@ export const router = createBrowserRouter([
 
   // ══════════════════════════════════════════════════════
   // TEMPLATES — bina_jaya_staff, org_owner, org_admin, manager
-  // technician/worker/subcontractor → redirect /dashboard
   // ══════════════════════════════════════════════════════
   {
     path: '/templates',
@@ -233,7 +237,6 @@ export const router = createBrowserRouter([
 
   // ══════════════════════════════════════════════════════
   // REPORTS — bina_jaya_staff, org_owner, org_admin, manager
-  // technician/worker/subcontractor → redirect /dashboard
   // ══════════════════════════════════════════════════════
   {
     path: ROUTES.REPORTS,
@@ -246,7 +249,6 @@ export const router = createBrowserRouter([
 
   // ══════════════════════════════════════════════════════
   // LAYOUTS — bina_jaya_staff, org_owner, org_admin
-  // manager/technician/worker/subcontractor → redirect /dashboard
   // ══════════════════════════════════════════════════════
   {
     path: '/reports/layouts',
@@ -272,17 +274,7 @@ export const router = createBrowserRouter([
     : []),
 
   // ══════════════════════════════════════════════════════
-  // QUICK ENTRY — super_admin, bina_jaya_staff only
-  // technician/worker/manager/org_admin → redirect /
-  // ══════════════════════════════════════════════════════
-  {
-    path: '/admin/quick-entry',
-    element: guarded('NAV_QUICK_ENTRY', QuickEntry),
-  },
-
-  // ══════════════════════════════════════════════════════
   // USERS — org_owner, org_admin only
-  // everyone else → redirect /dashboard
   // ══════════════════════════════════════════════════════
   {
     path: '/users',
@@ -291,6 +283,24 @@ export const router = createBrowserRouter([
   {
     path: '/users/invite',
     element: guarded('INVITE_USERS', InviteUser),
+  },
+
+  // ══════════════════════════════════════════════════════
+  // SUBCONTRACTORS — bina_jaya_staff, org_owner, org_admin, manager
+  // technician/worker/subcontractor → redirect /
+  // Session 15
+  // ══════════════════════════════════════════════════════
+  {
+    path: '/subcontractors',
+    element: guarded('NAV_SUBCONTRACTORS', SubcontractorList),
+  },
+
+  // ══════════════════════════════════════════════════════
+  // QUICK ENTRY — super_admin, bina_jaya_staff only
+  // ══════════════════════════════════════════════════════
+  {
+    path: '/admin/quick-entry',
+    element: guarded('NAV_QUICK_ENTRY', QuickEntry),
   },
 
   // ══════════════════════════════════════════════════════

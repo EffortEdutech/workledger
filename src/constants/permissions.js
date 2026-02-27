@@ -252,6 +252,22 @@ export const PERMISSIONS = {
     'bina_jaya_staff',
     'org_owner', 'org_admin',
   ],
+  // ── SUBCONTRACTORS (Session 15) ────────────────────────────────────
+  // Who can SEE the Subcontractors nav item
+  NAV_SUBCONTRACTORS: [
+  'bina_jaya_staff',
+  'org_owner', 'org_admin', 'manager',
+  ],
+  // Who can MANAGE (add/terminate) subcontractor relationships
+  MANAGE_SUBCONTRACTORS: [
+  'bina_jaya_staff',
+  'org_owner', 'org_admin',
+  ],
+  // Who can VIEW subcontractor work entries (cross-org)
+  VIEW_SUBCONTRACTOR_WORK: [
+  'bina_jaya_staff',
+  'org_owner', 'org_admin', 'manager',
+  ],
 };
 
 // ─────────────────────────────────────────────────────────

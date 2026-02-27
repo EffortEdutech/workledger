@@ -1,22 +1,24 @@
 /**
  * WorkLedger - Dashboard Page
  *
- * Main dashboard displaying statistics, recent activity, and quick actions.
+ * SESSION 10 UPDATE: Org-aware stats via useOrganization().
  *
- * SESSION 10 UPDATE: Now uses useOrganization() for orgId.
- * Stats re-fetch automatically when BJ staff switches organization.
- * Work entries count added to stats (using workEntryService).
+ * SESSION 15 UPDATE — Permission-aware Dashboard:
+ *   Stats cards: only shown if user has permission to VIEW that resource.
+ *   Quick Actions: only shown if user has permission to CREATE.
+ *   Organizations stat: only for BJ staff / org_owner / org_admin.
+ *   technician / worker / subcontractor → see Work Entries + Projects only.
  *
  * @module pages/Dashboard
  * @created January 29, 2026
- * @updated January 29, 2026 - Session 8: Added StatsCards and RecentActivity
- * @updated February 20, 2026 - Session 10: Org-aware stats + org switch re-fetch
+ * @updated February 26, 2026 - Session 15: permission-aware stats + quick actions
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useOrganization } from '../context/OrganizationContext';
+import { useRole } from '../hooks/useRole';
 import AppLayout from '../components/layout/AppLayout';
 import StatsCard from '../components/dashboard/StatsCard';
 import RecentActivity from '../components/dashboard/RecentActivity';
@@ -35,6 +37,7 @@ import {
 export function Dashboard() {
   const { user, profile } = useAuth();
   const { orgId, currentOrg, isBinaJayaStaff } = useOrganization();
+  const { can } = useRole();
 
   const [stats, setStats] = useState({
     workEntries: 0,
@@ -44,93 +47,154 @@ export function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  // ──────────────────────────────────────────────────────────
-  // Load stats — wrapped in useCallback so it's stable
-  // ──────────────────────────────────────────────────────────
+  // ── Load stats ──────────────────────────────────────────────────────
   const loadStats = useCallback(async () => {
     try {
-      console.log('📊 Dashboard: Loading stats for org:', currentOrg?.name || 'all');
       setLoading(true);
 
-      // Pass orgId to all services so they filter to the active org.
-      // For regular users, orgId is their own org. For BJ staff, it's
-      // whatever org they've selected in the switcher.
-      const [
-        projectsCount,
-        contractsCount,
-        workEntriesCount,
-        orgsData,
-      ] = await Promise.all([
-        projectService.getProjectsCount(orgId),
-        contractService.getContractsCount(orgId),
-        workEntryService.getWorkEntriesCount(orgId),
-        organizationService.getUserOrganizations(),
-      ]);
+      // Only fetch what the user can actually see
+      const fetches = [];
+
+      if (can('VIEW_OWN_WORK_ENTRIES')) {
+        fetches.push(workEntryService.getWorkEntriesCount(orgId));
+      } else {
+        fetches.push(Promise.resolve(null));
+      }
+
+      if (can('VIEW_PROJECTS')) {
+        fetches.push(projectService.getProjectsCount(orgId));
+      } else {
+        fetches.push(Promise.resolve(null));
+      }
+
+      if (can('VIEW_CONTRACTS')) {
+        fetches.push(contractService.getContractsCount(orgId));
+      } else {
+        fetches.push(Promise.resolve(null));
+      }
+
+      if (can('NAV_ORGANIZATIONS')) {
+        fetches.push(organizationService.getUserOrganizations());
+      } else {
+        fetches.push(Promise.resolve(null));
+      }
+
+      const [workEntriesResult, projectsResult, contractsResult, orgsResult] =
+        await Promise.all(fetches);
 
       setStats({
-        projects:      projectsCount,
-        contracts:     contractsCount,
-        workEntries:   workEntriesCount,
-        organizations: orgsData?.length || 0,
-      });
-
-      console.log('✅ Dashboard: Stats loaded', {
-        projectsCount,
-        contractsCount,
-        workEntriesCount,
+        workEntries:   workEntriesResult  ?? 0,
+        projects:      projectsResult     ?? 0,
+        contracts:     contractsResult    ?? 0,
+        organizations: Array.isArray(orgsResult) ? orgsResult.length : 0,
       });
     } catch (error) {
       console.error('❌ Dashboard: Error loading stats:', error);
     } finally {
       setLoading(false);
     }
-  }, [orgId]); // ← Re-run whenever active org changes
+  }, [orgId, can]);
 
   useEffect(() => {
     loadStats();
   }, [loadStats]);
 
-  // ──────────────────────────────────────────────────────────
-  // Stats card definitions
-  // ──────────────────────────────────────────────────────────
-  const statCards = [
+  // ── Stat card definitions (only include what user can see) ──────────
+  const allStatCards = [
     {
-      title: 'Work Entries',
-      value: loading ? '…' : stats.workEntries,
-      icon: <DocumentTextIcon className="w-6 h-6" />,
-      color: 'blue',
-      link: '/work',
+      permission:  'VIEW_OWN_WORK_ENTRIES',
+      title:       'Work Entries',
+      value:       loading ? '…' : stats.workEntries,
+      icon:        <DocumentTextIcon className="w-6 h-6" />,
+      color:       'blue',
+      link:        '/work',
+      description: currentOrg ? `In ${currentOrg.name}` : 'Your entries',
+    },
+    {
+      permission:  'VIEW_PROJECTS',
+      title:       'Projects',
+      value:       loading ? '…' : stats.projects,
+      icon:        <FolderIcon className="w-6 h-6" />,
+      color:       'green',
+      link:        '/projects',
       description: currentOrg ? `In ${currentOrg.name}` : 'Across all orgs',
     },
     {
-      title: 'Projects',
-      value: loading ? '…' : stats.projects,
-      icon: <FolderIcon className="w-6 h-6" />,
-      color: 'green',
-      link: '/projects',
+      permission:  'VIEW_CONTRACTS',
+      title:       'Contracts',
+      value:       loading ? '…' : stats.contracts,
+      icon:        <DocumentDuplicateIcon className="w-6 h-6" />,
+      color:       'purple',
+      link:        '/contracts',
       description: currentOrg ? `In ${currentOrg.name}` : 'Across all orgs',
     },
     {
-      title: 'Contracts',
-      value: loading ? '…' : stats.contracts,
-      icon: <DocumentDuplicateIcon className="w-6 h-6" />,
-      color: 'purple',
-      link: '/contracts',
-      description: currentOrg ? `In ${currentOrg.name}` : 'Across all orgs',
-    },
-    {
-      title: 'Organizations',
-      value: loading ? '…' : stats.organizations,
-      icon: <BuildingOffice2Icon className="w-6 h-6" />,
-      color: 'orange',
-      link: '/organizations',
+      permission:  'NAV_ORGANIZATIONS',
+      title:       'Organizations',
+      value:       loading ? '…' : stats.organizations,
+      icon:        <BuildingOffice2Icon className="w-6 h-6" />,
+      color:       'orange',
+      link:        '/organizations',
       description: isBinaJayaStaff ? 'All client orgs' : 'Your organization',
     },
   ];
 
-  // ──────────────────────────────────────────────────────────
-  // Render
-  // ──────────────────────────────────────────────────────────
+  // Filter to only cards the user has permission to see
+  const visibleStatCards = allStatCards.filter(card => can(card.permission));
+
+  // ── Quick action definitions (only include what user can do) ────────
+  const allQuickActions = [
+    {
+      permission: 'CREATE_WORK_ENTRY',
+      to:         '/work/new',
+      label:      'New Work Entry',
+      icon:       <PlusIcon className="w-6 h-6" />,
+      hoverColor: 'hover:border-blue-400 hover:bg-blue-50',
+      iconHover:  'group-hover:text-blue-500',
+      labelHover: 'group-hover:text-blue-600',
+    },
+    {
+      permission: 'CREATE_PROJECT',
+      to:         '/projects/new',
+      label:      'New Project',
+      icon:       <PlusIcon className="w-6 h-6" />,
+      hoverColor: 'hover:border-green-400 hover:bg-green-50',
+      iconHover:  'group-hover:text-green-500',
+      labelHover: 'group-hover:text-green-600',
+    },
+    {
+      permission: 'CREATE_CONTRACT',
+      to:         '/contracts/new',
+      label:      'New Contract',
+      icon:       <PlusIcon className="w-6 h-6" />,
+      hoverColor: 'hover:border-purple-400 hover:bg-purple-50',
+      iconHover:  'group-hover:text-purple-500',
+      labelHover: 'group-hover:text-purple-600',
+    },
+    {
+      permission: 'GENERATE_REPORTS',
+      to:         '/reports/generate',
+      label:      'Generate Report',
+      icon:       <DocumentTextIcon className="w-6 h-6" />,
+      hoverColor: 'hover:border-orange-400 hover:bg-orange-50',
+      iconHover:  'group-hover:text-orange-500',
+      labelHover: 'group-hover:text-orange-600',
+    },
+  ];
+
+  const visibleQuickActions = allQuickActions.filter(a => can(a.permission));
+
+  // ── Responsive grid cols based on how many cards are visible ────────
+  const statGridCols = visibleStatCards.length === 1 ? 'grid-cols-1 max-w-xs'
+    : visibleStatCards.length === 2               ? 'grid-cols-1 sm:grid-cols-2 max-w-xl'
+    : visibleStatCards.length === 3               ? 'grid-cols-1 sm:grid-cols-3'
+    :                                               'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+
+  const actionGridCols = visibleQuickActions.length <= 2
+    ? 'grid-cols-2'
+    : 'grid-cols-2 sm:grid-cols-4';
+
+  // ── Render ──────────────────────────────────────────────────────────
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
@@ -141,15 +205,14 @@ export function Dashboard() {
           <p className="mt-1 text-sm text-gray-500">
             {currentOrg
               ? `Viewing: ${currentOrg.name}`
-              : `Welcome back, ${profile?.full_name || user?.email}`
-            }
+              : `Welcome back, ${profile?.full_name || user?.email}`}
           </p>
         </div>
 
-        {/* Organization onboarding alert (for users with no org) */}
-        {!loading && stats.organizations === 0 && (
+        {/* No-org onboarding alert */}
+        {!loading && stats.organizations === 0 && can('NAV_ORGANIZATIONS') && (
           <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-            <div className="text-amber-500 mt-0.5">⚠️</div>
+            <span className="text-amber-500 mt-0.5">⚠️</span>
             <div>
               <p className="text-sm font-medium text-amber-800">
                 You're not part of any organization yet.
@@ -168,54 +231,44 @@ export function Dashboard() {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {statCards.map((card) => (
-            <StatsCard
-              key={card.title}
-              title={card.title}
-              value={card.value}
-              icon={card.icon}
-              color={card.color}
-              link={card.link}
-              description={card.description}
-            />
-          ))}
-        </div>
+        {visibleStatCards.length > 0 && (
+          <div className={`grid ${statGridCols} gap-6 mb-8`}>
+            {visibleStatCards.map(card => (
+              <StatsCard
+                key={card.title}
+                title={card.title}
+                value={card.value}
+                icon={card.icon}
+                color={card.color}
+                link={card.link}
+                description={card.description}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Link
-              to="/work/new"
-              className="flex flex-col items-center justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-colors group"
-            >
-              <PlusIcon className="w-6 h-6 text-gray-400 group-hover:text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-600 group-hover:text-blue-600">New Work Entry</span>
-            </Link>
-            <Link
-              to="/projects/new"
-              className="flex flex-col items-center justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl hover:border-green-400 hover:bg-green-50 transition-colors group"
-            >
-              <PlusIcon className="w-6 h-6 text-gray-400 group-hover:text-green-500 mb-2" />
-              <span className="text-sm font-medium text-gray-600 group-hover:text-green-600">New Project</span>
-            </Link>
-            <Link
-              to="/contracts/new"
-              className="flex flex-col items-center justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-colors group"
-            >
-              <PlusIcon className="w-6 h-6 text-gray-400 group-hover:text-purple-500 mb-2" />
-              <span className="text-sm font-medium text-gray-600 group-hover:text-purple-600">New Contract</span>
-            </Link>
-            <Link
-              to="/reports/generate"
-              className="flex flex-col items-center justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-colors group"
-            >
-              <DocumentTextIcon className="w-6 h-6 text-gray-400 group-hover:text-orange-500 mb-2" />
-              <span className="text-sm font-medium text-gray-600 group-hover:text-orange-600">Generate Report</span>
-            </Link>
+        {visibleQuickActions.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div className={`grid ${actionGridCols} gap-3`}>
+              {visibleQuickActions.map(action => (
+                <Link
+                  key={action.to}
+                  to={action.to}
+                  className={`flex flex-col items-center justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl transition-colors group ${action.hoverColor}`}
+                >
+                  <span className={`text-gray-400 mb-2 ${action.iconHover}`}>
+                    {action.icon}
+                  </span>
+                  <span className={`text-sm font-medium text-gray-600 ${action.labelHover}`}>
+                    {action.label}
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Recent Activity */}
         <div>

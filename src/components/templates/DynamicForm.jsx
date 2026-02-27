@@ -114,25 +114,30 @@ export function DynamicForm({
   };
 
   /**
-   * Handle field change
-   * ✅ FIXED: Now notifies parent component via onChange callback
+   * Handle field change.
+   *
+   * SESSION 15 FIX: compute newData OUTSIDE the setFormData updater,
+   * then call setFormData and onChange separately.
+   *
+   * The previous pattern called onChange(newData) INSIDE setFormData(prev => {...}),
+   * which triggered WorkEntryForm's setFormData while DynamicForm was still
+   * rendering — causing React's "Cannot update a component while rendering a
+   * different component" warning and potential double-render loops.
    */
   const handleFieldChange = (fieldPath, value) => {
-    setFormData(prev => {
-      const newData = {
-        ...prev,
-        [fieldPath]: value
-      };
-      
-      // ✅ Notify parent component of data change
-      if (onChange) {
-        onChange(newData);
-      }
-      
-      console.log('📝 Form data updated:', fieldPath, '=', value);
-      
-      return newData;
-    });
+    // Compute new state outside the setter — safe, no stale-closure risk
+    // because field changes are always user-triggered (never during render).
+    const newData = { ...formData, [fieldPath]: value };
+
+    // Update local state
+    setFormData(newData);
+
+    // Notify parent AFTER updating local state — not inside the setter
+    if (onChange) {
+      onChange(newData);
+    }
+
+    console.log('📝 Form data updated:', fieldPath, '=', value);
 
     // Clear error for this field
     if (errors[fieldPath]) {

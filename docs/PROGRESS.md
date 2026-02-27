@@ -1,3 +1,368 @@
+# WorkLedger - Development Progress Log **Last Updated:** February 27, 2026 — End of Session 15
+
+    **Project:** WorkLedger — Multi-Industry Work Reporting Platform
+    **Developer:** Eff (Solo Developer)
+    **Started:** January 25, 2026
+    **Last Updated:** February 27, 2026 — End of Session 15
+
+    ---
+
+    ## 📊 OVERALL STATUS
+
+    | Phase | Description | Status |
+    |-------|-------------|--------|
+    | Phase 0 | Project Setup & Database Foundation | ✅ Complete |
+    | Phase 1 | Core CRUD (Orgs, Projects, Contracts, Templates, Work Entries) | ✅ Complete |
+    | Phase 2A | Multi-Tenancy Foundation | ✅ Complete |
+    | Phase 2B | Role System (7 roles, RBAC, Permissions) | ✅ Complete |
+    | Phase 2C | User Management UI | ✅ Complete |
+    | Phase 2D | Quick Entry / WhatsApp Workflow (BJ Staff) | ✅ Complete |
+    | Phase 2E | Multi-Template per Contract (Junction Table) | ✅ Complete |
+    | Phase 2F | Subcontractor Management (MTSB ↔ FEST ENT) | ✅ Complete |
+    | Phase 3 | Offline-First (IndexedDB + PWA) | ⏸ Deferred |
+    | Phase 4 | Approval Workflow | 🔥 Next — Session 16 |
+    | Phase 5 | Photo Attachments | ✅ Working (tested) |
+    | Phase 6 | Advanced Reports & Analytics | ⏸ Not Started |
+
+    ---
+
+    ## SESSION HISTORY
+
+    ---
+
+    ### Sessions 1–7: Foundation & Database Setup ✅
+    **Date:** January 25, 2026
+    **Status:** Complete
+
+    - Project scaffolding (Vite, React 18, Tailwind, Supabase)
+    - Authentication system (login, register, logout, protected routes)
+    - Database Phase 0: 8 core tables, 50+ RLS policies
+    - 8 Malaysian contract templates (PMC, CMC, AMC, SLA, Corrective,
+    Emergency, T&M, Construction)
+    - AuthContext, ProtectedRoute
+
+    ---
+
+    ### Session 8: Organizations & Dashboard ✅
+    **Date:** January 29, 2026
+    **Status:** Complete
+
+    **Delivered:**
+    - `organizationService.js` — full CRUD
+    - `StatsCard.jsx`, `RecentActivity.jsx` dashboard components
+    - `Dashboard.jsx` — live stats
+    - Organization List / New / Settings pages
+    - AppLayout with Home icon in sidebar
+
+    **Test Data:**
+    - 2 organisations: Bina Jaya Engineering, Effort Edutech
+    - 3 projects, 3 contracts
+
+    ---
+
+    ### Session 9: Multi-Tenancy Foundation ✅
+    **Date:** February 20, 2026
+    **Status:** Complete
+
+    **Context:** Major architecture upgrade. Expanded from single-user to
+    proper multi-tenant platform supporting multiple client companies.
+
+    **Delivered:**
+    - Migration 022–025 (org isolation, RLS rewrites, user org role)
+    - `OrganizationContext.jsx` — currentOrg, orgId, isBinaJayaStaff
+    - `OrganizationSwitcher.jsx` — BJ staff switches between client orgs
+    - `OrgSwitchToast.jsx` — feedback on org switch
+    - AppLayout updated with switcher integration
+    - 5 clean organisations: Bina Jaya, Effort Edutech, FEST ENT, Mr. Roz, MTSB
+
+    **Architecture Decisions:**
+    - `isBinaJayaStaff` = global_role IN ('super_admin','bina_jaya_staff')
+    - BJ staff access all orgs via org switcher, NOT via org_members rows
+    - Client users are hard-locked to their own org
+
+    ---
+
+    ### Session 10: Org Switching Wired Across Platform ✅
+    **Date:** February 20, 2026
+    **Status:** Complete
+
+    **Delivered:**
+    - All 9 services + pages accept `orgId` parameter from OrganizationContext
+    - `projectService.getProjectsCount(orgId)`
+    - `contractService.getContractsCount(orgId)`
+    - `workEntryService.getWorkEntriesCount(orgId)`
+    - Dashboard, ProjectListPage, ContractListPage, WorkEntryListPage all
+    re-fetch when org switcher changes
+    - 6 end-to-end tests passed
+
+    ---
+
+    ### Session 11: Role System & RBAC ✅
+    **Date:** February 21, 2026
+    **Status:** Complete
+
+    **Delivered:**
+    - Migration 026 — `global_role` on `user_profiles`, `role` on `org_members`
+    - 7 org roles: `org_owner`, `org_admin`, `manager`, `technician`,
+    `subcontractor`, `worker`, `client`
+    - 2 platform roles: `super_admin`, `bina_jaya_staff`
+    - `permissions.js` — complete PERMISSIONS matrix (25+ permission keys)
+    - `useRole.js` hook — `can('PERMISSION_KEY')`, `effectiveRole`
+    - `PermissionGuard.jsx` — wraps any UI element with permission check
+    - Role-filtered `Sidebar.jsx` and `BottomNav.jsx`
+    - `ROLE_META` — badge colours, labels, descriptions for all roles
+
+    **Test Users Created:**
+    - FEST ENT: Fazrul (owner), Hafiz (admin), Roslan (manager),
+    Amirul (technician), Khairul (subcontractor)
+    - MTSB: 3 users
+    - Auth creation: Supabase Dashboard + SQL relink (pgcrypto workaround)
+
+    ---
+
+    ### Session 12: User Management UI ✅
+    **Date:** February 21–23, 2026
+    **Status:** Complete
+
+    **Delivered:**
+    - `userService.js` — getOrgMembers (two-step query workaround for
+    PostgREST PGRST200 on auth.users FK), updateMemberRole,
+    deactivateMember, reactivateMember, findUserByEmail,
+    addExistingUserToOrg
+    - Migration 027 — `find_user_by_email` RPC
+    - `UserList.jsx` — member table with search, role filter
+    - `ChangeRoleModal.jsx` — role selector with confirmation step
+    - `InviteUser.jsx` — email lookup + add to org flow
+    - `RouteGuard.jsx` — wraps all routes with PermissionGuard
+    - Router rewrite with `guarded()` helper pattern
+
+    **Bugs Fixed:**
+    - 0 members showing (RLS policy gap on org_members SELECT)
+    - Unauthorised route access (RouteGuard was missing entirely)
+    - 404 redirect on login (wrong default path)
+    - PGRST200: org_members FK points to auth.users, not user_profiles —
+    solved with two-step manual query merge
+
+    ---
+
+    ### Session 13: RBAC Button Guards + Quick Entry ✅
+    **Date:** February 21–22, 2026
+    **Status:** Complete
+
+    **Delivered (Part A — RBAC Guards):**
+    - PermissionGuard wired to every Create/Edit/Delete button across
+    Projects, Contracts, WorkEntries, Templates pages
+    - FEST ENT technician → sees only own entries, no admin buttons
+    - FEST ENT admin → full org management
+
+    **Delivered (Part B — Quick Entry):**
+    - `QuickEntry.jsx` page at `/admin/quick-entry`
+    - BJ staff can log work entries on behalf of clients (Mr. Roz scenario)
+    - WhatsApp message parser utility
+    - Org switcher prominent on Quick Entry page
+
+    **Bugs Fixed:**
+    - PermissionGuard not hiding buttons (effectiveRole was undefined)
+    - Empty contract dropdowns (EditContract used direct Supabase queries
+    blocked by RLS — fixed to use contractService)
+    - Missing template assignment surfaced with visual warning on
+    ContractCard, ContractDetail, ContractForm
+    - Org switcher not filtering list pages (missing useOrganization wiring)
+    - super_admin bypass added to projectService + contractService
+
+    ---
+
+    ### Session 14: Multi-Template per Contract ✅
+    **Date:** February 22–23, 2026
+    **Status:** Complete
+
+    **Architecture Change:**
+    Replaced single `template_id` FK on contracts with a many-to-many
+    `contract_templates` junction table. One PMC contract can now have
+    HVAC checklist + Lift checklist + Pump checklist all assigned.
+
+    **Delivered:**
+    - Migration — `contract_templates` junction table with `is_default`,
+    `label`, `display_order` columns
+    - `contractService`: `getContractTemplates()`, `addContractTemplate()`,
+    `setDefaultContractTemplate()`, `removeContractTemplate()`
+    - `ContractTemplateManager.jsx` — template assignment UI inside ContractForm
+    - `WorkEntryForm.jsx` — template selector dropdown (shows all templates
+    assigned to selected contract)
+    - Duplicate filter UI removed from WorkEntryList
+    - Report pages: org filter wired
+    - Template assignment workflow: assign during New/Edit Contract,
+    read-only on ContractDetail
+
+    **Bugs Fixed:**
+    - PGRST204 on contract save (contracts table missing `contract_value`,
+    `description` columns — added via migration)
+    - CHECK constraint mismatches on `reporting_frequency`, `maintenance_cycle`
+    - ContractDetail `org` property access error
+
+    ---
+
+    ### Session 15: Subcontractor Management (MTSB) ✅
+    **Date:** February 24–26, 2026
+    **Status:** Complete (all migrations deployed, all files deployed)
+
+    **Overview:**
+    Enabled MTSB (main contractor) to manage work performed by FEST ENT
+    (subcontractor) under MTSB's projects. Cross-organization work entry
+    visibility with strict ownership rules.
+
+    **Database Delivered:**
+    - Migration 028 — `org_type` column on organizations,
+    `subcontractor_relationships` table, initial cross-org RLS policies
+    - Migration 029 — 8 RLS policies for subcontractor project/contract
+    and work entry access
+    - Migration 029b — `organization_id` added to contracts (was missing),
+    backfill trigger
+    - Migration 029c — `contract_role` ('main'/'sub') and `performing_org_id`
+    columns on contracts; backfill from subcontractor_relationships; 5 new
+    RLS policies
+    - Migration 029d — `activity_logs` table (immutable audit trail);
+    `work_entries` DELETE RLS ownership guard (MTSB cannot delete FEST ENT
+    entries — enforced at DB level)
+    - Migration 029e — `user_profiles` SELECT policy org-scoped (platform
+    staff no longer visible in client org user lists)
+    - Migration 029f — Removed super_admin / bj_staff from all `org_members`
+    rows (they use org switcher, not membership rows)
+
+    **Service Layer Delivered:**
+    - `subcontractorService.js` — createRelationship, getSubcontractors,
+    getSubcontractorWork, acceptInvitation
+    - `contractService.js` — dual-query merge (owned + performing contracts)
+    - `workEntryService.js` — subcon org expansion for MTSB work list;
+    `deleteWorkEntry(id, callerOrgId)` ownership guard + audit log;
+    `createWorkEntry()` now accepts flat object OR 3-arg legacy call
+    - `userService.js` — platform staff filtered from getOrgMembers output
+
+    **UI Delivered:**
+    - `SubcontractorList.jsx` — MTSB's list of linked subcontractor orgs
+    - `AddSubcontractorModal.jsx` — link a subcontractor org to a project
+    - `WorkEntryListPage.jsx` — Internal / Subcontractor / All tabs
+    - `ContractCard.jsx` — 🔵 Main badge / 🟠 Sub badge + "View only" for
+    sub contracts
+    - `ContractList.jsx` — currentOrgId prop pass-through
+    - `AppLayout.jsx` — amber org switcher button in header for BJ staff;
+    persistent orange "Staff View" banner always visible below header
+    - `Dashboard.jsx` — permission-aware: stats cards + quick actions both
+    filtered by `can()` — technicians see only relevant cards/actions
+    - `WorkEntryList.jsx` — pure display component (all filters removed,
+    filters live in WorkEntryListPage)
+
+    **Bugs Fixed (Session 15):**
+    - WorkEntryForm "no template assigned" on all entries (contract_templates
+    backfill SQL + contractService junction join fix)
+    - FEST ENT could not see MTSB contracts/projects (4-layer RLS gap)
+    - contracts.organization_id missing (Migration 029b)
+    - createWorkEntry 3-arg vs flat-object mismatch
+    - null org_id in work_entries (backfill trigger)
+    - Missing `projects_select_subcontractor` RLS policy
+    - WorkEntryListPage prop name mismatch (entries → workEntries)
+    - No performing_org_id concept — FEST ENT could not be identified as
+    performer of MTSB contracts (Migration 029c)
+    - MTSB getUserWorkEntries org filter too strict (now expands to include
+    subcontractor org IDs)
+    - MTSB could delete FEST ENT entries (DELETE RLS + service ownership guard)
+    - super_admin visible in FEST ENT Users page (2-layer fix: org_members
+    cleanup + userService filter)
+    - DynamicForm calling onChange inside setState updater (React warning)
+
+    **Test Data State (End of Session 15):**
+    | Org | Members |
+    |-----|---------|
+    | FEST ENT Sdn Bhd | 5 (Fazrul, Hafiz, Roslan, Amirul, Khairul) |
+    | MTSB Maintenance Sdn Bhd | 3 |
+    | Mr. Roz Air-Cond Services | 0 |
+    | Bina Jaya Engineering | 0 (Eff accesses via super_admin switcher) |
+    | Effort Edutech | 0 |
+
+    ---
+
+    ## 📁 KEY FILES (Current State)
+
+    ### Context & Hooks
+    ```
+    src/context/AuthContext.jsx
+    src/context/OrganizationContext.jsx
+    src/hooks/useRole.js
+    src/constants/permissions.js
+    ```
+
+    ### Services
+    ```
+    src/services/api/organizationService.js
+    src/services/api/projectService.js
+    src/services/api/contractService.js
+    src/services/api/workEntryService.js
+    src/services/api/templateService.js
+    src/services/api/userService.js
+    src/services/api/subcontractorService.js
+    src/services/api/layoutService.js
+    ```
+
+    ### Layout
+    ```
+    src/components/layout/AppLayout.jsx     ← org switcher + staff banner
+    src/components/layout/Sidebar.jsx       ← permission-filtered nav
+    src/components/layout/BottomNav.jsx     ← permission-filtered nav
+    src/components/auth/RouteGuard.jsx      ← route-level permission guard
+    src/components/auth/ProtectedRoute.jsx
+    ```
+
+    ### Database Migrations (in order)
+    ```
+    001–021  Core schema (Sessions 1–7)
+    022–025  Multi-tenancy foundation (Session 9)
+    026      Role system (Session 11)
+    027      find_user_by_email RPC (Session 12)
+    028      Subcontractor relationships (Session 15)
+    029      Cross-org RLS (Session 15)
+    029b     Contract org_id + work_entry org_id fixes (Session 15)
+    029c     contract_role + performing_org_id (Session 15)
+    029d     activity_logs + DELETE ownership guard (Session 15)
+    029e     user_profiles RLS org-scoped (Session 15)
+    029f     Remove platform staff from org_members (Session 15)
+    ```
+
+    ---
+
+    ## 🚀 NEXT SESSION — Session 16: Approval Workflow
+
+    **Status:** Ready to start
+    **Priority:** High — last major gap before real client demo
+
+    **What's needed:**
+    - Manager/admin approval dashboard (pending entries list)
+    - Approve + Reject actions with optional remarks
+    - Status lifecycle: `draft` → `submitted` → `approved` / `rejected`
+    - RLS: approved entries become immutable
+    - WorkEntryCard status badge updates
+    - WorkEntryDetail shows approval history
+
+    ---
+
+    ## ⚠️ KNOWN REMAINING GAPS
+
+    | Gap | Priority | Notes |
+    |-----|----------|-------|
+    | Approval workflow | 🔴 High | Session 16 |
+    | Mr. Roz has 0 members | 🟡 Medium | Add via UI before demo |
+    | Offline-First (IndexedDB) | 🟡 Medium | Phase 3, deferred |
+    | Consolidated report (MTSB) | 🟡 Medium | Session 17 |
+    | Email notifications | 🟠 Low | No email system yet |
+    | Error boundaries | 🟠 Low | App hard-crashes on errors |
+
+    ---
+
+    *Progress log maintained session-by-session.*
+    *Alhamdulillah — 15 sessions complete. Multi-tenant, multi-role,*
+    *subcontractor-aware platform working end-to-end!*
+
+    *Last updated: February 27, 2026 — Eff (Solo Developer)*
+
 # WorkLedger Development Progress**Last Updated:** February 18, 2026  
     **Project Status:** Phase 1 Complete, Phase 2 (Multi-Client) Planning Complete
 

@@ -56,6 +56,8 @@ export class ContractService {
     if (!user) return [];
 
     // ── Super admin check ─────────────────────────────────────
+    // Check global_role on user_profiles, not org_members role,
+    // because super_admin may not have org_members rows everywhere.
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('global_role')
@@ -70,13 +72,9 @@ export class ContractService {
       .select('id')
       .is('deleted_at', null);
 
-    // Track user's own org IDs — needed for subcontractor lookup below
-    let userOrgIds = [];
-
     if (orgId) {
       // Specific org selected (org switcher) — applies to all roles
       projectQuery = projectQuery.eq('organization_id', orgId);
-      userOrgIds = [orgId];
     } else if (!isSuperAdmin) {
       // Regular user — filter by their org_members memberships
       const { data: memberships } = await supabase
@@ -85,40 +83,15 @@ export class ContractService {
         .eq('user_id', user.id)
         .eq('is_active', true);
 
-      userOrgIds = (memberships || []).map(m => m.organization_id);
-      if (userOrgIds.length === 0) return [];
+      const orgIds = (memberships || []).map(m => m.organization_id);
+      if (orgIds.length === 0) return [];
 
-      projectQuery = projectQuery.in('organization_id', userOrgIds);
+      projectQuery = projectQuery.in('organization_id', orgIds);
     }
     // else: super_admin + no orgId → no org filter → all projects ✅
 
-    const { data: ownProjects } = await projectQuery;
-    const ownProjectIds = (ownProjects || []).map(p => p.id);
-
-    // ── SESSION 15: Subcontractor project access ──────────────
-    // If FEST ENT is a subcontractor to MTSB for project X,
-    // FEST ENT users must also be able to access project X's contracts
-    // even though project X.organization_id = MTSB (not FEST ENT).
-    // Without this: FEST ENT sees zero contracts for that project.
-    if (userOrgIds.length > 0 && !isSuperAdmin) {
-      const { data: subconRels } = await supabase
-        .from('subcontractor_relationships')
-        .select('project_id')
-        .in('subcontractor_org_id', userOrgIds)
-        .eq('status', 'active');
-
-      const subconProjectIds = (subconRels || [])
-        .map(r => r.project_id)
-        .filter(Boolean);
-
-      if (subconProjectIds.length > 0) {
-        console.log('🔗 Subcontractor project IDs added:', subconProjectIds.length);
-        // Merge own + subcontractor project IDs (deduplicated)
-        return [...new Set([...ownProjectIds, ...subconProjectIds])];
-      }
-    }
-
-    return ownProjectIds;
+    const { data: projects } = await projectQuery;
+    return (projects || []).map(p => p.id);
   }
 
   // ─────────────────────────────────────────────
@@ -157,123 +130,45 @@ export class ContractService {
 
   /**
    * Get contracts list.
-   *
-   * SESSION 14 FIX: Added contract_templates join.
-   *
-   * SESSION 15 FINAL FIX — performing_org_id support:
-   *
-   * Each contract now has two org fields:
-   *   organization_id   = who OWNS the contract (MTSB for FESTENT-PAV-2026-001)
-   *   performing_org_id = who PERFORMS the work  (FEST ENT for FESTENT-PAV-2026-001)
-   *
-   * Access rules:
-   *   Owner  (organization_id = user's org) → Full access, edit, approve
-   *   Performer (performing_org_id = user's org) → View + work entry create only
-   *   Neither → Contract invisible
-   *
-   * Query strategy:
-   *   Instead of one filtered query, we run two and merge:
-   *   Query A: contracts the user OWNS (organization_id IN user_orgs)
-   *   Query B: contracts the user PERFORMS (performing_org_id IN user_orgs)
-   *   Result: deduplicated union of both
-   *
    * @param {string|null} orgId - From OrganizationContext.
    */
   async getUserContracts(orgId = null) {
     try {
       console.log('📊 Getting contracts...', orgId ? `(org: ${orgId})` : '(all user orgs)');
 
-      // ── Resolve project IDs (includes subcon projects) ──────────────
       const projectIds = await this._resolveProjectIds(orgId);
       if (projectIds.length === 0) return [];
 
-      // ── Resolve user's own org IDs ────────────────────────────────
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: profile }  = await supabase
-        .from('user_profiles')
-        .select('global_role')
-        .eq('id', user.id)
-        .single();
-      const isSuperAdmin = profile?.global_role === 'super_admin';
-
-      let userOrgIds = null;
-      if (!isSuperAdmin) {
-        if (orgId) {
-          userOrgIds = [orgId];
-        } else {
-          const { data: memberships } = await supabase
-            .from('org_members')
-            .select('organization_id')
-            .eq('user_id', user.id)
-            .eq('is_active', true);
-          userOrgIds = (memberships || []).map(m => m.organization_id);
-        }
-        if (!userOrgIds || userOrgIds.length === 0) return [];
-      }
-
-      // ── Shared SELECT shape ────────────────────────────────────────
-      const selectShape = `
-        *,
-        project:projects(
-          id,
-          project_name,
-          organization:organizations(id, name)
-        ),
-        performing_org:organizations!contracts_performing_org_id_fkey(id, name),
-        contract_templates(
-          id,
-          template_id,
-          label,
-          is_default,
-          sort_order,
-          templates(id, template_name, contract_category)
-        )
-      `;
-
-      // ── Query A: Contracts the user OWNS ──────────────────────────
-      let queryA = supabase
+      const { data, error } = await supabase
         .from('contracts')
-        .select(selectShape)
+        .select(`
+          *,
+          project:projects(
+            id,
+            project_name,
+            project_code,
+            organization:organizations(id, name)
+          ),
+          contract_templates(
+            id,
+            template_id,
+            label,
+            is_default,
+            sort_order,
+            templates(id, template_name, contract_category)
+          )
+        `)
         .in('project_id', projectIds)
-        .is('deleted_at', null);
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false });
 
-      if (userOrgIds) queryA = queryA.in('organization_id', userOrgIds);
-
-      // ── Query B: Contracts the user PERFORMS (subcontractor role) ──
-      let queryB = supabase
-        .from('contracts')
-        .select(selectShape)
-        .in('project_id', projectIds)
-        .is('deleted_at', null);
-
-      if (userOrgIds) queryB = queryB.in('performing_org_id', userOrgIds);
-
-      const [resultA, resultB] = await Promise.all([queryA, queryB]);
-
-      if (resultA.error) {
-        console.error('❌ Error getting owned contracts:', resultA.error);
+      if (error) {
+        console.error('❌ Error getting contracts:', error);
         return [];
       }
 
-      // Merge and deduplicate by contract ID
-      const owned     = resultA.data || [];
-      const performed = (resultB.data || []).filter(Boolean);
-      const merged    = [...owned];
-      const seenIds   = new Set(owned.map(c => c.id));
-
-      for (const c of performed) {
-        if (!seenIds.has(c.id)) {
-          merged.push(c);
-          seenIds.add(c.id);
-        }
-      }
-
-      // Sort by created_at desc
-      merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-      console.log(`✅ Retrieved contracts: ${merged.length} (${owned.length} owned + ${performed.length - (merged.length - owned.length)} additional subcon)`);
-      return merged;
-
+      console.log('✅ Retrieved contracts:', data?.length || 0);
+      return data || [];
     } catch (error) {
       console.error('❌ Exception getting contracts:', error);
       return [];

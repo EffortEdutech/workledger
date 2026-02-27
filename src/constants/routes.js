@@ -79,7 +79,9 @@ export const PROTECTED_ROUTES = {
   USERS:       '/users',
   USER_INVITE: '/users/invite',
 
-  // ── Admin Tools (Session 13) ─────────────────────────────
+  // ── Subcontractors (Session 15) ──────────────────────────────────────
+  SUBCONTRACTORS: '/subcontractors',
+  // ── Admin Tools (Session 13) ─────────────────────────────────────────
   QUICK_ENTRY: '/admin/quick-entry',
 
   // ── Profile ──────────────────────────────────────────────

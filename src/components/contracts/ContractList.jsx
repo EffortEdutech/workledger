@@ -31,9 +31,10 @@ export function ContractList({
   isLoading  = false,
   onDelete,
   onRefresh,
-  canCreate = false,   // ← NEW
-  canEdit   = false,   // ← NEW
-  canDelete = false,   // ← NEW
+  canCreate  = false,
+  canEdit    = false,
+  canDelete  = false,
+  currentOrgId = null,   // ← SESSION 15: used to derive per-card edit perms
 }) {
   const navigate = useNavigate();
 
@@ -295,8 +296,9 @@ export function ContractList({
               key={contract.id}
               contract={contract}
               onDelete={onDelete}
-              canEdit={canEdit}     // ← pass through
-              canDelete={canDelete} // ← pass through
+              canEdit={canEdit}
+              canDelete={canDelete}
+              currentOrgId={currentOrgId}   // ← SESSION 15: auto-derives subcon vs owner perms
             />
           ))}
         </div>

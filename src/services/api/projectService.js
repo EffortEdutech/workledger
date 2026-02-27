@@ -9,16 +9,10 @@
  * When orgId is null, falls back to the original org_members JOIN (safe for
  * regular users who don't use the org switcher).
  *
- * SESSION 13 FIX: Super admin bypass in _resolveOrgIds().
- * super_admin with no org selected → returns ALL org IDs (sees everything).
- * super_admin with org selected    → returns that one org (respects switcher).
- * Regular users                    → unchanged, filtered via org_members.
- *
  * @module services/api/projectService
  * @created January 29, 2026
  * @updated January 30, 2026 - Session 9: Added full CRUD operations
  * @updated February 20, 2026 - Session 10: orgId param for org switching
- * @updated February 21, 2026 - Session 13: Super admin bypass
  */
 
 import { supabase } from '../supabase/client';
@@ -32,44 +26,73 @@ export class ProjectService {
 
   /**
    * Get org IDs to filter by.
+   * - If orgId provided → single org (org switcher active)
+   * - If null → user's own orgs via org_members (original behaviour)
    *
-   * SESSION 13 FIX — Super admin bypass:
-   *   super_admin + orgId provided → [orgId]          (respects switcher)
-   *   super_admin + no orgId       → ALL org IDs      (sees everything)
-   *   regular user + orgId         → [orgId]          (respects switcher)
-   *   regular user + no orgId      → their memberships (original behaviour)
+   * SESSION 15 UPDATE:
+   *   Also returns the organization_id of any project where user's org
+   *   is an active subcontractor. This lets FEST ENT users see MTSB's
+   *   project (which is owned by MTSB, not FEST ENT) when they navigate
+   *   to /projects and when projectService is used for indirect lookups.
+   *
+   *   NOTE: For the ContractListPage and WorkEntryForm, the more direct
+   *   fix is in contractService._resolveProjectIds() which now includes
+   *   subcontractor project IDs explicitly. This projectService fix is
+   *   a complementary improvement so /projects also shows shared projects.
    */
   async _resolveOrgIds(orgId = null) {
-    // Specific org selected via switcher — applies to ALL roles
-    if (orgId) return [orgId];
+    if (orgId) {
+      return [orgId];
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    // Check if super_admin — bypass org_members filter
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('global_role')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.global_role === 'super_admin') {
-      // Return ALL org IDs so the subsequent IN query returns everything
-      const { data: allOrgs } = await supabase
-        .from('organizations')
-        .select('id')
-        .is('deleted_at', null);
-      return (allOrgs || []).map(o => o.id);
-    }
-
-    // Regular user — filter by their org_members rows
     const { data: memberships } = await supabase
       .from('org_members')
       .select('organization_id')
       .eq('user_id', user.id)
       .eq('is_active', true);
 
-    return (memberships || []).map(m => m.organization_id);
+    const ownOrgIds = (memberships || []).map(m => m.organization_id);
+    if (ownOrgIds.length === 0) return [];
+
+    // ── Subcontractor access: find main contractor org IDs ────
+    // If FEST ENT is subcontractor to MTSB, we need MTSB's org_id
+    // so getUserProjects() can also return MTSB's projects that
+    // FEST ENT is linked to.
+    //
+    // Strategy: find all project_ids for subcon relationships,
+    // then get those projects' organization_ids (the main contractors)
+    const { data: subconRels } = await supabase
+      .from('subcontractor_relationships')
+      .select('project_id')
+      .in('subcontractor_org_id', ownOrgIds)
+      .eq('status', 'active');
+
+    const subconProjectIds = (subconRels || [])
+      .map(r => r.project_id)
+      .filter(Boolean);
+
+    if (subconProjectIds.length > 0) {
+      // Get org_ids that own those projects (i.e. main contractor org IDs)
+      const { data: linkedProjects } = await supabase
+        .from('projects')
+        .select('organization_id')
+        .in('id', subconProjectIds)
+        .is('deleted_at', null);
+
+      const mainContractorOrgIds = (linkedProjects || [])
+        .map(p => p.organization_id)
+        .filter(Boolean);
+
+      if (mainContractorOrgIds.length > 0) {
+        console.log('🔗 Subcontractor main contractor org IDs added to project query:', mainContractorOrgIds.length);
+        return [...new Set([...ownOrgIds, ...mainContractorOrgIds])];
+      }
+    }
+
+    return ownOrgIds;
   }
 
   // ─────────────────────────────────────────────

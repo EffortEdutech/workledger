@@ -71,8 +71,16 @@ class UserService {
         user: profileMap[m.user_id] || null,
       }));
 
-      console.log('✅ Loaded members:', merged.length);
-      return merged;
+      // SESSION 15 FIX: Exclude platform staff (super_admin, bina_jaya_staff).
+      // They access orgs via the org switcher — never via org_members.
+      // This is a second layer of defence after Migration 029f.
+      const filtered = merged.filter(m => {
+        const g = m.user?.global_role;
+        return g !== 'super_admin' && g !== 'bina_jaya_staff';
+      });
+
+      console.log(`✅ Loaded members: ${filtered.length} (${merged.length - filtered.length} platform staff excluded)`);
+      return filtered;
     } catch (error) {
       console.error('❌ Exception in getOrgMembers:', error);
       return [];
