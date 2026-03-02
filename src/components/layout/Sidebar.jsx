@@ -14,10 +14,16 @@
  *   - Bug fix: Quick Entry item now uses `path:` (was `to:`) consistent
  *     with all other items so the Link render does not crash.
  *
+ * SESSION 16 UPDATE: Approvals nav item added.
+ *   - Visible to: org_owner, org_admin, manager
+ *   - Permission: APPROVE_WORK_ENTRY
+ *   - Shows live pending count badge, refreshed every 30 seconds
+ *   - Positioned directly under Work Entries in the nav list
+ *
  * Role visibility summary:
  *   super_admin / bina_jaya_staff  → all items (incl. Quick Entry)
- *   org_owner / org_admin          → all standard items (no Quick Entry)
- *   manager                        → work, projects, contracts, reports, templates
+ *   org_owner / org_admin          → all standard items + Approvals (no Quick Entry)
+ *   manager                        → work, approvals, projects, contracts, reports, templates
  *   technician / worker            → dashboard, work entries, projects, contracts
  *   subcontractor                  → dashboard, work entries, projects, contracts
  *
@@ -25,21 +31,64 @@
  * @created January 29, 2026
  * @updated February 21, 2026 - Session 11: Role-filtered nav items
  * @updated February 21, 2026 - Session 13: Quick Entry added; `to:` → `path:` fix
+ * @updated February 27, 2026 - Session 16: Approvals nav item + pending badge
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '../../constants/routes';
 import { useRole } from '../../hooks/useRole';
+import { useOrganization } from '../../context/OrganizationContext';
+import { workEntryService } from '../../services/api/workEntryService';
 
 export function Sidebar({ isCollapsed = false }) {
   const location = useLocation();
   const { can }  = useRole();
+  const { currentOrg } = useOrganization();
+
+  // ─────────────────────────────────────────────────────────
+  // Session 16: Live pending approval count for badge
+  // Refreshes every 30s. Only fetched when user can approve.
+  // ─────────────────────────────────────────────────────────
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const canApprove = can('APPROVE_WORK_ENTRY');
+    if (!canApprove || !currentOrg?.id) {
+      setPendingCount(0);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchCount = async () => {
+      try {
+        const result = await workEntryService.getPendingApprovals(currentOrg.id, true);
+        if (!cancelled && result.success) {
+          setPendingCount(result.count || 0);
+        }
+      } catch {
+        // Non-fatal — badge simply won't show if fetch fails
+      }
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 30_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentOrg?.id]);
+  // Note: `can` is excluded from deps — it's stable (doesn't change after mount).
+  // Including it would cause an infinite loop since it's a function reference.
 
   // ─────────────────────────────────────────────────────────
   // Full nav item definitions
   // ALL items use `path` (not `to`) — render uses item.path.
-  // Each item linked to a NAV_* permission from permissions.js.
+  // Each item linked to a NAV_* or feature permission.
+  // Optional `badge` field: number > 0 shows a count bubble.
   // ─────────────────────────────────────────────────────────
   const allNavItems = [
     {
@@ -64,6 +113,21 @@ export function Sidebar({ isCollapsed = false }) {
         </svg>
       ),
     },
+
+    // ── Session 16: Approvals — positioned directly under Work Entries ──
+    {
+      label:      'Approvals',
+      path:       ROUTES.WORK_ENTRY_APPROVALS,
+      permission: 'APPROVE_WORK_ENTRY',
+      badge:      pendingCount > 0 ? pendingCount : null,
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+
     {
       label:      'Projects',
       path:       ROUTES.PROJECTS,
@@ -224,11 +288,28 @@ export function Sidebar({ isCollapsed = false }) {
                 }
               `}
             >
+              {/* Icon */}
               <span className={`flex-shrink-0 ${active ? 'text-primary-600' : 'text-gray-400'}`}>
                 {item.icon}
               </span>
+
+              {/* Label + optional badge (hidden in collapsed mode) */}
               {!isCollapsed && (
-                <span className="ml-3 truncate">{item.label}</span>
+                <span className="ml-3 flex-1 flex items-center justify-between min-w-0">
+                  <span className="truncate">{item.label}</span>
+                  {item.badge != null && (
+                    <span className="ml-2 flex-shrink-0 inline-flex items-center justify-center
+                                     min-w-[1.25rem] h-5 px-1 text-xs font-bold
+                                     text-white bg-blue-600 rounded-full">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                </span>
+              )}
+
+              {/* Collapsed mode: show dot indicator when badge > 0 */}
+              {isCollapsed && item.badge != null && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-blue-600 rounded-full" />
               )}
             </Link>
           );

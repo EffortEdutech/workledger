@@ -11,6 +11,7 @@
  * @updated February 12, 2026 - Session 6:  Added REPORT_LAYOUTS routes
  * @updated February 21, 2026 - Session 12: Added USERS, USER_INVITE
  * @updated February 21, 2026 - Session 13: Added QUICK_ENTRY
+ * @updated February 27, 2026 - Session 16: Added WORK_ENTRY_APPROVALS
  */
 
 /**
@@ -51,10 +52,13 @@ export const PROTECTED_ROUTES = {
   CONTRACT_EDIT:   '/contracts/:id/edit',
 
   // ── Work Entries ─────────────────────────────────────────
-  WORK_ENTRIES:      '/work',
-  WORK_ENTRY_NEW:    '/work/new',
-  WORK_ENTRY_DETAIL: '/work/:id',
-  WORK_ENTRY_EDIT:   '/work/:id/edit',
+  // ⚠️ WORK_ENTRY_APPROVALS must stay above WORK_ENTRY_DETAIL in this
+  // file AND in Router.jsx so the literal path wins over the :id param.
+  WORK_ENTRIES:         '/work',
+  WORK_ENTRY_NEW:       '/work/new',
+  WORK_ENTRY_APPROVALS: '/work/approvals',   // Session 16: manager approval queue
+  WORK_ENTRY_DETAIL:    '/work/:id',
+  WORK_ENTRY_EDIT:      '/work/:id/edit',
 
   // ── Templates (Session 20 - Production) ─────────────────
   TEMPLATES:       '/templates',
@@ -81,6 +85,7 @@ export const PROTECTED_ROUTES = {
 
   // ── Subcontractors (Session 15) ──────────────────────────────────────
   SUBCONTRACTORS: '/subcontractors',
+
   // ── Admin Tools (Session 13) ─────────────────────────────────────────
   QUICK_ENTRY: '/admin/quick-entry',
 

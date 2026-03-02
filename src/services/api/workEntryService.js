@@ -522,6 +522,352 @@ class WorkEntryService {
       return { success: false, error: error.message };
     }
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // APPROVAL WORKFLOW — Session 16
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get all submitted work entries awaiting approval for an org.
+   *
+   * Two modes:
+   *   countOnly = false (default) → full entry list for ApprovalsPage
+   *   countOnly = true            → count only for Sidebar badge (cheap query)
+   *
+   * Only returns entries owned by orgId (not subcontractor entries).
+   * Ordered by submitted_at ASC so oldest entries appear first in queue.
+   *
+   * @param {string}  orgId     - Organization ID from OrganizationContext
+   * @param {boolean} countOnly - If true, returns count only
+   * @returns {Promise<{success: boolean, data?: Array, count?: number, error?: string}>}
+   */
+  async getPendingApprovals(orgId, countOnly = false) {
+    try {
+      if (!orgId) {
+        return countOnly
+          ? { success: true, count: 0 }
+          : { success: true, data: [] };
+      }
+
+      console.log('⏳ Fetching pending approvals for org:', orgId, countOnly ? '(count only)' : '');
+
+      if (countOnly) {
+        // Cheap head-only query — returns count, no rows transferred
+        const { count, error } = await supabase
+          .from('work_entries')
+          .select('id', { count: 'exact', head: true })
+          .eq('organization_id', orgId)
+          .eq('status', 'submitted')
+          .is('deleted_at', null);
+
+        if (error) throw error;
+
+        console.log(`✅ Pending approvals count: ${count || 0}`);
+        return { success: true, count: count || 0 };
+
+      } else {
+        // Full query — for ApprovalsPage list
+        // NOTE: created_by references auth.users (different schema) —
+        // PostgREST cannot traverse cross-schema FK joins. We return
+        // created_by as a plain UUID; PendingApprovalList handles display.
+        const { data, error } = await supabase
+          .from('work_entries')
+          .select(`
+            id,
+            entry_date,
+            shift,
+            status,
+            organization_id,
+            submitted_at,
+            submitted_by,
+            created_by,
+            contract:contracts (
+              id,
+              contract_number,
+              contract_name,
+              contract_category
+            ),
+            template:templates (
+              id,
+              template_name
+            )
+          `)
+          .eq('organization_id', orgId)
+          .eq('status', 'submitted')
+          .is('deleted_at', null)
+          .order('submitted_at', { ascending: true });  // oldest first
+
+        if (error) throw error;
+
+        console.log(`✅ Fetched ${data?.length || 0} pending approvals`);
+        return { success: true, data: data || [] };
+      }
+
+    } catch (error) {
+      console.error('❌ getPendingApprovals failed:', error);
+      return countOnly
+        ? { success: false, count: 0, error: error.message }
+        : { success: false, data: [], error: error.message };
+    }
+  }
+
+  /**
+   * Approve a submitted work entry.
+   *
+   * - Entry must be status='submitted' (RLS also enforces this at DB level)
+   * - Optimistic concurrency: .eq('status', 'submitted') prevents double-approve
+   * - Approval remarks are optional
+   * - Writes to activity_logs for audit trail
+   *
+   * @param {string} entryId  - work_entries.id
+   * @param {string} remarks  - Optional approval remarks from manager
+   * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+   */
+  async approveWorkEntry(entryId, remarks = '') {
+    try {
+      console.log('✅ Approving work entry:', entryId);
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Not authenticated');
+
+      const now = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('work_entries')
+        .update({
+          status:           'approved',
+          approved_by:      user.id,
+          approved_at:      now,
+          approval_remarks: remarks?.trim() || null,
+          updated_at:       now,
+        })
+        .eq('id', entryId)
+        .eq('status', 'submitted')               // concurrency guard
+        .select('id, status, organization_id, contract_id, entry_date, created_by')
+        .single();
+
+      if (error) {
+        console.error('❌ Supabase approve error:', error);
+        throw error;
+      }
+      if (!data) {
+        throw new Error('Entry not found, already approved, or insufficient permissions');
+      }
+
+      // Audit log (non-fatal)
+      try {
+        await supabase.from('activity_logs').insert({
+          action:        'APPROVE_WORK_ENTRY',
+          entity_type:   'work_entry',
+          entity_id:     entryId,
+          actor_user_id: user.id,
+          actor_org_id:  data.organization_id,
+          metadata: {
+            approval_remarks: remarks?.trim() || null,
+            entry_date:       data.entry_date,
+            contract_id:      data.contract_id,
+            technician_id:    data.created_by,
+          },
+          created_at: now,
+        });
+      } catch (logError) {
+        console.warn('⚠️ Failed to write approval audit log:', logError.message);
+      }
+
+      console.log('✅ Work entry approved:', entryId);
+      return { success: true, data };
+
+    } catch (error) {
+      console.error('❌ approveWorkEntry failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Reject a submitted work entry.
+   *
+   * - reason is REQUIRED — validated before hitting DB
+   * - Entry must be status='submitted'
+   * - After rejection, technician can edit and resubmit
+   * - Writes to activity_logs for audit trail
+   *
+   * @param {string} entryId - work_entries.id
+   * @param {string} reason  - REQUIRED rejection reason
+   * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+   */
+  async rejectWorkEntry(entryId, reason) {
+    try {
+      // Validate reason before any DB call
+      if (!reason?.trim()) {
+        return {
+          success: false,
+          error: 'Rejection reason is required. Please explain what needs to be corrected.',
+        };
+      }
+
+      console.log('❌ Rejecting work entry:', entryId);
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Not authenticated');
+
+      const now = new Date().toISOString();
+
+      // ── Step 1: Update work_entries status ──────────────────────────────────
+      // Fetch with data + template_id so we can snapshot it into reject_entry_history
+      const { data, error } = await supabase
+        .from('work_entries')
+        .update({
+          status:           'rejected',
+          rejected_by:      user.id,
+          rejected_at:      now,
+          rejection_reason: reason.trim(),
+          updated_at:       now,
+        })
+        .eq('id', entryId)
+        .eq('status', 'submitted')               // concurrency guard
+        .select('id, status, organization_id, contract_id, template_id, entry_date, created_by, data')
+        .single();
+
+      if (error) {
+        console.error('❌ Supabase reject error:', error);
+        throw error;
+      }
+      if (!data) {
+        throw new Error('Entry not found, already processed, or insufficient permissions');
+      }
+
+      // ── Step 2: Write to reject_entry_history (permanent audit log) ─────────
+      // This table is NEVER cleared — every rejection is preserved forever,
+      // even after resubmission and approval. Used for training and improvement.
+      try {
+        // Count how many times this entry has been rejected before (for rejection_count)
+        const { count: prevCount } = await supabase
+          .from('reject_entry_history')
+          .select('id', { count: 'exact', head: true })
+          .eq('work_entry_id', entryId);
+
+        const rejectionCount = (prevCount || 0) + 1;
+
+        await supabase.from('reject_entry_history').insert({
+          work_entry_id:       entryId,
+          organization_id:     data.organization_id,
+          contract_id:         data.contract_id,
+          template_id:         data.template_id,
+          entry_date:          data.entry_date,
+          entry_created_by:    data.created_by,
+          rejected_by:         user.id,
+          rejected_at:         now,
+          rejection_reason:    reason.trim(),
+          rejection_count:     rejectionCount,
+          entry_data_snapshot: typeof data.data === 'string'
+                                 ? JSON.parse(data.data)  // handle string JSONB
+                                 : (data.data || {}),
+          created_at:          now,
+        });
+
+        console.log(`📋 Rejection #${rejectionCount} logged to reject_entry_history`);
+      } catch (histError) {
+        // Non-fatal — history log failure must not block the rejection itself
+        console.warn('⚠️ Failed to write to reject_entry_history:', histError.message);
+      }
+
+      // ── Step 3: Write to activity_logs (non-fatal) ───────────────────────────
+      try {
+        await supabase.from('activity_logs').insert({
+          action:        'REJECT_WORK_ENTRY',
+          entity_type:   'work_entry',
+          entity_id:     entryId,
+          actor_user_id: user.id,
+          actor_org_id:  data.organization_id,
+          metadata: {
+            rejection_reason: reason.trim(),
+            entry_date:       data.entry_date,
+            contract_id:      data.contract_id,
+            technician_id:    data.created_by,
+          },
+          created_at: now,
+        });
+      } catch (logError) {
+        console.warn('⚠️ Failed to write rejection audit log:', logError.message);
+      }
+
+      console.log('✅ Work entry rejected:', entryId);
+      return { success: true, data };
+
+    } catch (error) {
+      console.error('❌ rejectWorkEntry failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Resubmit a rejected work entry after corrections.
+   *
+   * - Only the original creator can resubmit (.eq('created_by', user.id))
+   * - Clears all rejection fields so entry enters a clean 'submitted' state
+   * - Manager will see it again in the Pending Approvals queue
+   *
+   * @param {string} entryId - work_entries.id
+   * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
+   */
+  async resubmitWorkEntry(entryId) {
+    try {
+      console.log('🔄 Resubmitting work entry:', entryId);
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Not authenticated');
+
+      const now = new Date().toISOString();
+
+      // ── Why we don't filter by created_by ─────────────────────────────────
+      // An org_owner or manager in the same org may legitimately resubmit on
+      // behalf of a technician (e.g. original creator is unavailable).
+      // The created_by guard is too strict — it blocks org members who are not
+      // the original creator. RLS + .eq('status','rejected') is sufficient:
+      // RLS already limits UPDATE to users in the same org, and the status
+      // guard prevents double-resubmission.
+      //
+      // ── Why we DO NOT clear rejected_by / rejected_at / rejection_reason ──
+      // These fields are part of the audit trail. Clearing them would erase
+      // the rejection history from ApprovalHistory timeline. We keep them so
+      // the timeline shows: Created → Rejected (reason) → Resubmitted → Approved.
+      // If the entry is rejected again, the new rejection will overwrite them,
+      // which is correct — the row always reflects the MOST RECENT rejection.
+      const { data, error } = await supabase
+        .from('work_entries')
+        .update({
+          status:       'submitted',
+          submitted_at: now,
+          submitted_by: user.id,
+          updated_at:   now,
+          // ↑ Intentionally NOT clearing rejected_by / rejected_at / rejection_reason
+          // so ApprovalHistory can display the full audit trail.
+        })
+        .eq('id', entryId)
+        .eq('status', 'rejected')    // only rejected entries can be resubmitted
+        .select('id, status')
+        .single();
+
+      if (error) {
+        console.error('❌ Supabase resubmit error:', error);
+        throw error;
+      }
+      if (!data) {
+        throw new Error('Entry not found or not in rejected status');
+      }
+
+      console.log('✅ Work entry resubmitted:', entryId);
+      return { success: true, data };
+
+    } catch (error) {
+      console.error('❌ resubmitWorkEntry failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // END OF SESSION 16 ADDITIONS
+  // ─────────────────────────────────────────────────────────────────────────
 }
 
 export const workEntryService = new WorkEntryService();

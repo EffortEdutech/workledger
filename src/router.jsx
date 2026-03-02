@@ -17,10 +17,18 @@
  *   NAV_ORGANIZATIONS   → bina_jaya_staff, org_owner, org_admin
  *   NAV_SUBCONTRACTORS  → bina_jaya_staff, org_owner, org_admin, manager
  *   NAV_QUICK_ENTRY     → super_admin, bina_jaya_staff
+ *   APPROVE_WORK_ENTRY  → org_owner, org_admin, manager  (Session 16)
+ *
+ * ⚠️  ROUTE ORDERING — /work/* section:
+ *   Literal paths (/work/new, /work/approvals) MUST be defined BEFORE the
+ *   parameterised path (/work/:id). React Router matches top-to-bottom; if
+ *   /work/:id came first, navigating to /work/approvals would match it with
+ *   id = "approvals" and render WorkEntryDetail instead of ApprovalsPage.
  *
  * @file src/Router.jsx
  * @updated February 23, 2026 - Session 12: RouteGuard applied to all routes
  * @updated February 24, 2026 - Session 15: SubcontractorList route added
+ * @updated February 27, 2026 - Session 16: ApprovalsPage added before /work/:id
  */
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
@@ -65,6 +73,7 @@ import WorkEntryListPage from './pages/workEntries/WorkEntryListPage';
 import NewWorkEntry from './pages/workEntries/NewWorkEntry';
 import EditWorkEntry from './pages/workEntries/EditWorkEntry';
 import WorkEntryDetail from './pages/workEntries/WorkEntryDetail';
+import ApprovalsPage from './pages/workEntries/ApprovalsPage';      // Session 16
 
 // Pages - Reports
 import ReportHistory from './pages/reports/ReportHistory';
@@ -217,21 +226,36 @@ export const router = createBrowserRouter([
 
   // ══════════════════════════════════════════════════════
   // WORK ENTRIES — all roles
+  //
+  // ⚠️  ORDER IS CRITICAL here. Literal paths must precede :id.
+  //   /work/new       — before /work/:id  ✅ (was already correct)
+  //   /work/approvals — before /work/:id  ✅ (Session 16 addition)
+  //   /work/:id       — comes LAST among /work/* routes
+  //   /work/:id/edit  — fine after :id (different suffix)
   // ══════════════════════════════════════════════════════
   {
-    path: '/work',
+    path: ROUTES.WORK_ENTRIES,
     element: guarded('NAV_WORK_ENTRIES', WorkEntryListPage),
   },
   {
-    path: '/work/new',
+    path: ROUTES.WORK_ENTRY_NEW,
     element: guarded('NAV_WORK_ENTRIES', NewWorkEntry),
   },
+  // ── Session 16: Approval queue ─────────────────────────────────────────
+  // Permission: APPROVE_WORK_ENTRY (org_owner, org_admin, manager only).
+  // Technicians navigating here directly are redirected to / by RouteGuard.
+  // MUST stay above WORK_ENTRY_DETAIL to avoid :id = "approvals" collision.
   {
-    path: '/work/:id',
+    path: ROUTES.WORK_ENTRY_APPROVALS,
+    element: guarded('APPROVE_WORK_ENTRY', ApprovalsPage),
+  },
+  // ── /work/:id must come AFTER all literal /work/* paths ────────────────
+  {
+    path: ROUTES.WORK_ENTRY_DETAIL,
     element: guarded('NAV_WORK_ENTRIES', WorkEntryDetail),
   },
   {
-    path: '/work/:id/edit',
+    path: ROUTES.WORK_ENTRY_EDIT,
     element: guarded('NAV_WORK_ENTRIES', EditWorkEntry),
   },
 

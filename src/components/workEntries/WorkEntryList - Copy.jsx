@@ -75,8 +75,6 @@ export default function WorkEntryList({
             onDelete={isOwnEntry && !isSubcontractorView ? onDelete : null}
             onEdit={isOwnEntry && !isSubcontractorView ? onEdit : null}
             onView={onView}
-            isOwnEntry={isOwnEntry}              // ← Session 16 fix: was missing, defaulted to true
-            isSubcontractorView={isSubcontractorView}
             showSourceBadge={showSourceBadge && isSubEntry}
             sourceOrgId={workEntry.organization_id}
           />

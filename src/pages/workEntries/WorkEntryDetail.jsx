@@ -1,56 +1,93 @@
 /**
- * WorkLedger - Work Entry Detail Page (Updated for Session 15)
- * 
- * Read-only view of work entry with all details including photos.
- * Now displays photos using PhotoGallery component.
- * 
+ * WorkLedger - Work Entry Detail Page
+ *
+ * Read-only view of a work entry with all details.
+ *
+ * SESSION 13: Initial version — basic detail display
+ * SESSION 15: Added photo/signature attachments via PhotoGallery
+ * SESSION 16: Added approval workflow:
+ *   - ApprovalBadge replaces StatusBadge in header
+ *   - ApprovalActions (approve/reject) shown for managers on submitted entries
+ *   - ApprovalHistory timeline shown at bottom for all statuses
+ *   - Resubmit button for rejected entries (technician only)
+ *   - Edit/Submit/Delete buttons remain for draft status only
+ * SESSION 16 FIX:
+ *   - ApprovalActions now gated by isOwnOrgEntry — MTSB cannot approve FEST ENT entries
+ *   - WorkEntryList now passes isOwnEntry prop (was missing — caused Edit/Delete on sub entries)
+ *
  * @module pages/workEntries/WorkEntryDetail
  * @created February 1, 2026 - Session 13
- * @updated February 2, 2026 - Session 15 (Added photo/signature display)
+ * @updated February 27, 2026 - Session 16: Approval workflow
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
-import StatusBadge from '../../components/workEntries/StatusBadge';
+import ApprovalBadge from '../../components/workEntries/ApprovalBadge';
+import ApprovalActions from '../../components/workEntries/ApprovalActions';
+import ApprovalHistory from '../../components/workEntries/ApprovalHistory';
 import PhotoGallery from '../../components/attachments/PhotoGallery';
 import Button from '../../components/common/Button';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { workEntryService } from '../../services/api/workEntryService';
+import PermissionGuard from '../../components/auth/PermissionGuard';
+import { workEntryService }  from '../../services/api/workEntryService';
 import { attachmentService } from '../../services/api/attachmentService';
+import { useOrganization }   from '../../context/OrganizationContext';
+import { useRole }           from '../../hooks/useRole';
+import {
+  ArrowLeftIcon,
+  CalendarIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
 
-/**
- * Work Entry Detail Page
- * 
- * Features:
- * - Read-only view of all work entry data
- * - Contract information display
- * - Status and timeline
- * - Action buttons (Edit, Delete, Submit)
- * - Field values from JSONB data
- * - Photo gallery for photo fields (Session 15)
- * - Signature display for signature fields (Session 15)
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    return new Intl.DateTimeFormat('en-MY', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    }).format(new Date(dateStr));
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatDateTime(ts) {
+  if (!ts) return '—';
+  try {
+    return new Intl.DateTimeFormat('en-MY', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true,
+    }).format(new Date(ts));
+  } catch {
+    return ts;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function WorkEntryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentOrg } = useOrganization();
+  const { can } = useRole();
 
-  // State
-  const [workEntry, setWorkEntry] = useState(null);
-  const [attachments, setAttachments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [workEntry,    setWorkEntry]    = useState(null);
+  const [attachments,  setAttachments]  = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Load work entry
-  useEffect(() => {
-    loadWorkEntry();
-    loadAttachments();
-  }, [id]);
+  // ── Load work entry ───────────────────────────────────────────────────────
 
-  /**
-   * Load work entry data
-   */
-  const loadWorkEntry = async () => {
+  const loadWorkEntry = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -60,7 +97,7 @@ export default function WorkEntryDetail() {
       if (result.success) {
         setWorkEntry(result.data);
       } else {
-        setError(result.error);
+        setError(result.error || 'Work entry not found');
       }
     } catch (err) {
       console.error('❌ Error loading work entry:', err);
@@ -68,316 +105,389 @@ export default function WorkEntryDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  /**
-   * Load attachments for this work entry
-   */
-  const loadAttachments = async () => {
+  const loadAttachments = useCallback(async () => {
     try {
       const result = await attachmentService.getAttachments(id);
-      if (result.success) {
-        setAttachments(result.data);
-      }
+      if (result.success) setAttachments(result.data || []);
     } catch (err) {
       console.error('❌ Error loading attachments:', err);
     }
-  };
+  }, [id]);
 
-  /**
-   * Handle delete
-   */
+  useEffect(() => {
+    loadWorkEntry();
+    loadAttachments();
+  }, [loadWorkEntry, loadAttachments]);
+
+  // ── Action handlers ───────────────────────────────────────────────────────
+
   const handleDelete = async () => {
-    if (!window.confirm('Delete this work entry? This cannot be undone.')) {
-      return;
-    }
+    if (!window.confirm('Delete this work entry? This cannot be undone.')) return;
 
     try {
-      const result = await workEntryService.deleteWorkEntry(id);
-
+      setActionLoading(true);
+      const result = await workEntryService.deleteWorkEntry(id, currentOrg?.id);
       if (result.success) {
         navigate('/work');
       } else {
-        alert(`Delete failed: ${result.error}`);
+        alert(`Failed to delete: ${result.error}`);
       }
     } catch (err) {
-      console.error('❌ Error deleting work entry:', err);
-      alert(`Error: ${err.message}`);
+      alert('Failed to delete work entry');
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  /**
-   * Handle submit
-   */
   const handleSubmit = async () => {
-    if (!window.confirm('Submit this work entry for approval?')) {
-      return;
-    }
+    if (!window.confirm("Submit this work entry for approval? You won't be able to edit it after submission.")) return;
 
     try {
+      setActionLoading(true);
       const result = await workEntryService.submitWorkEntry(id);
-
       if (result.success) {
-        // Reload to show updated status
-        loadWorkEntry();
+        await loadWorkEntry();   // reload to show updated status
       } else {
-        alert(`Submit failed: ${result.error}`);
+        alert(`Failed to submit: ${result.error}`);
       }
     } catch (err) {
-      console.error('❌ Error submitting work entry:', err);
-      alert(`Error: ${err.message}`);
+      alert('Failed to submit work entry');
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  /**
-   * Render field value based on field type
-   */
-  const renderFieldValue = (field, section) => {
-    const fieldPath = `${section.section_id}.${field.field_id}`;
-    const value = workEntry.data?.[fieldPath];
+  const handleResubmit = async () => {
+    if (!window.confirm('Resubmit this entry for review? The manager will see it again in their queue.')) return;
 
-    if (value === undefined || value === null || value === '') {
-      return <span className="text-gray-400 italic">Not provided</span>;
-    }
-
-    // Handle different field types
-    switch (field.field_type) {
-      case 'checkbox':
-        return value ? '✓ Yes' : '✗ No';
-
-      case 'date':
-        return new Date(value).toLocaleDateString();
-
-      case 'datetime':
-        return new Date(value).toLocaleString();
-
-      case 'photo':
-        // Get attachments for this field
-        const photoAttachments = attachments.filter(
-          a => a.field_id === fieldPath && a.file_type === 'photo'
-        );
-        
-        if (photoAttachments.length === 0) {
-          return <span className="text-gray-400 italic">No photos</span>;
-        }
-
-        return (
-          <div className="mt-2">
-            <PhotoGallery
-              attachments={photoAttachments}
-              readOnly={true}
-              columns={3}
-            />
-          </div>
-        );
-
-      case 'signature':
-        // Get signature attachment for this field
-        const signatureAttachment = attachments.find(
-          a => a.field_id === fieldPath && a.file_type === 'signature'
-        );
-
-        if (!signatureAttachment) {
-          return <span className="text-gray-400 italic">Not signed</span>;
-        }
-
-        return (
-          <div className="mt-2">
-            <img
-              src={signatureAttachment.storage_url}
-              alt="Signature"
-              className="max-w-xs border border-gray-300 rounded-lg bg-white p-2"
-            />
-          </div>
-        );
-
-      case 'textarea':
-        return (
-          <div className="whitespace-pre-wrap text-sm text-gray-700">
-            {value}
-          </div>
-        );
-
-      default:
-        return <span className="text-gray-900">{value}</span>;
+    try {
+      setActionLoading(true);
+      const result = await workEntryService.resubmitWorkEntry(id);
+      if (result.success) {
+        await loadWorkEntry();
+      } else {
+        alert(`Failed to resubmit: ${result.error}`);
+      }
+    } catch (err) {
+      alert('Failed to resubmit');
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  /**
-   * Render data fields from template
-   */
+  // ── Render fields from JSONB data ─────────────────────────────────────────
+
   const renderDataFields = () => {
-    if (!workEntry.template?.fields_schema?.sections) {
-      return null;
+    if (!workEntry?.data || !workEntry?.template?.fields_schema) {
+      return (
+        <p className="text-sm text-gray-500 italic">No field data available.</p>
+      );
     }
 
-    return workEntry.template.fields_schema.sections.map((section) => (
-      <div key={section.section_id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        {/* Section Header */}
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          {section.section_name}
-        </h3>
+    const schema  = workEntry.template.fields_schema;
+    const data    = workEntry.data;
+    const sections = schema.sections || [];
 
-        {/* Section Fields */}
-        <div className="space-y-4">
-          {section.fields.map((field) => (
-            <div key={field.field_id} className="border-b border-gray-100 pb-3 last:border-0 last:pb-0">
-              <dt className="text-sm font-medium text-gray-700 mb-1">
-                {field.field_name}
-              </dt>
-              <dd className="text-sm text-gray-900">
-                {renderFieldValue(field, section)}
-              </dd>
-            </div>
-          ))}
+    if (sections.length === 0) {
+      return (
+        <p className="text-sm text-gray-500 italic">No sections defined in template.</p>
+      );
+    }
+
+    return sections.map((section) => {
+      const fields = section.fields || [];
+      const sectionHasData = fields.some((field) => {
+        const key = `${section.section_id}.${field.field_id}`;
+        return data[key] !== undefined && data[key] !== null && data[key] !== '';
+      });
+
+      if (!sectionHasData) return null;
+
+      return (
+        <div key={section.section_id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {/* Section header */}
+          <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700">
+              {section.section_name}
+            </h3>
+          </div>
+
+          {/* Fields */}
+          <div className="divide-y divide-gray-100">
+            {fields.map((field) => {
+              const fieldKey = `${section.section_id}.${field.field_id}`;
+              const value    = data[fieldKey];
+
+              if (value === undefined || value === null || value === '') return null;
+
+              return (
+                <div key={field.field_id} className="px-5 py-3 flex gap-4">
+                  <span className="text-sm text-gray-500 min-w-0 w-2/5 flex-shrink-0">
+                    {field.field_name}
+                  </span>
+                  <span className="text-sm text-gray-900 flex-1 break-words">
+                    {renderFieldValue(field.field_type, value)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
-    ));
+      );
+    });
   };
 
-  // Loading state
+  const renderFieldValue = (fieldType, value) => {
+    if (fieldType === 'checkbox') {
+      return value ? '✅ Yes' : '❌ No';
+    }
+    if (fieldType === 'date') {
+      return formatDate(value);
+    }
+    if (fieldType === 'photo' || fieldType === 'signature') {
+      return <span className="text-xs text-gray-400 italic">See attachments below</span>;
+    }
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
+    return String(value);
+  };
+
+  // ── Loading state ─────────────────────────────────────────────────────────
+
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex justify-center py-12">
+        <div className="flex items-center justify-center min-h-64 py-16">
           <LoadingSpinner />
         </div>
       </AppLayout>
     );
   }
 
-  // Error state
+  // ── Error state ───────────────────────────────────────────────────────────
+
   if (error || !workEntry) {
     return (
       <AppLayout>
-        <div className="max-w-5xl mx-auto">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <p className="text-red-900">{error || 'Work entry not found'}</p>
-          </div>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 text-center">
+          <ExclamationTriangleIcon className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Entry Not Found</h2>
+          <p className="text-sm text-gray-500 mb-6">{error || 'This work entry could not be loaded.'}</p>
+          <Button onClick={() => navigate('/work')} variant="secondary">
+            Back to Work Entries
+          </Button>
         </div>
       </AppLayout>
     );
   }
 
+  // ── Derived values ────────────────────────────────────────────────────────
+
+  const isDraft     = workEntry.status === 'draft';
+  const isSubmitted = workEntry.status === 'submitted';
+  const isApproved  = workEntry.status === 'approved';
+  const isRejected  = workEntry.status === 'rejected';
+  const isLocked    = isApproved;  // approved = fully immutable
+
+  // Can this user perform actions?
+  const canEditOwn    = can('EDIT_OWN_WORK_ENTRY');
+  const canDelete     = can('DELETE_WORK_ENTRY');
+  const canApprove    = can('APPROVE_WORK_ENTRY');
+
+  // Session 16 fix: org ownership check for approval actions.
+  // A manager at MTSB has APPROVE_WORK_ENTRY permission but must NOT be able to
+  // approve FEST ENT's entries — only the entry's own org manager can approve.
+  // currentOrg?.id is null for super_admin (no active org) → they can approve all.
+  const isOwnOrgEntry = !currentOrg?.id || workEntry.organization_id === currentOrg.id;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Full render
+  // ─────────────────────────────────────────────────────────────────────────
+
   return (
     <AppLayout>
-      <div className="max-w-5xl mx-auto">
-        {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Work Entry Details</h1>
-        </div>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
 
-        {/* Entry Info Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-600">Contract</p>
-                <p className="text-lg font-semibold text-gray-900">
-                  {workEntry.contract?.contract_number || 'N/A'}
-                </p>
-                <p className="text-sm text-gray-700">
-                  {workEntry.contract?.contract_name}
-                </p>
-              </div>
+        {/* ── Back button ────────────────────────────────────────────────── */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          <ArrowLeftIcon className="w-4 h-4" />
+          Back
+        </button>
 
-              <div>
-                <p className="text-sm text-gray-600">Date</p>
-                <p className="text-gray-900">
-                  {new Date(workEntry.entry_date).toLocaleDateString()}
+        {/* ── Page header ────────────────────────────────────────────────── */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <DocumentTextIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <p className="text-xs text-gray-500 font-mono truncate">
+                  {workEntry.contract?.contract_number || 'No contract number'}
                 </p>
               </div>
-
-              {workEntry.shift && (
-                <div>
-                  <p className="text-sm text-gray-600">Shift</p>
-                  <p className="text-gray-900">{workEntry.shift}</p>
-                </div>
-              )}
+              <h1 className="text-lg font-bold text-gray-900 mb-1">
+                {workEntry.contract?.contract_name || 'Work Entry'}
+              </h1>
+              <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                <CalendarIcon className="w-3.5 h-3.5" />
+                {formatDate(workEntry.entry_date)}
+                {workEntry.shift && (
+                  <span className="ml-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                    {workEntry.shift} shift
+                  </span>
+                )}
+              </p>
             </div>
 
-            {/* Right Column */}
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-gray-600">Status</p>
-                <StatusBadge status={workEntry.status} />
-              </div>
-
-              <div>
-                <p className="text-sm text-gray-600">Created</p>
-                <p className="text-gray-900">
-                  {new Date(workEntry.created_at).toLocaleString()}
-                </p>
-              </div>
-
-              {workEntry.submitted_at && (
-                <div>
-                  <p className="text-sm text-gray-600">Submitted</p>
-                  <p className="text-gray-900">
-                    {new Date(workEntry.submitted_at).toLocaleString()}
-                  </p>
-                </div>
-              )}
-
-              {workEntry.approved_at && (
-                <div>
-                  <p className="text-sm text-gray-600">Approved</p>
-                  <p className="text-gray-900">
-                    {new Date(workEntry.approved_at).toLocaleString()}
-                  </p>
-                </div>
-              )}
-            </div>
+            {/* Approval badge */}
+            <ApprovalBadge status={workEntry.status} size="md" />
           </div>
 
-          {/* Approval Remarks */}
-          {workEntry.approval_remarks && (
-            <div className="mt-6 pt-6 border-t">
-              <p className="text-sm text-gray-600 mb-1">Approval Remarks</p>
-              <p className="text-gray-900">{workEntry.approval_remarks}</p>
+          {/* Meta row */}
+          <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-y-2 gap-x-4 text-xs">
+            <div>
+              <span className="text-gray-400">Template</span>
+              <p className="text-gray-700 font-medium">
+                {workEntry.template?.template_name || '—'}
+              </p>
             </div>
-          )}
-
-          {/* Rejection Reason */}
-          {workEntry.rejection_reason && (
-            <div className="mt-6 pt-6 border-t">
-              <p className="text-sm text-gray-600 mb-1">Rejection Reason</p>
-              <p className="text-red-900">{workEntry.rejection_reason}</p>
+            <div>
+              <span className="text-gray-400">Project</span>
+              <p className="text-gray-700 font-medium">
+                {workEntry.contract?.project?.project_name || '—'}
+              </p>
             </div>
-          )}
+            <div>
+              <span className="text-gray-400">Created by</span>
+              <p className="text-gray-700 font-medium">
+                {workEntry.creator?.user_profiles?.[0]?.full_name
+                  || workEntry.creator?.email
+                  || '—'}
+              </p>
+            </div>
+            <div>
+              <span className="text-gray-400">Created at</span>
+              <p className="text-gray-700 font-medium">
+                {formatDateTime(workEntry.created_at)}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Work Entry Data */}
-        <div className="space-y-6 mb-6">
-          {renderDataFields()}
-        </div>
+        {/* ── Rejection banner (shown to technician when rejected) ─────── */}
+        {isRejected && workEntry.rejection_reason && !canApprove && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <ExclamationTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800 mb-1">
+                  Entry Rejected — Action Required
+                </p>
+                <p className="text-sm text-red-700">
+                  {workEntry.rejection_reason}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 pb-6">
-          {workEntry.status === 'draft' && (
-            <>
-              <Button
-                onClick={() => navigate(`/work/${id}/edit`)}
-                variant="primary"
-              >
-                Edit
-              </Button>
+        {/* ── DRAFT action buttons ───────────────────────────────────────── */}
+        {isDraft && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">Actions</h3>
+            <div className="flex flex-wrap gap-3">
+              {canEditOwn && (
+                <Button
+                  onClick={() => navigate(`/work/${id}/edit`)}
+                  variant="secondary"
+                  disabled={actionLoading}
+                >
+                  Edit Entry
+                </Button>
+              )}
               <Button
                 onClick={handleSubmit}
                 variant="primary"
+                disabled={actionLoading}
               >
-                Submit for Approval
+                {actionLoading ? 'Submitting…' : 'Submit for Approval'}
               </Button>
+              {canDelete && (
+                <Button
+                  onClick={handleDelete}
+                  variant="danger"
+                  disabled={actionLoading}
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── REJECTED — resubmit button (technician) ─────────────────── */}
+        {isRejected && !canApprove && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Actions</h3>
+            <p className="text-xs text-gray-500 mb-4">
+              Edit this entry to address the rejection reason, then resubmit.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {canEditOwn && (
+                <Button
+                  onClick={() => navigate(`/work/${id}/edit`)}
+                  variant="secondary"
+                  disabled={actionLoading}
+                >
+                  Edit Entry
+                </Button>
+              )}
               <Button
-                onClick={handleDelete}
-                variant="danger"
+                onClick={handleResubmit}
+                variant="primary"
+                disabled={actionLoading}
               >
-                Delete
+                {actionLoading ? 'Resubmitting…' : 'Resubmit for Review'}
               </Button>
-            </>
+            </div>
+          </div>
+        )}
+
+        {/* ── MANAGER: Approve / Reject actions ────────────────────────── */}
+        {/* Session 16 fix: isOwnOrgEntry ensures MTSB managers cannot        */}
+        {/* approve/reject FEST ENT's entries. Only the entry's own org       */}
+        {/* manager can approve. PermissionGuard handles the role check.      */}
+        <PermissionGuard permission="APPROVE_WORK_ENTRY">
+          {isSubmitted && isOwnOrgEntry && (
+            <ApprovalActions
+              entry={workEntry}
+              onApproved={loadWorkEntry}
+              onRejected={loadWorkEntry}
+            />
           )}
-        </div>
+        </PermissionGuard>
+
+        {/* ── Work entry data (template fields) ────────────────────────── */}
+        {renderDataFields()}
+
+        {/* ── Photo attachments ─────────────────────────────────────────── */}
+        {attachments.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4">
+              Attachments
+            </h3>
+            <PhotoGallery attachments={attachments} />
+          </div>
+        )}
+
+        {/* ── Approval history timeline ──────────────────────────────────── */}
+        <ApprovalHistory entry={workEntry} />
+
       </div>
     </AppLayout>
   );

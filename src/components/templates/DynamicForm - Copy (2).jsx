@@ -1,14 +1,13 @@
 /**
- * WorkLedger - Dynamic Form Component
- *
+ * WorkLedger - Dynamic Form Component (Updated for Session 15)
+ * 
  * Main form component that renders an entire template dynamically.
  * Now passes workEntryId to support photo/signature fields.
- *
+ * 
  * @module components/templates/DynamicForm
  * @created January 31, 2026 - Session 12
- * @updated February 2, 2026 - Session 15: workEntryId support
+ * @updated February 2, 2026 - Session 15 (Added workEntryId support)
  * @updated February 4, 2026 - FIXED: Added onChange callback to parent
- * @updated February 27, 2026 - Session 16: Fixed initialData sync for edit mode
  */
 
 import React, { useState, useEffect } from 'react';
@@ -38,26 +37,9 @@ export function DynamicForm({
   showCancel = true,
   workEntryId = null  // Required for photo/signature fields
 }) {
-  const [formData, setFormData] = useState(initialData || {});
+  const [formData, setFormData] = useState(initialData);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // ─── Sync initialData → formData whenever initialData reference changes ───
-  // useState(initialData) only captures the value at first render.
-  // In edit mode, EditWorkEntry renders DynamicForm AFTER workEntry loads,
-  // but React may still mount DynamicForm with a stale initialData = {}.
-  // This effect ensures formData always reflects the latest initialData.
-  useEffect(() => {
-    if (initialData && Object.keys(initialData).length > 0) {
-      setFormData(prev => ({
-        ...initialData,   // loaded entry data takes precedence
-        ...prev,          // keep any in-progress user edits on top
-      }));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData]);
-  // Note: intentionally not including `prev` — we want a one-time sync per
-  // initialData reference change, not every keystroke.
 
   // Initialize form with default values on mount
   useEffect(() => {

@@ -1,3 +1,171 @@
+
+# WorkLedger - Development Progress Log **Last Updated:** March 1, 2026 — End of Session 16
+
+    ---
+
+    ## 🚀 SESSION 16: Approval Workflow — Complete
+    **Date:** March 1, 2026
+    **Duration:** 1 session (extended — 7 major bugs found and fixed)
+    **Focus:** Full manager approval lifecycle + reject_entry_history audit table
+
+    ---
+
+    ### 🎯 SESSION 16 OBJECTIVES — ALL COMPLETED ✅
+
+    1. ✅ Manager approval queue (/work/approvals)
+    2. ✅ Approve + Reject with confirmation modals
+    3. ✅ Rejection reason required (validated)
+    4. ✅ Rejected entry editable + Save & Resubmit in one action
+    5. ✅ Full approval history timeline
+    6. ✅ Sidebar badge with live pending count
+    7. ✅ MTSB org isolation enforced for approval actions
+    8. ✅ reject_entry_history table for permanent training audit
+
+    ---
+
+    ### 🗄️ DATABASE CHANGES
+
+    **Migration 030** — Approval workflow columns on `work_entries`:
+    ```
+    submitted_at, submitted_by
+    approved_at, approved_by, approval_remarks
+    rejected_at, rejected_by, rejection_reason
+    ```
+
+    **Migration 031** — New `reject_entry_history` table:
+    ```sql
+    id, work_entry_id, organization_id, contract_id, template_id,
+    entry_date, entry_created_by, rejected_by, rejected_at,
+    rejection_reason, rejection_count, entry_data_snapshot (JSONB), created_at
+    ```
+    - Append-only (no UPDATE/DELETE RLS policies)
+    - 5 indexes for reporting: org/date, work_entry, rejected_by, technician, contract
+    - `rejection_count` tracks 1st, 2nd, 3rd rejection of same entry
+    - `entry_data_snapshot` captures field data at time of rejection (training)
+
+    **Fix:** `org_members` row added for super_admin (effort.edutech@gmail.com)
+    into Effort Edutech org as org_owner (was orphaned, causing "no org" warning)
+
+    ---
+
+    ### 🛠️ FILES CREATED/MODIFIED
+
+    **New Components (4):**
+    - `src/components/workEntries/ApprovalBadge.jsx` — colour-coded + pulse animation
+    - `src/components/workEntries/ApprovalActions.jsx` — Approve/Reject with modal
+    - `src/components/workEntries/ApprovalHistory.jsx` — chronological timeline
+    - `src/components/workEntries/PendingApprovalList.jsx` — manager queue cards
+
+    **New Pages (1):**
+    - `src/pages/workEntries/ApprovalsPage.jsx` — /work/approvals
+
+    **Updated Pages (3):**
+    - `WorkEntryDetail.jsx` — ApprovalActions + ApprovalHistory + isOwnOrgEntry guard
+    - `WorkEntryCard.jsx` — ApprovalBadge inline with date, Edit guards, rejection snippet
+    - `EditWorkEntry.jsx` — dual mode (draft=Save Changes / rejected=Save & Resubmit)
+
+    **Updated Services (1):**
+    - `workEntryService.js` — 4 new methods: getPendingApprovals, approveWorkEntry,
+    rejectWorkEntry (→ reject_entry_history), resubmitWorkEntry
+
+    **Updated Navigation (4):**
+    - `Router.jsx` — /work/approvals route (literal BEFORE /work/:id)
+    - `Sidebar.jsx` — Approvals nav + 30s live badge
+    - `Dashboard.jsx` — Review Approvals quick action + count
+    - `routes.js` — WORK_ENTRY_APPROVALS constant
+
+    **Updated Components (3):**
+    - `DynamicForm.jsx` — initialData sync useEffect (edit form blank bug)
+    - `WorkEntryList.jsx` — isOwnEntry prop now forwarded to WorkEntryCard
+    - `WorkEntryDetail.jsx` — isOwnOrgEntry guard on ApprovalActions
+
+    ---
+
+    ### 🐛 BUGS FOUND & FIXED (7)
+
+    | Bug | Root Cause | Fix |
+    |-----|-----------|-----|
+    | Approvals page 400 error | `created_by` FK to auth.users (cross-schema) — PostgREST can't join | Removed creator join, return UUID only |
+    | Edit form blank on rejected entry | `useState(initialData)` is one-time snapshot; mounts before data loads | `useEffect` sync when `initialData` changes |
+    | Resubmit 406 error | `.eq('created_by', user.id)` too strict — org members blocked | Removed creator guard, RLS handles org boundary |
+    | Edit/Delete showing on FEST ENT entries in MTSB view | `isOwnEntry` calculated in WorkEntryList but never passed to WorkEntryCard | Added `isOwnEntry` prop to WorkEntryCard |
+    | MTSB manager could see ApprovalActions on FEST ENT entries | No org ownership check on ApprovalActions render | Added `isOwnOrgEntry` check |
+    | ApprovalBadge floating to far right of card | `justify-between` header layout | Badge moved inline with date (`flex-wrap`) |
+    | super_admin "no organization" warning | Missing org_members row for Effort Edutech | Inserted row via SQL fix |
+
+    ---
+
+    ### ✅ TESTING — 7/7 PASSED
+
+    | Test | Result |
+    |------|--------|
+    | Test 1: Submit entry | ✅ Status → submitted, edit button hidden |
+    | Test 2: Manager sees pending queue | ✅ ApprovalsPage loads, Sidebar badge shows count |
+    | Test 3: Approve entry | ✅ Status → approved, timeline shows approver |
+    | Test 4: Reject (reason required) | ✅ Validation error without reason; status → rejected |
+    | Test 5: Edit rejected + Resubmit | ✅ Save & Resubmit in one click, status → submitted |
+    | Test 6: Full timeline | ✅ Created → Rejected → Resubmitted (orange) → Approved |
+    | Test 7: MTSB org isolation | ✅ No Edit/Delete/Approve buttons on FEST ENT entries |
+
+    ---
+
+    ### 💡 KEY LESSONS LEARNED
+
+    1. **PostgREST cross-schema limitation** — `auth.users` is in a different schema.
+    Never use nested joins to `created_by` in list queries. Return UUID, resolve name separately.
+
+    2. **React useState is a one-time snapshot** — In edit flows where data loads async,
+    `useState(initialData)` captures the empty initial value. Always add a sync `useEffect`.
+
+    3. **Route ordering is critical** — `/work/approvals` MUST come before `/work/:id`.
+    React Router matches top-to-bottom; wrong order causes `id = "approvals"`.
+
+    4. **Audit trail architecture** — Two-layer approach works well:
+    - `work_entries.rejected_*` = current state (for UI display)
+    - `reject_entry_history` = permanent log (for training analytics)
+    Don't conflate the two purposes.
+
+    5. **Prop forwarding** — When a parent calculates a value for a child component,
+    always verify the prop is actually passed. `isOwnEntry` was calculated but never forwarded.
+
+    ---
+
+    ### 📊 PLATFORM STATUS AFTER SESSION 16
+
+    ```
+    Phase 2 (Multi-Client Platform): ✅ 100% COMPLETE
+
+    Full workflow tested end-to-end:
+    Technician → Submit → Manager Queue → Approve/Reject →
+    Rejected → Edit → Save & Resubmit → Manager Queue → Approve
+
+    Three client scenarios all working:
+    ✅ FEST ENT: org_owner → org_admin → manager → technician workflow
+    ✅ Mr. Roz: BJ staff data entry via WhatsApp/Quick Entry
+    ✅ MTSB: main contractor sees subcontractor entries, cannot approve them
+
+    Database migrations: 031 total (030 approval columns, 031 reject history)
+    Total test users: 8 (across FEST ENT, MTSB, Effort Edutech)
+    ```
+
+    ---
+
+    ### 🚀 NEXT SESSION — Session 17: Reporting & PDF Enhancement
+
+    **Priority features:**
+    1. PDF reports include approval status + approval stamps
+    2. MTSB consolidated report (internal + subcontractor entries combined)
+    3. Rejection analytics page (query reject_entry_history for training insights)
+    4. Error boundaries (prevent full app crash on errors)
+
+    ---
+
+    *Alhamdulillah — Session 16 complete. Phase 2 fully done!*
+    *Approval workflow battle-tested across 7 scenarios.*
+    *reject_entry_history table ready for future analytics.*
+
+    *Last updated: March 1, 2026 — Eff (Solo Developer)*
+
 # WorkLedger - Development Progress Log **Last Updated:** February 27, 2026 — End of Session 15
 
     **Project:** WorkLedger — Multi-Industry Work Reporting Platform

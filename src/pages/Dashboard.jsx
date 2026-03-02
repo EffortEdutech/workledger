@@ -9,9 +9,15 @@
  *   Organizations stat: only for BJ staff / org_owner / org_admin.
  *   technician / worker / subcontractor → see Work Entries + Projects only.
  *
+ * SESSION 16 UPDATE — Approval workflow:
+ *   - Pending approvals count fetched in loadStats (countOnly=true, cheap query)
+ *   - "Review Approvals" quick action added — visible to APPROVE_WORK_ENTRY roles
+ *   - Count badge shown on the action card when pendingCount > 0
+ *
  * @module pages/Dashboard
  * @created January 29, 2026
  * @updated February 26, 2026 - Session 15: permission-aware stats + quick actions
+ * @updated February 27, 2026 - Session 16: pending approvals count + quick action
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -32,7 +38,9 @@ import {
   DocumentDuplicateIcon,
   BuildingOffice2Icon,
   PlusIcon,
+  CheckCircleIcon,     // Session 16: used for Review Approvals action
 } from '@heroicons/react/24/outline';
+import { ROUTES } from '../constants/routes';
 
 export function Dashboard() {
   const { user, profile } = useAuth();
@@ -40,10 +48,11 @@ export function Dashboard() {
   const { can } = useRole();
 
   const [stats, setStats] = useState({
-    workEntries: 0,
-    projects: 0,
-    contracts: 0,
-    organizations: 0,
+    workEntries:    0,
+    projects:       0,
+    contracts:      0,
+    organizations:  0,
+    pendingApprovals: 0,   // Session 16
   });
   const [loading, setLoading] = useState(true);
 
@@ -79,14 +88,27 @@ export function Dashboard() {
         fetches.push(Promise.resolve(null));
       }
 
-      const [workEntriesResult, projectsResult, contractsResult, orgsResult] =
-        await Promise.all(fetches);
+      // Session 16: pending approvals count — cheap countOnly query
+      if (can('APPROVE_WORK_ENTRY') && orgId) {
+        fetches.push(workEntryService.getPendingApprovals(orgId, true));
+      } else {
+        fetches.push(Promise.resolve(null));
+      }
+
+      const [
+        workEntriesResult,
+        projectsResult,
+        contractsResult,
+        orgsResult,
+        pendingResult,     // Session 16
+      ] = await Promise.all(fetches);
 
       setStats({
-        workEntries:   workEntriesResult  ?? 0,
-        projects:      projectsResult     ?? 0,
-        contracts:     contractsResult    ?? 0,
-        organizations: Array.isArray(orgsResult) ? orgsResult.length : 0,
+        workEntries:      workEntriesResult                          ?? 0,
+        projects:         projectsResult                             ?? 0,
+        contracts:        contractsResult                            ?? 0,
+        organizations:    Array.isArray(orgsResult) ? orgsResult.length : 0,
+        pendingApprovals: pendingResult?.count                       ?? 0,   // Session 16
       });
     } catch (error) {
       console.error('❌ Dashboard: Error loading stats:', error);
@@ -180,6 +202,22 @@ export function Dashboard() {
       iconHover:  'group-hover:text-orange-500',
       labelHover: 'group-hover:text-orange-600',
     },
+    // ── Session 16: Approvals quick action ────────────────────────────────
+    {
+      permission:   'APPROVE_WORK_ENTRY',
+      to:           ROUTES.WORK_ENTRY_APPROVALS,
+      label:        loading
+                      ? 'Review Approvals'
+                      : stats.pendingApprovals > 0
+                        ? `Review Approvals (${stats.pendingApprovals})`
+                        : 'Review Approvals',
+      icon:         <CheckCircleIcon className="w-6 h-6" />,
+      hoverColor:   'hover:border-teal-400 hover:bg-teal-50',
+      iconHover:    'group-hover:text-teal-500',
+      labelHover:   'group-hover:text-teal-600',
+      // badge is used in the render below to show a dot/number
+      badge:        !loading && stats.pendingApprovals > 0 ? stats.pendingApprovals : null,
+    },
   ];
 
   const visibleQuickActions = allQuickActions.filter(a => can(a.permission));
@@ -256,12 +294,24 @@ export function Dashboard() {
                 <Link
                   key={action.to}
                   to={action.to}
-                  className={`flex flex-col items-center justify-center p-4 bg-white border-2 border-dashed border-gray-200 rounded-xl transition-colors group ${action.hoverColor}`}
+                  className={`
+                    relative flex flex-col items-center justify-center p-4
+                    bg-white border-2 border-dashed border-gray-200 rounded-xl
+                    transition-colors group ${action.hoverColor}
+                  `}
                 >
+                  {/* Session 16: badge dot for pending approvals */}
+                  {action.badge != null && (
+                    <span className="absolute top-2 right-2 inline-flex items-center
+                                     justify-center min-w-[1.25rem] h-5 px-1
+                                     text-xs font-bold text-white bg-blue-600 rounded-full">
+                      {action.badge > 99 ? '99+' : action.badge}
+                    </span>
+                  )}
                   <span className={`text-gray-400 mb-2 ${action.iconHover}`}>
                     {action.icon}
                   </span>
-                  <span className={`text-sm font-medium text-gray-600 ${action.labelHover}`}>
+                  <span className={`text-sm font-medium text-gray-600 text-center ${action.labelHover}`}>
                     {action.label}
                   </span>
                 </Link>
