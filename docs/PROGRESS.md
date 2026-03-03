@@ -1,4 +1,315 @@
 
+# WorkLedger - Development Progress Log   **Last Updated:** March 3, 2026 — End of Session 17
+
+    **Project:** WorkLedger — Multi-Industry Work Reporting Platform
+    **Developer:** Eff (Solo Developer)
+    **Started:** January 25, 2026
+
+    ---
+
+    ## 📊 OVERALL STATUS
+
+    | Phase | Description | Status |
+    |-------|-------------|--------|
+    | Phase 0 | Project Setup & Database Foundation | ✅ Complete |
+    | Phase 1 | Core CRUD (Orgs, Projects, Contracts, Templates, Work Entries) | ✅ Complete |
+    | Phase 2A | Multi-Tenancy Foundation | ✅ Complete |
+    | Phase 2B | Role System (7 roles, RBAC, Permissions) | ✅ Complete |
+    | Phase 2C | User Management UI | ✅ Complete |
+    | Phase 2D | Quick Entry / WhatsApp Workflow | ✅ Complete |
+    | Phase 2E | Multi-Template per Contract (Junction Table) | ✅ Complete |
+    | Phase 2F | Subcontractor Management (MTSB ↔ FEST ENT) | ✅ Complete |
+    | Phase 2G | Approval Workflow + Audit Log | ✅ Complete |
+    | Phase 2H | Reporting & PDF Enhancements | ✅ Complete |
+    | Phase 3A | Offline-First (IndexedDB + PWA) | 🔥 Session 18 — NEXT |
+    | Phase 3B | Email Notifications (Approval Alerts) | 🔥 Session 18 — NEXT |
+    | Phase 4 | Client Onboarding Wizard | ⏸ Future |
+
+    ---
+
+    ## SESSION HISTORY
+
+    ---
+
+    ### Sessions 1–7: Foundation & Database Setup ✅
+    **Date:** January 25, 2026
+
+    - Project scaffolding (Vite, React 18, Tailwind, Supabase)
+    - Authentication (login, register, logout, protected routes)
+    - Database Phase 0: 8 core tables, 50+ RLS policies
+    - 8 Malaysian contract templates (PMC, CMC, AMC, SLA, Corrective, Emergency, T&M, Construction)
+    - AuthContext, ProtectedRoute
+
+    ---
+
+    ### Session 8: Organizations & Dashboard ✅
+    **Date:** January 29, 2026
+
+    - `organizationService.js` — full CRUD
+    - `StatsCard.jsx`, `RecentActivity.jsx` dashboard components
+    - `Dashboard.jsx` — live stats
+    - Organization List / New / Settings pages
+
+    ---
+
+    ### Session 9: Multi-Tenancy Foundation ✅
+    **Date:** February 20, 2026
+
+    - Migration 022–024: global_role, organization_id on work_entries, full RLS rewrite
+    - OrganizationContext — org switching for BJ staff
+    - 5 clean test organizations created
+    - Data isolation verified
+
+    ---
+
+    ### Session 10: Contracts + Org Switching ✅
+    **Date:** February 20, 2026
+
+    - contractService full CRUD (8 contract types)
+    - OrganizationContext + org switcher UI
+    - All services updated with `orgId` param pattern
+
+    ---
+
+    ### Session 11: Role System (RBAC) ✅
+    **Date:** February 20, 2026
+
+    - Migration 026: org_members.role expanded to 7 roles
+    - Permission matrix (RBAC) — 30+ named permissions
+    - PermissionGuard component + RouteGuard
+    - Permission-aware navigation (role-filtered sidebar)
+
+    ---
+
+    ### Session 12: User Management UI ✅
+    **Date:** February 21, 2026
+
+    - Migration 027: find_user_by_email RPC
+    - `userService.js` — invite, list, change role, remove
+    - UserList page + InviteUser page + ChangeRoleModal
+    - FEST ENT fully staffed: 5 members across 4 roles
+
+    ---
+
+    ### Session 13: Quick Entry / WhatsApp Workflow ✅
+    **Date:** February 21, 2026
+
+    - `QuickEntryForm.jsx` — BJ staff data entry on behalf of Mr. Roz
+    - Entry source tracking (staff vs direct)
+    - `/admin/quick-entry` route guarded by BJ staff permissions
+
+    ---
+
+    ### Session 14: Work Entry Forms (Template-Driven) ✅
+    **Date:** February 22, 2026
+
+    - `DynamicForm.jsx` — renders all 17 field types from template JSON
+    - `WorkEntryForm.jsx` — create/edit work entry with full validation
+    - contract_templates junction table (many-to-many)
+    - Photo attachment upload (Supabase Storage)
+
+    ---
+
+    ### Session 15: Subcontractor Management ✅
+    **Date:** February 24–26, 2026
+
+    - Migrations 028–029f: org_type, subcontractor_relationships, cross-org RLS,
+    performing_org_id on contracts, activity_logs, DELETE ownership guard
+    - `subcontractorService.js` — full relationship CRUD
+    - SubcontractorList + AddSubcontractorModal components
+    - WorkEntryListPage — Internal / Subcontractor / All tabs
+    - MTSB can see FEST ENT entries; FEST ENT cannot see MTSB internal entries
+    - 7 bugs fixed including: FEST ENT couldn't see MTSB contracts, super_admin
+    orphaned from org_members, MTSB could delete FEST ENT entries
+
+    ---
+
+    ### Session 16: Approval Workflow ✅
+    **Date:** March 1, 2026
+
+    - Migration 030: approval columns on work_entries
+    (`submitted_at/by`, `approved_at/by/remarks`, `rejected_at/by/reason`)
+    - Migration 031: `reject_entry_history` table — append-only permanent audit log
+    with `rejection_count`, `entry_data_snapshot` (JSONB), 5 indexes
+    - New components: `ApprovalBadge`, `ApprovalActions`, `ApprovalHistory`,
+    `PendingApprovalList`
+    - `ApprovalsPage.jsx` — `/work/approvals`, manager queue with approve/reject modals
+    - Sidebar pending count badge (live, refreshes every 30s)
+    - MTSB org isolation enforced — MTSB cannot approve FEST ENT entries
+    - Full lifecycle tested: submit → approve / reject → edit → resubmit → approve
+
+    **Key lessons:**
+    - PostgREST cannot join `auth.users` directly — always resolve names via
+    `user_profiles` (public schema) in a second-pass query
+    - `reject_entry_history` is the permanent record; `work_entries.rejected_*`
+    is current state only — never conflate the two
+    - Route ordering critical: `/work/approvals` must precede `/work/:id`
+
+    ---
+
+    ### Session 17: Reporting & PDF Enhancements ✅
+    **Date:** March 2–3, 2026
+
+    #### Priority 1 — PDF Approval Status
+    - `reportService.fetchWorkEntries()` — second-pass `user_profiles` query now
+    resolves `approved_by` + `rejected_by` names in one round-trip
+    - `reportService.getRejectionAnalytics()` — new method querying
+    `reject_entry_history` for 5 datasets (summary, byTechnician, topReasons,
+    repeatEntries, weeklyTrend)
+    - `GenerateReport.jsx` — "Approved entries only" checkbox + green info banner
+    when filter active
+    - `ReportGenerator.jsx` — approval stamp rendered on each entry card;
+    `approvedOnly` prop filters entries in JavaScript after fetch (preserves
+    accurate empty state messaging); `key={...approvedOnly}` forces remount
+    on toggle
+
+    #### Priority 2 — MTSB Consolidated Report
+    - `ConsolidatedReport.jsx` (new, 758 lines) — `/reports/consolidated`
+    - `Promise.all` parallel fetch: MTSB internal + each subcon org separately
+    - Summary stat cards (7 stats) + sectioned tables (blue = internal,
+    orange = subcontractor)
+    - jsPDF + AutoTable PDF: summary table → MTSB section → FEST ENT section →
+    page numbers
+    - Guard: if org has no active subcon relationships → amber empty state with
+    link to `/subcontractors`
+    - Permission: `NAV_SUBCONTRACTORS` in Sidebar (MTSB only sees this nav item)
+
+    #### Priority 3 — Rejection Analytics
+    - `RejectionAnalytics.jsx` (new, 494 lines) — `/reports/rejections`
+    - Period selector: 7d / 30d / 90d preset + Custom date range (explicit Apply)
+    - Pure CSS bar charts (Tailwind) — no charting library, works offline
+    - 5 display sections: stat cards, weekly trend, rejections per technician,
+    top rejection reasons, repeat offenders table
+    - Zero state: green celebration banner when no rejections in period
+    - Permission: `APPROVE_WORK_ENTRY` (managers only)
+
+    #### Priority 4 — Error Boundary
+    - `ErrorBoundary.jsx` already existed (January 29) — no changes needed
+    - `AppLayout.jsx` updated: `<ErrorBoundary>` now wraps `<main>` only
+    (header + sidebar survive a page crash; navigation always works)
+
+    #### Supporting files updated
+    - `routes.js` — `REPORT_CONSOLIDATED`, `REPORT_REJECTIONS` constants
+    - `router.jsx` — 2 imports + 2 routes (before `/reports/layouts/:id` block)
+    - `Sidebar.jsx` — Consolidated (`NAV_SUBCONTRACTORS`) + Rejections
+    (`APPROVE_WORK_ENTRY`) nav items
+
+    **Key lessons:**
+    - Consolidated report uses `Promise.all` for parallel org fetches —
+    significantly faster than sequential queries
+    - jsPDF + AutoTable is the right tool for summary/tabular PDFs;
+    the existing template-driven pdfService is for per-entry detail reports
+    - `import 'jspdf-autotable'` must be a side-effect import (no named exports)
+
+    ---
+
+    ## 🗄️ DATABASE MIGRATION LOG
+
+    ```
+    001–021  Core schema + RLS + templates (Sessions 1–8)
+    022      global_role on user_profiles
+    023      organization_id on work_entries + trigger
+    024      Full RLS rewrite for org isolation
+    025      5 clean test orgs
+    026      org_members.role expanded to 7 roles
+    027      find_user_by_email RPC
+    028      org_type + subcontractor_relationships table
+    029–029f Cross-org RLS, contract roles, activity_logs (Session 15)
+    030      Approval workflow columns on work_entries (Session 16)
+    031      reject_entry_history table (Session 16)
+    ```
+    *No new migrations in Session 17 — all reporting is read-only SELECT.*
+
+    ---
+
+    ## 📋 TEST USERS REFERENCE
+
+    | Email | Role | Org |
+    |-------|------|-----|
+    | effort.edutech@gmail.com (Eff) | super_admin | All (via switcher) |
+    | fazrul.owner@test.com | org_owner | FEST ENT |
+    | hafiz.admin@test.com | org_admin | FEST ENT |
+    | roslan.manager@test.com | manager | FEST ENT |
+    | amirul.tech@test.com | technician | FEST ENT |
+    | khairul.sub@test.com | subcontractor | FEST ENT |
+    | mtsb.admin@test.com | org_admin | MTSB |
+    | (2 more MTSB users) | — | MTSB |
+
+    ---
+
+    ## 📊 BUSINESS MODEL
+
+    | Tier | Price | Target |
+    |------|-------|--------|
+    | Small (1-5 users) | RM 100/month | Mr. Roz |
+    | Medium (6-20 users) | RM 300/month | FEST ENT |
+    | Large (21+ users) | RM 800/month | MTSB |
+    | **Target** | **RM 5,000/month** | **By Month 6** |
+
+    ---
+
+    ## 📝 DECISION LOG
+
+    | Date | Decision |
+    |------|----------|
+    | Feb 18, 2026 | Strategic Pivot → multi-client service platform |
+    | Feb 20, 2026 | `global_role` for platform identity, `org_members.role` for per-org identity |
+    | Feb 20, 2026 | DB trigger auto-propagates `organization_id` on INSERT |
+    | Feb 21, 2026 | `orgId` param pattern for all services — backward compatible |
+    | Feb 21, 2026 | `useCallback([orgId])` pattern — clean re-fetch on org switch |
+    | Feb 21, 2026 | Technicians see Projects + Contracts nav (read-only) |
+    | Feb 21, 2026 | Test users via Supabase Dashboard only (GoTrue hashing incompatibility) |
+    | Feb 22, 2026 | contract_templates junction table (many-to-many) |
+    | Feb 24, 2026 | subcontractor_relationships + performing_org_id on contracts |
+    | Feb 26, 2026 | Platform staff never in org_members — org switcher is their access method |
+    | Feb 26, 2026 | DynamicForm onChange must be called outside setState updater (React rule) |
+    | Mar 1, 2026  | reject_entry_history is append-only permanent audit (no UPDATE/DELETE) |
+    | Mar 1, 2026  | resubmitWorkEntry must NOT clear rejected_* fields (timeline audit trail) |
+    | Mar 1, 2026  | created_by cross-schema join removed from getPendingApprovals (PostgREST limitation) |
+    | Mar 1, 2026  | Route ordering: literal paths before :id params is critical in Router.jsx |
+    | Mar 3, 2026  | Consolidated report uses Promise.all parallel fetch per org (not .in() filter) |
+    | Mar 3, 2026  | jsPDF AutoTable for summary PDFs; pdfService for per-entry detail PDFs |
+    | Mar 3, 2026  | approvedOnly filter applied in JS after fetch (accurate empty state messaging) |
+    | Mar 3, 2026  | ErrorBoundary scoped to <main> only — header+sidebar survive page crash |
+
+    ---
+
+    ## ⚠️ KNOWN REMAINING GAPS
+
+    | Gap | Priority | Notes |
+    |-----|----------|-------|
+    | **Offline-First (IndexedDB + PWA)** | 🔴 High | Session 18 — NEXT |
+    | **Email notifications (approval alerts)** | 🔴 High | Session 18 — NEXT |
+    | Mr. Roz has 0 members | 🟡 Medium | Add via UI before real demo |
+    | Client Onboarding Wizard | 🟡 Medium | Future session |
+    | Loading skeletons | 🟢 Low | Some pages flash empty state briefly |
+
+    ---
+
+    ## 🚀 NEXT SESSION — Session 18: Offline-First + Email Notifications
+
+    **Focus 1 — Offline-First (IndexedDB + PWA):**
+    - `src/services/offline/db.js` — Dexie schema
+    - `src/context/OfflineContext.jsx` — isOnline state + sync status
+    - `src/services/offline/syncService.js` — push/pull sync engine
+    - `src/components/common/OfflineIndicator.jsx` — banner when offline
+    - `vite.config.js` + Workbox — service worker + PWA manifest
+    - Update `workEntryService.js` — save to IndexedDB first, then sync
+
+    **Focus 2 — Email Notifications:**
+    - Supabase Database Webhook → Edge Function → Resend API (free: 3,000/month)
+    - Trigger: `work_entries` INSERT/UPDATE where status = 'submitted'
+    - Recipients: all managers + org_admin in that org
+    - Email: entry date, technician name, contract, direct link to `/work/approvals`
+
+    ---
+
+    *Alhamdulillah — 17 sessions complete.*
+    *Platform is feature-complete for all 3 client scenarios.*
+    *Phase 3 (Offline-First + Notifications) next — critical for real field use.*
+
+    *Last updated: March 3, 2026 — Eff (Solo Developer)*
+
 # WorkLedger - Development Progress Log **Last Updated:** March 1, 2026 — End of Session 16
 
     ---

@@ -20,6 +20,14 @@
  *   - Shows live pending count badge, refreshed every 30 seconds
  *   - Positioned directly under Work Entries in the nav list
  *
+ * SESSION 17 UPDATE: Two new report nav items added.
+ *   - Consolidated Report (path: /reports/consolidated)
+ *       Permission: NAV_SUBCONTRACTORS — only main contractors (MTSB) see this
+ *       Positioned under Reports item
+ *   - Rejection Analytics (path: /reports/rejections)
+ *       Permission: APPROVE_WORK_ENTRY — managers and above
+ *       Positioned under Consolidated Report
+ *
  * Role visibility summary:
  *   super_admin / bina_jaya_staff  → all items (incl. Quick Entry)
  *   org_owner / org_admin          → all standard items + Approvals (no Quick Entry)
@@ -32,6 +40,7 @@
  * @updated February 21, 2026 - Session 11: Role-filtered nav items
  * @updated February 21, 2026 - Session 13: Quick Entry added; `to:` → `path:` fix
  * @updated February 27, 2026 - Session 16: Approvals nav item + pending badge
+ * @updated March 2, 2026    - Session 17: Consolidated Report + Rejection Analytics nav items
  */
 
 import React, { useState, useEffect } from 'react';
@@ -169,6 +178,36 @@ export function Sidebar({ isCollapsed = false }) {
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+    },
+
+    // ── Session 17: Consolidated Report — main contractors only ──────────
+    // NAV_SUBCONTRACTORS permission ensures only orgs with linked subcontractors
+    // (e.g. MTSB) see this item. FEST ENT managers will NOT see it.
+    {
+      label:      'Consolidated',
+      path:       ROUTES.REPORT_CONSOLIDATED,
+      permission: 'NAV_SUBCONTRACTORS',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      ),
+    },
+
+    // ── Session 17: Rejection Analytics — managers and above ─────────────
+    // Same permission as Approvals (APPROVE_WORK_ENTRY) — only those who
+    // can approve/reject entries should see the analytics about rejections.
+    {
+      label:      'Rejections',
+      path:       ROUTES.REPORT_REJECTIONS,
+      permission: 'APPROVE_WORK_ENTRY',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       ),
     },

@@ -12,7 +12,6 @@
  * @updated February 21, 2026 - Session 12: Added USERS, USER_INVITE
  * @updated February 21, 2026 - Session 13: Added QUICK_ENTRY
  * @updated February 27, 2026 - Session 16: Added WORK_ENTRY_APPROVALS
- * @updated March 2, 2026    - Session 17: Added REPORT_CONSOLIDATED, REPORT_REJECTIONS
  */
 
 /**
@@ -74,9 +73,6 @@ export const PROTECTED_ROUTES = {
   REPORT_MONTHLY:  '/reports/monthly',
   REPORT_SLA:      '/reports/sla',
   REPORT_CUSTOM:   '/reports/custom',
-  // ⚠️ Session 17: literal paths — must precede /reports/layouts/:id in Router.jsx
-  REPORT_CONSOLIDATED: '/reports/consolidated', // MTSB main contractor combined report
-  REPORT_REJECTIONS:   '/reports/rejections',   // Rejection analytics (managers only)
 
   // ── Report Layouts (Session 6) ───────────────────────────
   REPORT_LAYOUTS:       '/reports/layouts',

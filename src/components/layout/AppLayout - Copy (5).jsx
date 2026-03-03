@@ -7,16 +7,9 @@
  *   - Persistent orange sub-banner: "Staff View — data belongs to [Org]"
  *   - Regular users (MTSB, FEST ENT) see NO switcher — only their org name
  *
- * SESSION 17 UPDATE — ErrorBoundary wraps <main> content:
- *   - If any page component throws, the error is caught and a friendly
- *     fallback UI is shown (Try Again / Go Home buttons)
- *   - Header + Sidebar remain fully functional during a page crash
- *   - ErrorBoundary is scoped to <main> only — not the whole layout
- *
  * @module components/layout/AppLayout
  * @created January 29, 2026
  * @updated February 26, 2026 - Session 15: Org switcher + staff banner
- * @updated March 2, 2026    - Session 17: ErrorBoundary wraps main content
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -27,7 +20,6 @@ import { ROUTES } from '../../constants/routes';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import Breadcrumb from '../common/Breadcrumb';
-import ErrorBoundary from '../common/ErrorBoundary';
 
 export function AppLayout({ children }) {
   const navigate = useNavigate();
@@ -231,19 +223,13 @@ export function AppLayout({ children }) {
           )}
         </header>
 
-        {/* ── Main Content ─────────────────────────────────────────────
-            Wrapped in ErrorBoundary (Session 17) so any page-level crash
-            shows a friendly fallback while header + sidebar stay intact.
-            The boundary is scoped to <main> only — navigation always works.
-        ───────────────────────────────────────────────────────────── */}
-        <ErrorBoundary>
-          <main className="flex-1 overflow-y-auto">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6">
-              <Breadcrumb />
-              {children}
-            </div>
-          </main>
-        </ErrorBoundary>
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6">
+            <Breadcrumb />
+            {children}
+          </div>
+        </main>
 
         <footer className="hidden md:block border-t border-gray-200 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

@@ -17,10 +17,22 @@
  *   3. Report Options (Orientation, Page Size, Output)
  *   4. Preview + Generate PDF buttons (NEW)
  * 
+ * SESSION 17 CHANGES:
+ *   - Accepts approvedOnly prop from GenerateReport page
+ *   - loadData() now selects approved_by, approved_at, rejected_by, rejection_reason
+ *     so that approval metadata is available for display and stamp generation
+ *   - After loading, entries are filtered to status === 'approved' when
+ *     approvedOnly is true. Draft/submitted/rejected entries are hidden.
+ *   - Approval stamp row renders below the template name in each entry card:
+ *       ✅ Approved by Roslan — 1 Mar 2026
+ *   - Empty state message adapts when the filter is active but no approved
+ *     entries exist for the contract
+ *
  * @module components/reports/ReportGenerator
  * @created February 5, 2026 - Session 18
  * @updated February 6, 2026 - Per-entry granular field selection
  * @updated February 12, 2026 - Report System Upgrade - Layout Selection + Preview
+ * @updated March 2, 2026   - Session 17: approvedOnly filter + approval stamp
  */
 
 import React, { useState, useEffect } from 'react';
@@ -33,7 +45,7 @@ import ReportPreview from './ReportPreview';
 import LayoutSelector from './LayoutSelector';
 import PrintPreview from './PrintPreview';
 
-export default function ReportGenerator({ contractId, onReportGenerated }) {
+export default function ReportGenerator({ contractId, approvedOnly = false, onReportGenerated }) {
   // ============================================
   // STATE
   // ============================================
@@ -109,21 +121,68 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
 
       setContract(contractData);
       
-      // Load work entries WITH template (for field labels)
-      // work_entries.template_id is a direct FK — this join is still valid
+      // Load work entries WITH template (for field labels) and approval metadata
+      // work_entries.template_id is a direct FK — this join is still valid.
+      //
+      // SESSION 17: Added approved_by, approved_at, rejected_by, rejection_reason
+      // so each entry card can display an approval stamp and so the approvedOnly
+      // filter can operate correctly in JS after the fetch.
+      // NOTE: We query ALL statuses including 'rejected' so the list is complete
+      // when approvedOnly=false. The JS filter below then narrows it.
       const { data: entriesData, error: entriesError } = await supabase
         .from('work_entries')
         .select(`
           *,
+          approved_by,
+          approved_at,
+          approval_remarks,
+          rejected_by,
+          rejected_at,
+          rejection_reason,
           template:templates(id, template_name, fields_schema, pdf_layout, default_layout_id)
         `)
         .eq('contract_id', contractId)
-        .in('status', ['draft', 'submitted', 'approved'])
+        .in('status', ['draft', 'submitted', 'approved', 'rejected'])
         .order('entry_date', { ascending: false })
         .limit(50);
       
       if (entriesError) throw entriesError;
-      setWorkEntries(entriesData || []);
+
+      // Resolve approver names from user_profiles in one second-pass query.
+      // We NEVER join auth.users directly — user_profiles is the correct source.
+      const allEntries = entriesData || [];
+      const approverIds = [
+        ...new Set(
+          allEntries.flatMap(e => [e.approved_by, e.rejected_by].filter(Boolean))
+        )
+      ];
+
+      if (approverIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('user_profiles')
+          .select('id, full_name')
+          .in('id', approverIds);
+
+        const profileMap = {};
+        (profiles || []).forEach(p => { profileMap[p.id] = p; });
+
+        allEntries.forEach(entry => {
+          entry._approved_by_name = entry.approved_by
+            ? (profileMap[entry.approved_by]?.full_name || 'Unknown')
+            : null;
+          entry._rejected_by_name = entry.rejected_by
+            ? (profileMap[entry.rejected_by]?.full_name || 'Unknown')
+            : null;
+        });
+      }
+
+      // SESSION 17: Apply approvedOnly filter in JS so the prop from
+      // GenerateReport controls what entries appear in this component.
+      const filtered = approvedOnly
+        ? allEntries.filter(e => e.status === 'approved')
+        : allEntries;
+
+      setWorkEntries(filtered);
       
     } catch (err) {
       console.error('❌ Failed to load data:', err);
@@ -551,8 +610,20 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
             <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <p className="font-medium">No work entries found</p>
-            <p className="text-sm mt-1">Create work entries for this contract to generate reports.</p>
+            {approvedOnly ? (
+              <>
+                <p className="font-medium">No approved entries found</p>
+                <p className="text-sm mt-1">
+                  There are no approved work entries for this contract yet.
+                  Turn off the "Approved entries only" filter to see all entries.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-medium">No work entries found</p>
+                <p className="text-sm mt-1">Create work entries for this contract to generate reports.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -599,6 +670,7 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
                         <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           entry.status === 'approved' ? 'bg-green-100 text-green-800' :
                           entry.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
+                          entry.status === 'rejected'  ? 'bg-red-100 text-red-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {entry.status}
@@ -607,6 +679,26 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
                       {entry.template && (
                         <p className="text-sm text-gray-600 mt-0.5">
                           {entry.template.template_name}
+                        </p>
+                      )}
+                      {/* SESSION 17: Approval stamp — shown when entry is approved */}
+                      {entry.status === 'approved' && entry._approved_by_name && (
+                        <p className="text-xs text-green-700 font-medium mt-1">
+                          ✅ Approved by {entry._approved_by_name}
+                          {entry.approved_at
+                            ? ` — ${new Date(entry.approved_at).toLocaleDateString('en-GB', {
+                                day: '2-digit', month: 'short', year: 'numeric'
+                              })}`
+                            : ''
+                          }
+                        </p>
+                      )}
+                      {/* Rejection note — shown when entry was previously rejected (now resubmitted or re-approved) */}
+                      {entry.rejection_reason && entry.status !== 'rejected' && (
+                        <p className="text-xs text-amber-600 mt-0.5">
+                          ⚠️ Previously rejected: {entry.rejection_reason.length > 60
+                            ? entry.rejection_reason.substring(0, 60) + '…'
+                            : entry.rejection_reason}
                         </p>
                       )}
                     </div>
@@ -724,7 +816,7 @@ export default function ReportGenerator({ contractId, onReportGenerated }) {
         {/* Selection Summary */}
         <div className="mt-4 flex items-center justify-between">
           <span className="text-sm text-gray-600">
-            {selectedEntryIds.length} of {workEntries.length} entries selected
+            {selectedEntryIds.length} of {workEntries.length}{approvedOnly ? ' approved' : ''} entries selected
           </span>
           {hasSelection && (
             <span className="text-xs text-primary-600 font-medium">

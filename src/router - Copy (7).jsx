@@ -29,7 +29,6 @@
  * @updated February 23, 2026 - Session 12: RouteGuard applied to all routes
  * @updated February 24, 2026 - Session 15: SubcontractorList route added
  * @updated February 27, 2026 - Session 16: ApprovalsPage added before /work/:id
- * @updated March 2, 2026    - Session 17: ConsolidatedReport + RejectionAnalytics added
  */
 
 import { createBrowserRouter, Navigate } from 'react-router-dom';
@@ -79,8 +78,6 @@ import ApprovalsPage from './pages/workEntries/ApprovalsPage';      // Session 1
 // Pages - Reports
 import ReportHistory from './pages/reports/ReportHistory';
 import GenerateReport from './pages/reports/GenerateReport';
-import ConsolidatedReport from './pages/reports/ConsolidatedReport'; // Session 17
-import RejectionAnalytics from './pages/reports/RejectionAnalytics'; // Session 17
 
 // Pages - Layouts
 import LayoutList from './pages/reports/layouts/LayoutList';
@@ -272,17 +269,6 @@ export const router = createBrowserRouter([
   {
     path: ROUTES.REPORT_GENERATE,
     element: guarded('NAV_REPORTS', GenerateReport),
-  },
-  // ── Session 17: Consolidated + Rejections ───────────────────────────────
-  // ⚠️ These are LITERAL paths and must stay ABOVE /reports/layouts/:id
-  //    to prevent the :id param swallowing 'consolidated' or 'rejections'.
-  {
-    path: ROUTES.REPORT_CONSOLIDATED,
-    element: guarded('NAV_REPORTS', ConsolidatedReport),
-  },
-  {
-    path: ROUTES.REPORT_REJECTIONS,
-    element: guarded('APPROVE_WORK_ENTRY', RejectionAnalytics),
   },
 
   // ══════════════════════════════════════════════════════
