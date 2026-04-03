@@ -18,11 +18,15 @@
  *   - Placed outside max-w-7xl container so it stretches edge-to-edge
  *   - Invisible when online and idle (zero layout impact)
  *
+ * SESSION 18 UPDATE — PWAInstallButton:
+ *   - Appears when browser supports beforeinstallprompt
+ *   - Hidden once installed
+ *
  * @module components/layout/AppLayout
  * @created January 29, 2026
  * @updated February 26, 2026 - Session 15: Org switcher + staff banner
  * @updated March 2, 2026    - Session 17: ErrorBoundary wraps main content
- * @updated March 4, 2026    - Session 18: OfflineIndicator
+ * @updated March 4, 2026    - Session 18: OfflineIndicator + PWAInstallButton
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -35,6 +39,7 @@ import BottomNav from './BottomNav';
 import Breadcrumb from '../common/Breadcrumb';
 import ErrorBoundary from '../common/ErrorBoundary';
 import OfflineIndicator from '../common/OfflineIndicator';
+import PWAInstallButton from '../common/PWAInstallButton';
 
 export function AppLayout({ children }) {
   const navigate = useNavigate();
@@ -42,10 +47,9 @@ export function AppLayout({ children }) {
   const { allOrgs, currentOrg, isBinaJayaStaff, switchOrganization } = useOrganization();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [orgDropdownOpen, setOrgDropdownOpen]   = useState(false);
+  const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -66,13 +70,9 @@ export function AppLayout({ children }) {
       <Sidebar isCollapsed={sidebarCollapsed} />
 
       <div className="flex-1 flex flex-col min-w-0">
-
-        {/* ── Header ─────────────────────────────────────────────────── */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex items-center h-16 gap-3">
-
-              {/* Mobile Logo */}
               <div className="flex items-center md:hidden">
                 <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">W</span>
@@ -80,7 +80,6 @@ export function AppLayout({ children }) {
                 <span className="ml-2 text-lg font-bold text-gray-900">WorkLedger</span>
               </div>
 
-              {/* Left: Toggle + Home */}
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -96,27 +95,31 @@ export function AppLayout({ children }) {
                   title="Dashboard"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                    />
                   </svg>
                 </button>
               </div>
 
-              {/* ── Centre: Org Switcher (BJ Staff / Super Admin only) ───── */}
               {isBinaJayaStaff ? (
                 <div className="flex-1 flex justify-center" ref={dropdownRef}>
                   <div className="relative">
-                    {/* Trigger button */}
                     <button
-                      onClick={() => setOrgDropdownOpen(v => !v)}
+                      onClick={() => setOrgDropdownOpen((v) => !v)}
                       className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border-2 border-amber-400 rounded-xl hover:bg-amber-100 transition-colors"
                     >
-                      {/* Eye icon */}
                       <svg className="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
                       </svg>
                       <div className="text-left">
                         <p className="text-xs text-amber-600 font-medium leading-none">BJ Staff View</p>
@@ -124,20 +127,26 @@ export function AppLayout({ children }) {
                           {currentOrg?.name ?? 'No Org Selected'}
                         </p>
                       </div>
-                      <svg className={`w-4 h-4 text-amber-500 flex-shrink-0 transition-transform duration-200 ${orgDropdownOpen ? 'rotate-180' : ''}`}
-                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg
+                        className={`w-4 h-4 text-amber-500 flex-shrink-0 transition-transform duration-200 ${orgDropdownOpen ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
 
-                    {/* Dropdown list */}
                     {orgDropdownOpen && (
                       <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
-                        {/* Header */}
                         <div className="px-4 py-3 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
                           <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                            />
                           </svg>
                           <div>
                             <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">
@@ -149,24 +158,28 @@ export function AppLayout({ children }) {
                           </div>
                         </div>
 
-                        {/* Org list */}
                         <div className="py-1 max-h-72 overflow-y-auto">
                           {allOrgs.length === 0 && (
                             <p className="px-4 py-6 text-sm text-gray-400 text-center">No organisations found</p>
                           )}
-                          {allOrgs.map(org => {
+                          {allOrgs.map((org) => {
                             const isActive = org.id === currentOrg?.id;
                             return (
                               <button
                                 key={org.id}
-                                onClick={() => { switchOrganization(org.id); setOrgDropdownOpen(false); }}
+                                onClick={() => {
+                                  switchOrganization(org.id);
+                                  setOrgDropdownOpen(false);
+                                }}
                                 className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                                   isActive ? 'bg-primary-50' : 'hover:bg-gray-50'
                                 }`}
                               >
-                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base font-bold ${
-                                  isActive ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'
-                                }`}>
+                                <div
+                                  className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base font-bold ${
+                                    isActive ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-500'
+                                  }`}
+                                >
                                   {org.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -179,7 +192,11 @@ export function AppLayout({ children }) {
                                 </div>
                                 {isActive && (
                                   <svg className="w-5 h-5 text-primary-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clipRule="evenodd"
+                                    />
                                   </svg>
                                 )}
                               </button>
@@ -191,23 +208,23 @@ export function AppLayout({ children }) {
                   </div>
                 </div>
               ) : (
-                /* Regular user: spacer only */
                 <div className="flex-1" />
               )}
 
-              {/* Right: User info + Logout */}
               <div className="flex items-center gap-3">
                 <div className="hidden sm:flex flex-col items-end">
                   <span className="text-sm font-medium text-gray-800 truncate max-w-[160px]">
                     {profile?.full_name || user?.email}
                   </span>
-                  {/* Show org for regular users */}
                   {!isBinaJayaStaff && currentOrg && (
                     <span className="text-xs text-gray-400 truncate max-w-[160px]">
                       {currentOrg.name}
                     </span>
                   )}
                 </div>
+
+                <PWAInstallButton />
+
                 <button
                   onClick={handleLogout}
                   className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
@@ -215,40 +232,27 @@ export function AppLayout({ children }) {
                   Logout
                 </button>
               </div>
-
             </div>
           </div>
 
-          {/* ── Persistent orange banner for BJ staff ──────────────────
-              Always visible — unmissable reminder of which org's data
-              is currently shown. Cannot be dismissed.
-          ───────────────────────────────────────────────────────────── */}
           {isBinaJayaStaff && currentOrg && (
             <div className="bg-amber-500 px-4 py-1 flex items-center justify-center gap-2">
               <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd"
+                <path
+                  fillRule="evenodd"
                   d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                  clipRule="evenodd" />
+                  clipRule="evenodd"
+                />
               </svg>
               <p className="text-xs text-white font-medium">
-                Staff View — Browsing data for <span className="font-bold underline">{currentOrg.name}</span>
-                {' '}· Changes here affect this organisation's real data
+                Staff View — Browsing data for <span className="font-bold underline">{currentOrg.name}</span> · Changes here affect this organisation&apos;s real data
               </p>
             </div>
           )}
         </header>
 
-        {/* ── Main Content ─────────────────────────────────────────────
-            ErrorBoundary (Session 17): catches any page-level crash,
-            shows friendly fallback while header + sidebar stay intact.
-
-            OfflineIndicator (Session 18): full-width banner OUTSIDE the
-            max-w-7xl container so it stretches edge-to-edge. Invisible
-            when online and idle — zero layout impact.
-        ───────────────────────────────────────────────────────────── */}
         <ErrorBoundary>
           <main className="flex-1 overflow-y-auto">
-            {/* Session 18: Offline status banner — full width, outside content container */}
             <OfflineIndicator />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6">
               <Breadcrumb />

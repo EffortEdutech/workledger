@@ -26,7 +26,6 @@ import { supabase } from '../supabase/client';
 import { db, SYNC_STATUS } from '../offline/db';
 
 class WorkEntryService {
-
   // ─────────────────────────────────────────────
   // READ — LIST
   // ─────────────────────────────────────────────
@@ -105,7 +104,7 @@ class WorkEntryService {
           .eq('main_contractor_org_id', orgId)
           .eq('status', 'active');
 
-        const subconOrgIds = (subconRels || []).map(r => r.subcontractor_org_id);
+        const subconOrgIds = (subconRels || []).map((r) => r.subcontractor_org_id);
 
         if (subconOrgIds.length > 0) {
           query = query.in('organization_id', [orgId, ...subconOrgIds]);
@@ -118,12 +117,12 @@ class WorkEntryService {
 
       // ── Additional filters ──
       if (filters.contractId) query = query.eq('contract_id', filters.contractId);
-      if (filters.status)     query = query.eq('status', filters.status);
-      if (filters.startDate)  query = query.gte('entry_date', filters.startDate);
-      if (filters.endDate)    query = query.lte('entry_date', filters.endDate);
+      if (filters.status) query = query.eq('status', filters.status);
+      if (filters.startDate) query = query.gte('entry_date', filters.startDate);
+      if (filters.endDate) query = query.lte('entry_date', filters.endDate);
 
       // ── Sorting ──
-      const sortBy    = filters.sortBy    || 'entry_date';
+      const sortBy = filters.sortBy || 'entry_date';
       const sortOrder = filters.sortOrder || 'desc';
       query = query.order(sortBy, { ascending: sortOrder === 'asc' });
 
@@ -137,18 +136,17 @@ class WorkEntryService {
       console.log(`✅ Fetched ${data.length} work entries`);
 
       // SESSION 18: Cache to IndexedDB for offline use (fire-and-forget)
-      this._cacheWorkEntriesToLocal(data).catch(e =>
+      this._cacheWorkEntriesToLocal(data).catch((e) =>
         console.warn('⚠️ Work entry cache failed:', e.message)
       );
 
       return { success: true, data: data || [] };
-
     } catch (error) {
       console.error('❌ Error in getUserWorkEntries:', error);
 
       // SESSION 18: Offline fallback — serve from IndexedDB
       if (!navigator.onLine || error.message?.includes('Failed to fetch')) {
-        return await this._getWorkEntriesFromLocal(filters);
+        return await this._getWorkEntriesFromLocal(filters, orgId);
       }
 
       return { success: false, data: [], error: error.message };
@@ -173,7 +171,7 @@ class WorkEntryService {
           .eq('main_contractor_org_id', orgId)
           .eq('status', 'active');
 
-        const subconOrgIds = (subconRels || []).map(r => r.subcontractor_org_id);
+        const subconOrgIds = (subconRels || []).map((r) => r.subcontractor_org_id);
 
         if (subconOrgIds.length > 0) {
           query = query.in('organization_id', [orgId, ...subconOrgIds]);
@@ -267,7 +265,6 @@ class WorkEntryService {
 
       console.log('✅ Fetched work entry:', data.id);
       return { success: true, data };
-
     } catch (error) {
       console.error('❌ Error in getWorkEntry:', error);
       return { success: false, data: null, error: error.message };
@@ -302,12 +299,12 @@ class WorkEntryService {
         flat = contractIdOrFlat;
       } else {
         flat = {
-          contract_id:  contractIdOrFlat,
-          template_id:  templateId,
-          entry_date:   entryData?.entry_date,
-          shift:        entryData?.shift,
-          data:         entryData?.data,
-          status:       entryData?.status || 'draft',
+          contract_id: contractIdOrFlat,
+          template_id: templateId,
+          entry_date: entryData?.entry_date,
+          shift: entryData?.shift,
+          data: entryData?.data,
+          status: entryData?.status || 'draft',
         };
       }
 
@@ -317,16 +314,16 @@ class WorkEntryService {
       if (userError || !user) throw new Error('User not authenticated');
 
       const payload = {
-        contract_id:  flat.contract_id,
-        template_id:  flat.template_id  || null,
-        entry_date:   flat.entry_date   || new Date().toISOString().split('T')[0],
-        shift:        flat.shift        || null,
-        data:         flat.data         || {},
-        status:       flat.status       || 'draft',
+        contract_id: flat.contract_id,
+        template_id: flat.template_id || null,
+        entry_date: flat.entry_date || new Date().toISOString().split('T')[0],
+        shift: flat.shift || null,
+        data: flat.data || {},
+        status: flat.status || 'draft',
         submitted_at: flat.submitted_at || null,
-        created_by:   user.id,
-        created_at:   new Date().toISOString(),
-        updated_at:   new Date().toISOString(),
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
         // organization_id auto-set by DB trigger (migration 023) — do NOT pass
       };
 
@@ -335,7 +332,7 @@ class WorkEntryService {
       try {
         localId = await db.workEntries.add({
           ...payload,
-          remoteId:    null,
+          remoteId: null,
           sync_status: SYNC_STATUS.PENDING,
         });
         console.log('💾 Saved to IndexedDB locally (localId:', localId, ')');
@@ -356,7 +353,7 @@ class WorkEntryService {
             // Update the local IndexedDB record with the Supabase UUID
             if (localId) {
               await db.workEntries.update(localId, {
-                remoteId:    data.id,
+                remoteId: data.id,
                 sync_status: SYNC_STATUS.SYNCED,
               });
             }
@@ -376,13 +373,13 @@ class WorkEntryService {
       if (localId) {
         try {
           await db.syncQueue.add({
-            entity_type:     'work_entry',
+            entity_type: 'work_entry',
             entity_local_id: localId,
-            action:          'create',
-            payload:         JSON.stringify(payload),
-            sync_status:     SYNC_STATUS.PENDING,
-            retry_count:     0,
-            created_at:      new Date().toISOString(),
+            action: 'create',
+            payload: JSON.stringify(payload),
+            sync_status: SYNC_STATUS.PENDING,
+            retry_count: 0,
+            created_at: new Date().toISOString(),
           });
           console.log('📋 Entry queued for sync when online');
         } catch (queueError) {
@@ -392,15 +389,14 @@ class WorkEntryService {
 
       console.log('📱 Work entry saved offline (localId:', localId, ')');
       return {
-        success:   true,
+        success: true,
         isOffline: true,
         data: {
           ...payload,
-          id:       null,
+          id: null,
           _localId: localId,
         },
       };
-
     } catch (error) {
       console.error('❌ Exception creating work entry:', error);
       return { success: false, error: error.message };
@@ -484,20 +480,20 @@ class WorkEntryService {
           });
 
           await db.syncQueue.add({
-            entity_type:     'work_entry',
+            entity_type: 'work_entry',
             entity_local_id: localEntry.localId,
-            action:          'update',
-            payload:         JSON.stringify({ id, ...updateData }),
-            sync_status:     SYNC_STATUS.PENDING,
-            retry_count:     0,
-            created_at:      new Date().toISOString(),
+            action: 'update',
+            payload: JSON.stringify({ id, ...updateData }),
+            sync_status: SYNC_STATUS.PENDING,
+            retry_count: 0,
+            created_at: new Date().toISOString(),
           });
 
           console.log('📱 Work entry updated offline (localId:', localEntry.localId, ')');
           return {
-            success:   true,
+            success: true,
             isOffline: true,
-            data:      { ...localEntry, ...updateData },
+            data: { ...localEntry, ...updateData },
           };
         }
       } catch (dbError) {
@@ -505,7 +501,6 @@ class WorkEntryService {
       }
 
       return { success: false, error: 'Could not update entry. Please try again when online.' };
-
     } catch (error) {
       console.error('❌ Exception updating work entry:', error);
       return { success: false, error: error.message };
@@ -536,7 +531,7 @@ class WorkEntryService {
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
-        .eq('status', 'draft')  // Can only submit drafts
+        .eq('status', 'draft')
         .select()
         .single();
 
@@ -547,7 +542,6 @@ class WorkEntryService {
 
       console.log('✅ Work entry submitted:', id);
       return { success: true, data };
-
     } catch (error) {
       console.error('❌ Exception submitting work entry:', error);
       return { success: false, error: error.message };
@@ -612,17 +606,17 @@ class WorkEntryService {
       // ── Audit log (non-blocking) ──────────────────────────────────
       try {
         await supabase.from('activity_logs').insert({
-          action:          'DELETE_WORK_ENTRY',
-          entity_type:     'work_entry',
-          entity_id:       id,
-          actor_user_id:   user.id,
-          actor_org_id:    callerOrgId,
-          target_org_id:   entry.organization_id,
+          action: 'DELETE_WORK_ENTRY',
+          entity_type: 'work_entry',
+          entity_id: id,
+          actor_user_id: user.id,
+          actor_org_id: callerOrgId,
+          target_org_id: entry.organization_id,
           metadata: {
-            entry_date:    entry.entry_date,
-            entry_status:  entry.status,
-            contract_id:   entry.contract_id,
-            created_by:    entry.created_by,
+            entry_date: entry.entry_date,
+            entry_status: entry.status,
+            contract_id: entry.contract_id,
+            created_by: entry.created_by,
           },
           created_at: now,
         });
@@ -633,7 +627,6 @@ class WorkEntryService {
 
       console.log('✅ Work entry deleted (soft):', id);
       return { success: true };
-
     } catch (error) {
       console.error('❌ Exception deleting work entry:', error);
       return { success: false, error: error.message };
@@ -658,9 +651,7 @@ class WorkEntryService {
   async getPendingApprovals(orgId, countOnly = false) {
     try {
       if (!orgId) {
-        return countOnly
-          ? { success: true, count: 0 }
-          : { success: true, data: [] };
+        return countOnly ? { success: true, count: 0 } : { success: true, data: [] };
       }
 
       console.log('⏳ Fetching pending approvals for org:', orgId, countOnly ? '(count only)' : '');
@@ -677,7 +668,6 @@ class WorkEntryService {
 
         console.log(`✅ Pending approvals count: ${count || 0}`);
         return { success: true, count: count || 0 };
-
       } else {
         const { data, error } = await supabase
           .from('work_entries')
@@ -704,14 +694,14 @@ class WorkEntryService {
           .eq('organization_id', orgId)
           .eq('status', 'submitted')
           .is('deleted_at', null)
-          .order('submitted_at', { ascending: true });  // oldest first
+          .order('submitted_at', { ascending: true })
+          .single;
 
         if (error) throw error;
 
         console.log(`✅ Fetched ${data?.length || 0} pending approvals`);
         return { success: true, data: data || [] };
       }
-
     } catch (error) {
       console.error('❌ getPendingApprovals failed:', error);
       return countOnly
@@ -739,14 +729,14 @@ class WorkEntryService {
       const { data, error } = await supabase
         .from('work_entries')
         .update({
-          status:           'approved',
-          approved_by:      user.id,
-          approved_at:      now,
+          status: 'approved',
+          approved_by: user.id,
+          approved_at: now,
           approval_remarks: remarks?.trim() || null,
-          updated_at:       now,
+          updated_at: now,
         })
         .eq('id', entryId)
-        .eq('status', 'submitted')               // concurrency guard
+        .eq('status', 'submitted')
         .select('id, status, organization_id, contract_id, entry_date, created_by')
         .single();
 
@@ -758,19 +748,18 @@ class WorkEntryService {
         throw new Error('Entry not found, already approved, or insufficient permissions');
       }
 
-      // Audit log (non-fatal)
       try {
         await supabase.from('activity_logs').insert({
-          action:        'APPROVE_WORK_ENTRY',
-          entity_type:   'work_entry',
-          entity_id:     entryId,
+          action: 'APPROVE_WORK_ENTRY',
+          entity_type: 'work_entry',
+          entity_id: entryId,
           actor_user_id: user.id,
-          actor_org_id:  data.organization_id,
+          actor_org_id: data.organization_id,
           metadata: {
             approval_remarks: remarks?.trim() || null,
-            entry_date:       data.entry_date,
-            contract_id:      data.contract_id,
-            technician_id:    data.created_by,
+            entry_date: data.entry_date,
+            contract_id: data.contract_id,
+            technician_id: data.created_by,
           },
           created_at: now,
         });
@@ -780,7 +769,6 @@ class WorkEntryService {
 
       console.log('✅ Work entry approved:', entryId);
       return { success: true, data };
-
     } catch (error) {
       console.error('❌ approveWorkEntry failed:', error);
       return { success: false, error: error.message };
@@ -810,18 +798,17 @@ class WorkEntryService {
 
       const now = new Date().toISOString();
 
-      // ── Step 1: Update work_entries status ───────────────────────────────
       const { data, error } = await supabase
         .from('work_entries')
         .update({
-          status:           'rejected',
-          rejected_by:      user.id,
-          rejected_at:      now,
+          status: 'rejected',
+          rejected_by: user.id,
+          rejected_at: now,
           rejection_reason: reason.trim(),
-          updated_at:       now,
+          updated_at: now,
         })
         .eq('id', entryId)
-        .eq('status', 'submitted')               // concurrency guard
+        .eq('status', 'submitted')
         .select('id, status, organization_id, contract_id, template_id, entry_date, created_by, data')
         .single();
 
@@ -833,7 +820,6 @@ class WorkEntryService {
         throw new Error('Entry not found, already processed, or insufficient permissions');
       }
 
-      // ── Step 2: Write to reject_entry_history (permanent audit log) ──────
       try {
         const { count: prevCount } = await supabase
           .from('reject_entry_history')
@@ -843,20 +829,18 @@ class WorkEntryService {
         const rejectionCount = (prevCount || 0) + 1;
 
         await supabase.from('reject_entry_history').insert({
-          work_entry_id:       entryId,
-          organization_id:     data.organization_id,
-          contract_id:         data.contract_id,
-          template_id:         data.template_id,
-          entry_date:          data.entry_date,
-          entry_created_by:    data.created_by,
-          rejected_by:         user.id,
-          rejected_at:         now,
-          rejection_reason:    reason.trim(),
-          rejection_count:     rejectionCount,
-          entry_data_snapshot: typeof data.data === 'string'
-                                 ? JSON.parse(data.data)
-                                 : (data.data || {}),
-          created_at:          now,
+          work_entry_id: entryId,
+          organization_id: data.organization_id,
+          contract_id: data.contract_id,
+          template_id: data.template_id,
+          entry_date: data.entry_date,
+          entry_created_by: data.created_by,
+          rejected_by: user.id,
+          rejected_at: now,
+          rejection_reason: reason.trim(),
+          rejection_count: rejectionCount,
+          entry_data_snapshot: typeof data.data === 'string' ? JSON.parse(data.data) : (data.data || {}),
+          created_at: now,
         });
 
         console.log(`📋 Rejection #${rejectionCount} logged to reject_entry_history`);
@@ -864,19 +848,18 @@ class WorkEntryService {
         console.warn('⚠️ Failed to write to reject_entry_history:', histError.message);
       }
 
-      // ── Step 3: Write to activity_logs (non-fatal) ────────────────────────
       try {
         await supabase.from('activity_logs').insert({
-          action:        'REJECT_WORK_ENTRY',
-          entity_type:   'work_entry',
-          entity_id:     entryId,
+          action: 'REJECT_WORK_ENTRY',
+          entity_type: 'work_entry',
+          entity_id: entryId,
           actor_user_id: user.id,
-          actor_org_id:  data.organization_id,
+          actor_org_id: data.organization_id,
           metadata: {
             rejection_reason: reason.trim(),
-            entry_date:       data.entry_date,
-            contract_id:      data.contract_id,
-            technician_id:    data.created_by,
+            entry_date: data.entry_date,
+            contract_id: data.contract_id,
+            technician_id: data.created_by,
           },
           created_at: now,
         });
@@ -886,7 +869,6 @@ class WorkEntryService {
 
       console.log('✅ Work entry rejected:', entryId);
       return { success: true, data };
-
     } catch (error) {
       console.error('❌ rejectWorkEntry failed:', error);
       return { success: false, error: error.message };
@@ -911,15 +893,15 @@ class WorkEntryService {
       const { data, error } = await supabase
         .from('work_entries')
         .update({
-          status:       'submitted',
+          status: 'submitted',
           submitted_at: now,
           submitted_by: user.id,
-          updated_at:   now,
+          updated_at: now,
           // Intentionally NOT clearing rejected_by / rejected_at / rejection_reason
           // so ApprovalHistory can display the full audit trail.
         })
         .eq('id', entryId)
-        .eq('status', 'rejected')    // only rejected entries can be resubmitted
+        .eq('status', 'rejected')
         .select('id, status')
         .single();
 
@@ -933,7 +915,6 @@ class WorkEntryService {
 
       console.log('✅ Work entry resubmitted:', entryId);
       return { success: true, data };
-
     } catch (error) {
       console.error('❌ resubmitWorkEntry failed:', error);
       return { success: false, error: error.message };
@@ -958,10 +939,11 @@ class WorkEntryService {
         const mapped = { ...entry, remoteId: entry.id, sync_status: SYNC_STATUS.SYNCED };
 
         if (existing) {
-          // Server wins on conflict
-          const serverIsNewer = !existing.updated_at
-            || (entry.updated_at && entry.updated_at > existing.updated_at);
-          if (serverIsNewer) await db.workEntries.update(existing.localId, mapped);
+          const serverIsNewer =
+            !existing.updated_at || (entry.updated_at && entry.updated_at > existing.updated_at);
+          if (serverIsNewer) {
+            await db.workEntries.update(existing.localId, mapped);
+          }
         } else {
           await db.workEntries.add(mapped);
         }
@@ -973,34 +955,40 @@ class WorkEntryService {
 
   /**
    * Fallback: load work entries from IndexedDB when Supabase is unreachable.
-   * Applies basic filters. Returns entries in reverse-chronological order.
-   * Joined contract/template data is available if entry was previously cached.
+   * Applies basic filters and optional org scoping.
    *
    * @param {Object} filters - Same filter shape as getUserWorkEntries
+   * @param {string|null} orgId - Active org ID for scoped offline fallback
    * @returns {Promise<{success: boolean, data: Array, isOffline: boolean, error?: string}>}
    */
-  async _getWorkEntriesFromLocal(filters = {}) {
+  async _getWorkEntriesFromLocal(filters = {}, orgId = null) {
     try {
       let entries = await db.workEntries
         .orderBy('entry_date')
         .reverse()
         .toArray();
 
-      // Apply available filters
-      if (filters.contractId) {
-        entries = entries.filter(e => e.contract_id === filters.contractId);
-      }
-      if (filters.status) {
-        entries = entries.filter(e => e.status === filters.status);
-      }
-      if (filters.startDate) {
-        entries = entries.filter(e => e.entry_date >= filters.startDate);
-      }
-      if (filters.endDate) {
-        entries = entries.filter(e => e.entry_date <= filters.endDate);
+      if (orgId) {
+        entries = entries.filter((e) => e.organization_id === orgId);
       }
 
-      console.log(`📱 Loaded ${entries.length} work entries from IndexedDB (offline)`);
+      if (filters.contractId) {
+        entries = entries.filter((e) => e.contract_id === filters.contractId);
+      }
+      if (filters.status) {
+        entries = entries.filter((e) => e.status === filters.status);
+      }
+      if (filters.startDate) {
+        entries = entries.filter((e) => e.entry_date >= filters.startDate);
+      }
+      if (filters.endDate) {
+        entries = entries.filter((e) => e.entry_date <= filters.endDate);
+      }
+
+      console.log(
+        `📱 Loaded ${entries.length} work entries from IndexedDB (offline${orgId ? `, org: ${orgId}` : ''})`
+      );
+
       return { success: true, data: entries, isOffline: true };
     } catch (error) {
       console.error('❌ IndexedDB fallback failed:', error);

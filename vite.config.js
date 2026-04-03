@@ -144,11 +144,17 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, './src/assets')
     }
   },
+
   server: {
-    port: 5173,
+    port: 3500,
     host: true,
     open: true
   },
+  preview: {
+    port: 3500,
+    host: true
+  },
+  
   build: {
     outDir: 'dist',
     sourcemap: true,

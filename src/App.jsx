@@ -8,10 +8,15 @@
  *     OrganizationProvider → depends on profile.global_role from AuthProvider
  *       RouterProvider     → all pages can use useOrganization() and useAuth()
  *
+ * NOTE:
+ *   Offline UI is now fully handled by:
+ *     - <OfflineProvider> in main.jsx
+ *     - <OfflineIndicator> inside AppLayout.jsx
+ *   This file should NOT render its own inline offline banner anymore.
+ *
  * @file src/App.jsx
  * @created January 29, 2026
- * @updated January 29, 2026 - Added AuthProvider
- * @updated February 20, 2026 - Session 9: Added OrganizationProvider
+ * @updated March 4, 2026 - Session 18 cleanup: removed old inline offline banner
  */
 
 import React, { useEffect } from 'react';
@@ -29,12 +34,6 @@ function App() {
     console.log('📱 WorkLedger - Contract-Aware Work Reporting Platform');
     console.log('🏢 Bina Jaya / Effort Edutech');
     console.log('📅 Build Date:', new Date().toISOString());
-
-    if (navigator.onLine) {
-      console.log('🌐 Status: Online');
-    } else {
-      console.log('📡 Status: Offline (offline-first mode active)');
-    }
 
     const features = {
       offlineSync: import.meta.env.VITE_ENABLE_OFFLINE_SYNC === 'true',
@@ -55,13 +54,6 @@ function App() {
           so it can read profile.global_role to identify Bina Jaya staff */}
       <OrganizationProvider>
         <RouterProvider router={router} />
-
-        {/* Offline Indicator */}
-        {!navigator.onLine && (
-          <div className="offline-indicator">
-            📡 Offline Mode - Changes will sync when online
-          </div>
-        )}
       </OrganizationProvider>
     </AuthProvider>
   );
