@@ -13,16 +13,10 @@
  *   - Header + Sidebar remain fully functional during a page crash
  *   - ErrorBoundary is scoped to <main> only — not the whole layout
  *
- * SESSION 18 UPDATE — OfflineIndicator inside <main>:
- *   - Full-width banner showing offline / syncing / error state
- *   - Placed outside max-w-7xl container so it stretches edge-to-edge
- *   - Invisible when online and idle (zero layout impact)
- *
  * @module components/layout/AppLayout
  * @created January 29, 2026
  * @updated February 26, 2026 - Session 15: Org switcher + staff banner
  * @updated March 2, 2026    - Session 17: ErrorBoundary wraps main content
- * @updated March 4, 2026    - Session 18: OfflineIndicator
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -34,7 +28,6 @@ import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
 import Breadcrumb from '../common/Breadcrumb';
 import ErrorBoundary from '../common/ErrorBoundary';
-import OfflineIndicator from '../common/OfflineIndicator';
 
 export function AppLayout({ children }) {
   const navigate = useNavigate();
@@ -239,17 +232,12 @@ export function AppLayout({ children }) {
         </header>
 
         {/* ── Main Content ─────────────────────────────────────────────
-            ErrorBoundary (Session 17): catches any page-level crash,
-            shows friendly fallback while header + sidebar stay intact.
-
-            OfflineIndicator (Session 18): full-width banner OUTSIDE the
-            max-w-7xl container so it stretches edge-to-edge. Invisible
-            when online and idle — zero layout impact.
+            Wrapped in ErrorBoundary (Session 17) so any page-level crash
+            shows a friendly fallback while header + sidebar stay intact.
+            The boundary is scoped to <main> only — navigation always works.
         ───────────────────────────────────────────────────────────── */}
         <ErrorBoundary>
           <main className="flex-1 overflow-y-auto">
-            {/* Session 18: Offline status banner — full width, outside content container */}
-            <OfflineIndicator />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-20 md:pb-6">
               <Breadcrumb />
               {children}

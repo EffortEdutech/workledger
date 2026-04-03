@@ -1,19 +1,15 @@
 /**
  * WorkLedger - Main Entry Point
- *
- * SESSION 18 UPDATE: Wrapped app in <OfflineProvider>.
- * Raw online/offline listeners removed — OfflineContext manages these now.
- * VitePWA handles service worker registration automatically (no manual register).
- *
+ * 
+ * Bootstraps the React application with strict mode and styles.
+ * 
  * @file src/main.jsx
  * @created January 29, 2026
- * @updated March 4, 2026 - Session 18: OfflineProvider
  */
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { OfflineProvider } from './context/OfflineContext';
 
 // Import styles
 import './styles/index.css';
@@ -35,29 +31,50 @@ console.log(`🔧 Node Environment: ${import.meta.env.MODE}`);
 // Create React root
 const root = ReactDOM.createRoot(rootElement);
 
-// Render application — OfflineProvider wraps entire app tree
+// Render application
 root.render(
   <React.StrictMode>
-    <OfflineProvider>
-      <App />
-    </OfflineProvider>
+    <App />
   </React.StrictMode>
 );
 
 // Log successful mount
 console.log('✅ WorkLedger mounted successfully');
 
-// Service worker is managed by VitePWA plugin (vite.config.js)
-// registerType: 'autoUpdate' handles registration — do NOT manually register.
+// Register service worker (if in production)
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        console.log('✅ Service Worker registered:', registration.scope);
+      })
+      .catch((error) => {
+        console.error('❌ Service Worker registration failed:', error);
+      });
+  });
+}
+
+// Detect online/offline status
+window.addEventListener('online', () => {
+  console.log('🌐 App is online');
+  // You can dispatch an event or update global state here
+});
+
+window.addEventListener('offline', () => {
+  console.log('📡 App is offline');
+  // You can dispatch an event or update global state here
+});
 
 // Log initial online status
 console.log(`🌐 Initial online status: ${navigator.onLine ? 'Online' : 'Offline'}`);
 
-// Global error handlers
+// Error boundary for unhandled errors
 window.addEventListener('error', (event) => {
   console.error('❌ Global error caught:', event.error);
 });
 
+// Unhandled promise rejections
 window.addEventListener('unhandledrejection', (event) => {
   console.error('❌ Unhandled promise rejection:', event.reason);
 });

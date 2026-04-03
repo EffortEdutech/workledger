@@ -8,22 +8,12 @@
  * optional `orgId` from OrganizationContext. When passed, queries filter
  * directly by organization_id (column added in Session 9 migration 023).
  *
- * SESSION 18 UPDATE: Offline-first writes via IndexedDB (Dexie).
- *   - createWorkEntry: saves to IndexedDB first, pushes to Supabase if online,
- *     otherwise queues in syncQueue for later sync.
- *   - updateWorkEntry: online-first with IndexedDB cache update; falls back to
- *     offline queue if Supabase is unreachable.
- *   - getUserWorkEntries: caches results to IndexedDB after each fetch; falls
- *     back to IndexedDB when offline.
- *
  * @module services/api/workEntryService
  * @created February 1, 2026 - Session 13
  * @updated February 20, 2026 - Session 10: orgId param for org switching
- * @updated March 4, 2026     - Session 18: offline-first IndexedDB integration
  */
 
 import { supabase } from '../supabase/client';
-import { db, SYNC_STATUS } from '../offline/db';
 
 class WorkEntryService {
 
@@ -37,12 +27,9 @@ class WorkEntryService {
    * For regular users: RLS limits results to their own entries + manager-visible entries.
    * For BJ staff viewing a specific org: filters by organization_id directly.
    *
-   * SESSION 18: Results are cached to IndexedDB after each successful fetch.
-   * When offline (or Supabase unreachable), falls back to IndexedDB.
-   *
    * @param {Object} filters - Optional filters (contractId, status, startDate, endDate, sortBy, sortOrder)
    * @param {string|null} orgId - From OrganizationContext. Pass null for own-org behaviour.
-   * @returns {Promise<{success: boolean, data: Array, error: string|null, isOffline?: boolean}>}
+   * @returns {Promise<{success: boolean, data: Array, error: string|null}>}
    */
   async getUserWorkEntries(filters = {}, orgId = null) {
     try {
@@ -98,7 +85,12 @@ class WorkEntryService {
       // ── Org filter ──────────────────────────────────────────────────
       // SESSION 15 FIX: When orgId is supplied (main contractor like MTSB),
       // we must ALSO include entries from linked subcontractor orgs.
+      // Without this: MTSB fetches 4 entries via RLS (which allows it)
+      // but the .eq('organization_id', MTSB) kills FEST ENT entries.
+      //
+      // Strategy: look up active subcon org IDs, then .in() all of them.
       if (orgId) {
+        // Find subcontractor org IDs for this org (if any)
         const { data: subconRels } = await supabase
           .from('subcontractor_relationships')
           .select('subcontractor_org_id')
@@ -108,9 +100,11 @@ class WorkEntryService {
         const subconOrgIds = (subconRels || []).map(r => r.subcontractor_org_id);
 
         if (subconOrgIds.length > 0) {
+          // Main contractor: include own entries + all subcon org entries
           query = query.in('organization_id', [orgId, ...subconOrgIds]);
           console.log(`🔗 Including subcontractor entries from ${subconOrgIds.length} orgs`);
         } else {
+          // Regular org or subcontractor itself: only own entries
           query = query.eq('organization_id', orgId);
         }
       }
@@ -135,22 +129,10 @@ class WorkEntryService {
       }
 
       console.log(`✅ Fetched ${data.length} work entries`);
-
-      // SESSION 18: Cache to IndexedDB for offline use (fire-and-forget)
-      this._cacheWorkEntriesToLocal(data).catch(e =>
-        console.warn('⚠️ Work entry cache failed:', e.message)
-      );
-
       return { success: true, data: data || [] };
 
     } catch (error) {
       console.error('❌ Error in getUserWorkEntries:', error);
-
-      // SESSION 18: Offline fallback — serve from IndexedDB
-      if (!navigator.onLine || error.message?.includes('Failed to fetch')) {
-        return await this._getWorkEntriesFromLocal(filters);
-      }
-
       return { success: false, data: [], error: error.message };
     }
   }
@@ -167,6 +149,7 @@ class WorkEntryService {
         .is('deleted_at', null);
 
       if (orgId) {
+        // Include subcontractor org entries for main contractors
         const { data: subconRels } = await supabase
           .from('subcontractor_relationships')
           .select('subcontractor_org_id')
@@ -280,11 +263,15 @@ class WorkEntryService {
 
   /**
    * Create a new work entry.
+   * NOTE: organization_id is auto-set by DB trigger (migration 023).
+   * No need to pass it from frontend.
    *
-   * SESSION 18 — Offline-first pattern:
-   *   1. Save to IndexedDB immediately (always succeeds instantly)
-   *   2. If online → push to Supabase, update local record with remoteId
-   *   3. If offline → add to syncQueue for later push
+   * @param {string} contractId
+   * @param {string} templateId
+   * @param {Object} entryData - { entry_date, shift, data }
+   */
+  /**
+   * Create a new work entry.
    *
    * Accepts EITHER a flat object OR three separate arguments (backward-compat).
    *
@@ -299,8 +286,10 @@ class WorkEntryService {
       // ── Normalise to flat object ──────────────────────────────────
       let flat;
       if (contractIdOrFlat !== null && typeof contractIdOrFlat === 'object') {
+        // Called with a flat object — NewWorkEntry.jsx style
         flat = contractIdOrFlat;
       } else {
+        // Called with 3 separate args — legacy style
         flat = {
           contract_id:  contractIdOrFlat,
           template_id:  templateId,
@@ -327,79 +316,22 @@ class WorkEntryService {
         created_by:   user.id,
         created_at:   new Date().toISOString(),
         updated_at:   new Date().toISOString(),
-        // organization_id auto-set by DB trigger (migration 023) — do NOT pass
+        // organization_id auto-set by trigger — do NOT pass it here
       };
 
-      // ── STEP 1: Save to IndexedDB first (always, instant) ────────────
-      let localId;
-      try {
-        localId = await db.workEntries.add({
-          ...payload,
-          remoteId:    null,
-          sync_status: SYNC_STATUS.PENDING,
-        });
-        console.log('💾 Saved to IndexedDB locally (localId:', localId, ')');
-      } catch (dbError) {
-        console.warn('⚠️ IndexedDB save failed (continuing):', dbError.message);
+      const { data, error } = await supabase
+        .from('work_entries')
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error creating work entry:', error);
+        return { success: false, error: error.message };
       }
 
-      // ── STEP 2: Push to Supabase if online ───────────────────────────
-      if (navigator.onLine) {
-        try {
-          const { data, error } = await supabase
-            .from('work_entries')
-            .insert(payload)
-            .select()
-            .single();
-
-          if (!error && data) {
-            // Update the local IndexedDB record with the Supabase UUID
-            if (localId) {
-              await db.workEntries.update(localId, {
-                remoteId:    data.id,
-                sync_status: SYNC_STATUS.SYNCED,
-              });
-            }
-            console.log('✅ Work entry created (online):', data.id);
-            return { success: true, data };
-          }
-
-          if (error) {
-            console.warn('⚠️ Supabase error, entry saved offline:', error.message);
-          }
-        } catch (networkError) {
-          console.log('📡 Network unavailable, entry saved offline:', networkError.message);
-        }
-      }
-
-      // ── STEP 3: Offline (or Supabase unreachable) — queue for sync ───
-      if (localId) {
-        try {
-          await db.syncQueue.add({
-            entity_type:     'work_entry',
-            entity_local_id: localId,
-            action:          'create',
-            payload:         JSON.stringify(payload),
-            sync_status:     SYNC_STATUS.PENDING,
-            retry_count:     0,
-            created_at:      new Date().toISOString(),
-          });
-          console.log('📋 Entry queued for sync when online');
-        } catch (queueError) {
-          console.warn('⚠️ Could not add to sync queue:', queueError.message);
-        }
-      }
-
-      console.log('📱 Work entry saved offline (localId:', localId, ')');
-      return {
-        success:   true,
-        isOffline: true,
-        data: {
-          ...payload,
-          id:       null,
-          _localId: localId,
-        },
-      };
+      console.log('✅ Work entry created:', data.id);
+      return { success: true, data };
 
     } catch (error) {
       console.error('❌ Exception creating work entry:', error);
@@ -413,12 +345,7 @@ class WorkEntryService {
 
   /**
    * Update work entry data (draft only).
-   *
-   * SESSION 18 — Offline-aware pattern:
-   *   - If online: push to Supabase (primary path), then update IndexedDB cache.
-   *   - If offline: update IndexedDB and add to syncQueue.
-   *
-   * @param {string} id - Work entry remote ID (Supabase UUID)
+   * @param {string} id - Work entry ID
    * @param {Object} updates - Fields to update
    */
   async updateWorkEntry(id, updates) {
@@ -437,74 +364,20 @@ class WorkEntryService {
       delete updateData.created_at;
       delete updateData.organization_id;
 
-      // ── If online: push to Supabase (primary path) ────────────────────
-      if (navigator.onLine) {
-        try {
-          const { data, error } = await supabase
-            .from('work_entries')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
+      const { data, error } = await supabase
+        .from('work_entries')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
 
-          if (!error && data) {
-            // Also update in IndexedDB (keep local cache in sync)
-            try {
-              const localEntry = await db.workEntries.where('remoteId').equals(id).first();
-              if (localEntry) {
-                await db.workEntries.update(localEntry.localId, {
-                  ...updateData,
-                  sync_status: SYNC_STATUS.SYNCED,
-                });
-              }
-            } catch (dbError) {
-              console.warn('⚠️ IndexedDB cache update failed:', dbError.message);
-            }
-
-            console.log('✅ Work entry updated (online):', id);
-            return { success: true, data };
-          }
-
-          if (error) {
-            console.warn('⚠️ Supabase error, queuing update:', error.message);
-          }
-        } catch (networkError) {
-          console.log('📡 Network unavailable, queuing update:', networkError.message);
-        }
+      if (error) {
+        console.error('❌ Error updating work entry:', error);
+        return { success: false, error: error.message };
       }
 
-      // ── Offline: update IndexedDB + queue for sync ────────────────────
-      try {
-        const localEntry = await db.workEntries.where('remoteId').equals(id).first();
-
-        if (localEntry) {
-          await db.workEntries.update(localEntry.localId, {
-            ...updateData,
-            sync_status: SYNC_STATUS.PENDING,
-          });
-
-          await db.syncQueue.add({
-            entity_type:     'work_entry',
-            entity_local_id: localEntry.localId,
-            action:          'update',
-            payload:         JSON.stringify({ id, ...updateData }),
-            sync_status:     SYNC_STATUS.PENDING,
-            retry_count:     0,
-            created_at:      new Date().toISOString(),
-          });
-
-          console.log('📱 Work entry updated offline (localId:', localEntry.localId, ')');
-          return {
-            success:   true,
-            isOffline: true,
-            data:      { ...localEntry, ...updateData },
-          };
-        }
-      } catch (dbError) {
-        console.warn('⚠️ IndexedDB update failed:', dbError.message);
-      }
-
-      return { success: false, error: 'Could not update entry. Please try again when online.' };
+      console.log('✅ Work entry updated:', id);
+      return { success: true, data };
 
     } catch (error) {
       console.error('❌ Exception updating work entry:', error);
@@ -559,6 +432,10 @@ class WorkEntryService {
   // ─────────────────────────────────────────────
 
   /**
+   * Soft delete work entry (draft only).
+   * @param {string} id - Work entry ID
+   */
+  /**
    * Soft-delete a work entry.
    *
    * SESSION 15 — Ownership guard + audit log:
@@ -578,6 +455,7 @@ class WorkEntryService {
       if (userError || !user) throw new Error('User not authenticated');
 
       // ── Ownership guard ───────────────────────────────────────────
+      // Fetch the entry to check who owns it.
       const { data: entry, error: fetchError } = await supabase
         .from('work_entries')
         .select('id, organization_id, contract_id, entry_date, status, created_by')
@@ -588,6 +466,8 @@ class WorkEntryService {
         return { success: false, error: 'Work entry not found.' };
       }
 
+      // If callerOrgId supplied, enforce ownership.
+      // super_admin (no callerOrgId) bypasses this check.
       if (callerOrgId && entry.organization_id !== callerOrgId) {
         console.warn('⛔ Delete blocked — entry belongs to org:', entry.organization_id, 'caller org:', callerOrgId);
         return {
@@ -609,7 +489,9 @@ class WorkEntryService {
         return { success: false, error: deleteError.message };
       }
 
-      // ── Audit log (non-blocking) ──────────────────────────────────
+      // ── Audit log ─────────────────────────────────────────────────
+      // Log to activity_logs (non-blocking — failure here doesn't
+      // fail the delete operation).
       try {
         await supabase.from('activity_logs').insert({
           action:          'DELETE_WORK_ENTRY',
@@ -628,6 +510,7 @@ class WorkEntryService {
         });
         console.log('📋 Audit log written for delete:', id);
       } catch (auditErr) {
+        // Non-fatal — log a warning but don't block the response
         console.warn('⚠️ Could not write audit log:', auditErr.message);
       }
 
@@ -651,6 +534,9 @@ class WorkEntryService {
    *   countOnly = false (default) → full entry list for ApprovalsPage
    *   countOnly = true            → count only for Sidebar badge (cheap query)
    *
+   * Only returns entries owned by orgId (not subcontractor entries).
+   * Ordered by submitted_at ASC so oldest entries appear first in queue.
+   *
    * @param {string}  orgId     - Organization ID from OrganizationContext
    * @param {boolean} countOnly - If true, returns count only
    * @returns {Promise<{success: boolean, data?: Array, count?: number, error?: string}>}
@@ -666,6 +552,7 @@ class WorkEntryService {
       console.log('⏳ Fetching pending approvals for org:', orgId, countOnly ? '(count only)' : '');
 
       if (countOnly) {
+        // Cheap head-only query — returns count, no rows transferred
         const { count, error } = await supabase
           .from('work_entries')
           .select('id', { count: 'exact', head: true })
@@ -679,6 +566,10 @@ class WorkEntryService {
         return { success: true, count: count || 0 };
 
       } else {
+        // Full query — for ApprovalsPage list
+        // NOTE: created_by references auth.users (different schema) —
+        // PostgREST cannot traverse cross-schema FK joins. We return
+        // created_by as a plain UUID; PendingApprovalList handles display.
         const { data, error } = await supabase
           .from('work_entries')
           .select(`
@@ -722,6 +613,11 @@ class WorkEntryService {
 
   /**
    * Approve a submitted work entry.
+   *
+   * - Entry must be status='submitted' (RLS also enforces this at DB level)
+   * - Optimistic concurrency: .eq('status', 'submitted') prevents double-approve
+   * - Approval remarks are optional
+   * - Writes to activity_logs for audit trail
    *
    * @param {string} entryId  - work_entries.id
    * @param {string} remarks  - Optional approval remarks from manager
@@ -790,12 +686,18 @@ class WorkEntryService {
   /**
    * Reject a submitted work entry.
    *
+   * - reason is REQUIRED — validated before hitting DB
+   * - Entry must be status='submitted'
+   * - After rejection, technician can edit and resubmit
+   * - Writes to activity_logs for audit trail
+   *
    * @param {string} entryId - work_entries.id
    * @param {string} reason  - REQUIRED rejection reason
    * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
    */
   async rejectWorkEntry(entryId, reason) {
     try {
+      // Validate reason before any DB call
       if (!reason?.trim()) {
         return {
           success: false,
@@ -810,7 +712,8 @@ class WorkEntryService {
 
       const now = new Date().toISOString();
 
-      // ── Step 1: Update work_entries status ───────────────────────────────
+      // ── Step 1: Update work_entries status ──────────────────────────────────
+      // Fetch with data + template_id so we can snapshot it into reject_entry_history
       const { data, error } = await supabase
         .from('work_entries')
         .update({
@@ -833,8 +736,11 @@ class WorkEntryService {
         throw new Error('Entry not found, already processed, or insufficient permissions');
       }
 
-      // ── Step 2: Write to reject_entry_history (permanent audit log) ──────
+      // ── Step 2: Write to reject_entry_history (permanent audit log) ─────────
+      // This table is NEVER cleared — every rejection is preserved forever,
+      // even after resubmission and approval. Used for training and improvement.
       try {
+        // Count how many times this entry has been rejected before (for rejection_count)
         const { count: prevCount } = await supabase
           .from('reject_entry_history')
           .select('id', { count: 'exact', head: true })
@@ -854,17 +760,18 @@ class WorkEntryService {
           rejection_reason:    reason.trim(),
           rejection_count:     rejectionCount,
           entry_data_snapshot: typeof data.data === 'string'
-                                 ? JSON.parse(data.data)
+                                 ? JSON.parse(data.data)  // handle string JSONB
                                  : (data.data || {}),
           created_at:          now,
         });
 
         console.log(`📋 Rejection #${rejectionCount} logged to reject_entry_history`);
       } catch (histError) {
+        // Non-fatal — history log failure must not block the rejection itself
         console.warn('⚠️ Failed to write to reject_entry_history:', histError.message);
       }
 
-      // ── Step 3: Write to activity_logs (non-fatal) ────────────────────────
+      // ── Step 3: Write to activity_logs (non-fatal) ───────────────────────────
       try {
         await supabase.from('activity_logs').insert({
           action:        'REJECT_WORK_ENTRY',
@@ -896,6 +803,10 @@ class WorkEntryService {
   /**
    * Resubmit a rejected work entry after corrections.
    *
+   * - Only the original creator can resubmit (.eq('created_by', user.id))
+   * - Clears all rejection fields so entry enters a clean 'submitted' state
+   * - Manager will see it again in the Pending Approvals queue
+   *
    * @param {string} entryId - work_entries.id
    * @returns {Promise<{success: boolean, data?: Object, error?: string}>}
    */
@@ -908,6 +819,20 @@ class WorkEntryService {
 
       const now = new Date().toISOString();
 
+      // ── Why we don't filter by created_by ─────────────────────────────────
+      // An org_owner or manager in the same org may legitimately resubmit on
+      // behalf of a technician (e.g. original creator is unavailable).
+      // The created_by guard is too strict — it blocks org members who are not
+      // the original creator. RLS + .eq('status','rejected') is sufficient:
+      // RLS already limits UPDATE to users in the same org, and the status
+      // guard prevents double-resubmission.
+      //
+      // ── Why we DO NOT clear rejected_by / rejected_at / rejection_reason ──
+      // These fields are part of the audit trail. Clearing them would erase
+      // the rejection history from ApprovalHistory timeline. We keep them so
+      // the timeline shows: Created → Rejected (reason) → Resubmitted → Approved.
+      // If the entry is rejected again, the new rejection will overwrite them,
+      // which is correct — the row always reflects the MOST RECENT rejection.
       const { data, error } = await supabase
         .from('work_entries')
         .update({
@@ -915,7 +840,7 @@ class WorkEntryService {
           submitted_at: now,
           submitted_by: user.id,
           updated_at:   now,
-          // Intentionally NOT clearing rejected_by / rejected_at / rejection_reason
+          // ↑ Intentionally NOT clearing rejected_by / rejected_at / rejection_reason
           // so ApprovalHistory can display the full audit trail.
         })
         .eq('id', entryId)
@@ -941,75 +866,7 @@ class WorkEntryService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SESSION 18 — IndexedDB HELPERS (private)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Cache Supabase work entries into IndexedDB for offline use.
-   * Called after every successful getUserWorkEntries() fetch.
-   * Non-blocking — never throws to caller.
-   *
-   * @param {Array} entries - Supabase work entry rows
-   */
-  async _cacheWorkEntriesToLocal(entries) {
-    for (const entry of entries) {
-      try {
-        const existing = await db.workEntries.where('remoteId').equals(entry.id).first();
-        const mapped = { ...entry, remoteId: entry.id, sync_status: SYNC_STATUS.SYNCED };
-
-        if (existing) {
-          // Server wins on conflict
-          const serverIsNewer = !existing.updated_at
-            || (entry.updated_at && entry.updated_at > existing.updated_at);
-          if (serverIsNewer) await db.workEntries.update(existing.localId, mapped);
-        } else {
-          await db.workEntries.add(mapped);
-        }
-      } catch {
-        // Per-entry failure is non-fatal
-      }
-    }
-  }
-
-  /**
-   * Fallback: load work entries from IndexedDB when Supabase is unreachable.
-   * Applies basic filters. Returns entries in reverse-chronological order.
-   * Joined contract/template data is available if entry was previously cached.
-   *
-   * @param {Object} filters - Same filter shape as getUserWorkEntries
-   * @returns {Promise<{success: boolean, data: Array, isOffline: boolean, error?: string}>}
-   */
-  async _getWorkEntriesFromLocal(filters = {}) {
-    try {
-      let entries = await db.workEntries
-        .orderBy('entry_date')
-        .reverse()
-        .toArray();
-
-      // Apply available filters
-      if (filters.contractId) {
-        entries = entries.filter(e => e.contract_id === filters.contractId);
-      }
-      if (filters.status) {
-        entries = entries.filter(e => e.status === filters.status);
-      }
-      if (filters.startDate) {
-        entries = entries.filter(e => e.entry_date >= filters.startDate);
-      }
-      if (filters.endDate) {
-        entries = entries.filter(e => e.entry_date <= filters.endDate);
-      }
-
-      console.log(`📱 Loaded ${entries.length} work entries from IndexedDB (offline)`);
-      return { success: true, data: entries, isOffline: true };
-    } catch (error) {
-      console.error('❌ IndexedDB fallback failed:', error);
-      return { success: false, data: [], error: 'Could not load offline data.' };
-    }
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // END OF SESSION 18 ADDITIONS
+  // END OF SESSION 16 ADDITIONS
   // ─────────────────────────────────────────────────────────────────────────
 }
 
