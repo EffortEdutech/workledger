@@ -16,8 +16,20 @@
  * NOTE: This service only READS. All writes go through workEntryService
  * (which handles both online push and offline queue).
  *
+ * SESSION 19 FIX — getContractsForOrg:
+ *   Previously only queried by organization_id, which is the OWNER org.
+ *   For performing orgs / subcontractors (e.g. FEST ENT), their contracts have:
+ *     organization_id   = MTSB (owner)
+ *     performing_org_id = FEST ENT (performer)
+ *   Result: zero contracts returned for FEST ENT technicians offline.
+ *
+ *   Fix: query by BOTH organization_id AND performing_org_id, then deduplicate.
+ *   This mirrors the dual-query logic in contractService.getUserContracts() and
+ *   the fixed syncService._pullContracts().
+ *
  * @module services/offline/offlineDataService
  * @created March 4, 2026 — Session 18
+ * @revised April 4, 2026 — Session 19: performing_org_id contract lookup fix
  *
  * File destination: src/services/offline/offlineDataService.js
  */
@@ -32,23 +44,47 @@ export const offlineDataService = {
    * Get active contracts for an org from IndexedDB.
    * Used in NewWorkEntry contract picker when offline.
    *
-   * @param {string} orgId - organization_id
+   * SESSION 19 FIX: queries by BOTH organization_id (owner) AND
+   * performing_org_id (performer) so subcontractor orgs get their contracts.
+   *
+   * @param {string} orgId - organization_id (current active org)
    * @returns {Promise<Array>} Array of contract objects (may be empty if nothing cached)
    */
   async getContractsForOrg(orgId) {
     try {
       if (!orgId) return [];
 
-      const contracts = await db.contracts
+      // Query A: contracts the org OWNS (organization_id = orgId)
+      const owned = await db.contracts
         .where('organization_id').equals(orgId)
         .toArray();
 
-      // Filter active contracts (status field cached from Supabase)
-      const active = contracts.filter(c =>
-        c.status === 'active' && !c.deleted_at
+      // Query B: contracts the org PERFORMS (performing_org_id = orgId)
+      // Dexie requires the field to be indexed — performing_org_id is NOT in the
+      // current Dexie schema indexes, so we do a full table filter instead.
+      // This is acceptable: the contracts table stays small (scoped pull = 30 days).
+      const allContracts = await db.contracts.toArray();
+      const performing = allContracts.filter(
+        c => c.performing_org_id === orgId && c.organization_id !== orgId
       );
 
-      console.log(`📱 offlineDataService: ${active.length} contracts for org ${orgId}`);
+      // Merge and deduplicate by id
+      const seen = new Set();
+      const merged = [];
+      for (const c of [...owned, ...performing]) {
+        if (!seen.has(c.id)) {
+          seen.add(c.id);
+          merged.push(c);
+        }
+      }
+
+      // Filter: active, not deleted
+      const active = merged.filter(c => c.status === 'active' && !c.deleted_at);
+
+      console.log(
+        `📱 offlineDataService: ${active.length} contracts for org ${orgId} ` +
+        `(${owned.length} owned, ${performing.length} performing, after dedup + filter)`
+      );
       return active;
     } catch (error) {
       console.error('❌ offlineDataService.getContractsForOrg:', error);
@@ -75,23 +111,32 @@ export const offlineDataService = {
   // ── TEMPLATES ────────────────────────────────────────────────────────────
 
   /**
-   * Get a template by its UUID from IndexedDB.
+   * Get a template by its UUID or text slug from IndexedDB.
    * Used in NewWorkEntry / WorkEntryDetail to render the form fields.
    *
-   * @param {string} templateId - templates.id (UUID)
+   * Tries UUID (Dexie auto-key 'id') first, then falls back to the text
+   * slug index ('template_id') — handles both online (UUID) and offline
+   * (slug) callers transparently.
+   *
+   * @param {string} templateId - templates.id (UUID) OR templates.template_id (text slug)
    * @returns {Promise<Object|null>}
    */
   async getTemplateById(templateId) {
     try {
-      // Try by UUID primary key first
+      if (!templateId) return null;
+
+      // The Dexie primary key for templates is 'template_id' (text slug).
+      // Try that first (most common offline caller path).
       let template = await db.templates.get(templateId);
       if (template) return template;
 
-      // Fallback: try by template_id text key (some callers use the text slug)
-      const results = await db.templates
-        .where('template_id').equals(templateId)
-        .toArray();
-      return results[0] || null;
+      // Fallback: caller may have passed a UUID — search by the 'id' field
+      // (not the Dexie PK, so requires a full filter scan)
+      const byUuid = await db.templates.filter(t => t.id === templateId).first();
+      if (byUuid) return byUuid;
+
+      console.warn('⚠️ offlineDataService.getTemplateById: not found:', templateId);
+      return null;
     } catch (error) {
       console.error('❌ offlineDataService.getTemplateById:', error);
       return null;
@@ -101,6 +146,10 @@ export const offlineDataService = {
   /**
    * Get templates assigned to a specific contract.
    * Reads from db.templates where the category matches the contract's category.
+   *
+   * The returned templates include their full fields_schema — DynamicForm
+   * renders all field types (text, select, radio, checkbox, etc.) from this
+   * schema, so all form dropdowns work offline once the template is cached.
    *
    * @param {string} contractCategory - e.g. 'preventive-maintenance'
    * @returns {Promise<Array>}
@@ -216,10 +265,10 @@ export const offlineDataService = {
       ]);
 
       return {
-        contracts:    contractCount,
-        templates:    templateCount,
-        workEntries:  workEntryCount,
-        pendingSync:  pendingCount,
+        contracts:     contractCount,
+        templates:     templateCount,
+        workEntries:   workEntryCount,
+        pendingSync:   pendingCount,
         hasCachedData: contractCount > 0 && templateCount > 0,
       };
     } catch (error) {
@@ -255,18 +304,11 @@ export const offlineDataService = {
 
       const toDelete = await db.workEntries
         .filter(entry => {
-          // Never delete pending entries (not yet synced)
           if (entry.sync_status === 'pending' || entry.sync_status === 'syncing') {
             return false;
           }
-          // Delete approved entries older than 7 days
-          if (entry.status === 'approved' && entry.entry_date < cutoff7) {
-            return true;
-          }
-          // Delete any other entries older than 30 days
-          if (entry.entry_date < cutoff30) {
-            return true;
-          }
+          if (entry.status === 'approved' && entry.entry_date < cutoff7) return true;
+          if (entry.entry_date < cutoff30) return true;
           return false;
         })
         .primaryKeys();
@@ -276,7 +318,6 @@ export const offlineDataService = {
         console.log(`🧹 Pruned ${toDelete.length} old entries from IndexedDB`);
       }
 
-      // Also clean up done/failed sync queue entries
       await db.syncQueue.where('sync_status').anyOf(['done', 'failed']).delete();
 
       return toDelete.length;
