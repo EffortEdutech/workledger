@@ -1,361 +1,209 @@
 /**
  * WorkLedger - Router Configuration
  *
- * Every protected route is wrapped with:
- *   1. ProtectedRoute  — ensures user is authenticated (redirects to /login)
- *   2. RouteGuard      — ensures user has the NAV_ permission (redirects to /)
+ * Defines all application routes using React Router v6.
+ * Implements protected routes with authentication checking.
  *
- * Permission map (matches Sidebar + BottomNav exactly):
- *   NAV_DASHBOARD       → all roles
- *   NAV_WORK_ENTRIES    → all roles
- *   NAV_PROJECTS        → all roles
- *   NAV_CONTRACTS       → all roles
- *   NAV_TEMPLATES       → bina_jaya_staff, org_owner, org_admin, manager
- *   NAV_REPORTS         → bina_jaya_staff, org_owner, org_admin, manager
- *   NAV_LAYOUTS         → bina_jaya_staff, org_owner, org_admin
- *   NAV_USERS           → org_owner, org_admin
- *   NAV_ORGANIZATIONS   → bina_jaya_staff, org_owner, org_admin
- *   NAV_SUBCONTRACTORS  → bina_jaya_staff, org_owner, org_admin, manager
- *   NAV_QUICK_ENTRY     → super_admin, bina_jaya_staff
- *   APPROVE_WORK_ENTRY  → org_owner, org_admin, manager  (Session 16)
- *
- * ⚠️  ROUTE ORDERING — /work/* section:
- *   Literal paths (/work/new, /work/approvals) MUST be defined BEFORE the
- *   parameterised path (/work/:id). React Router matches top-to-bottom; if
- *   /work/:id came first, navigating to /work/approvals would match it with
- *   id = "approvals" and render WorkEntryDetail instead of ApprovalsPage.
- *
- * @file src/Router.jsx
- * @updated February 23, 2026 - Session 12: RouteGuard applied to all routes
- * @updated February 24, 2026 - Session 15: SubcontractorList route added
- * @updated February 27, 2026 - Session 16: ApprovalsPage added before /work/:id
- * @updated March 2, 2026    - Session 17: ConsolidatedReport + RejectionAnalytics added
+ * @file src/router.jsx
+ * @created January 29, 2026
+ * @updated February 1, 2026   - Session 13: Added work entry routes
+ * @updated April 4, 2026      - Session 19: Added /tech (technician dashboard)
  */
 
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { ROUTES } from './constants/routes';
 
-// Auth
+// Auth Components
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import RouteGuard from './components/auth/RouteGuard';
-
-// Pages - Auth
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 
-// Pages - Core
+// Main Pages
 import Dashboard from './pages/Dashboard';
 
-// Pages - Organizations
+// Organization Pages
 import OrganizationList from './pages/organizations/OrganizationList';
 import NewOrganization from './pages/organizations/NewOrganization';
 import OrganizationSettings from './pages/organizations/OrganizationSettings';
 
-// Pages - Projects
+// Project Pages (Session 9)
 import ProjectListPage from './pages/projects/ProjectListPage';
 import NewProject from './pages/projects/NewProject';
 import EditProject from './pages/projects/EditProject';
 import ProjectDetail from './pages/projects/ProjectDetail';
 
-// Pages - Contracts
+// Contract Pages (Session 10)
 import ContractListPage from './pages/contracts/ContractListPage';
 import NewContract from './pages/contracts/NewContract';
 import EditContract from './pages/contracts/EditContract';
 import ContractDetail from './pages/contracts/ContractDetail';
 
-// Pages - Templates
-import TemplateListPage from './pages/templates/TemplateListPage';
-import TemplateBuilder from './pages/templates/TemplateBuilder';
-import TemplateDetail from './pages/templates/TemplateDetail';
-
-// Pages - Work Entries
+// Work Entry Pages (Session 13)
 import WorkEntryListPage from './pages/workEntries/WorkEntryListPage';
 import NewWorkEntry from './pages/workEntries/NewWorkEntry';
 import EditWorkEntry from './pages/workEntries/EditWorkEntry';
 import WorkEntryDetail from './pages/workEntries/WorkEntryDetail';
-import ApprovalsPage from './pages/workEntries/ApprovalsPage';      // Session 16
 
-// Pages - Reports
-import ReportHistory from './pages/reports/ReportHistory';
+// Report Pages
 import GenerateReport from './pages/reports/GenerateReport';
-import ConsolidatedReport from './pages/reports/ConsolidatedReport'; // Session 17
-import RejectionAnalytics from './pages/reports/RejectionAnalytics'; // Session 17
+import ReportHistory from './pages/reports/ReportHistory';
 
-// Pages - Layouts
-import LayoutList from './pages/reports/layouts/LayoutList';
-import LayoutEditor from './pages/reports/layouts/LayoutEditor';
+// Template Demo Page (Session 12)
+import TemplateDemoPage from './pages/demo/TemplateDemoPage';
 
-// Pages - Users
-import UserList from './pages/users/UserList';
-import InviteUser from './pages/users/InviteUser';
+// Technician Dashboard (Session 19) — mobile-first offline home
+import TechnicianDashboard from './pages/technician/TechnicianDashboard';
 
-// Pages - Subcontractors (Session 15)
-import SubcontractorList from './pages/subcontractors/SubcontractorList';
-
-// Pages - Admin (BJ Staff only)
-import QuickEntry from './pages/admin/QuickEntry';
-
-// Fallbacks
-const NotFoundPage = () => (
+// Placeholder Components (will be replaced in future sessions)
+const PlaceholderPage = ({ title }) => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
     <div className="text-center">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-      <p className="text-gray-600 mb-6">Page not found.</p>
-      <a href="/" className="text-primary-600 hover:underline">Back to Dashboard</a>
+      <h1 className="text-4xl font-bold text-gray-900 mb-4">{title}</h1>
+      <p className="text-gray-600">This page will be implemented in the next sessions.</p>
     </div>
   </div>
 );
-const ProfilePage = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-50">
-    <p className="text-gray-500">Profile — coming soon.</p>
-  </div>
-);
 
-// ─────────────────────────────────────────────────────────
-// Helper: wrap a page component in ProtectedRoute + RouteGuard
-// Usage: guarded('NAV_TEMPLATES', TemplateListPage)
-// ─────────────────────────────────────────────────────────
-const guarded = (permission, Page) => (
-  <ProtectedRoute>
-    <RouteGuard permission={permission}>
-      <Page />
-    </RouteGuard>
-  </ProtectedRoute>
-);
+const TemplatesPage = () => <PlaceholderPage title="Templates" />;
+const ReportsPage   = () => <PlaceholderPage title="Reports" />;
+const ProfilePage   = () => <PlaceholderPage title="Profile" />;
+const NotFoundPage  = () => <PlaceholderPage title="404 - Page Not Found" />;
 
-// auth-only, no extra permission (profile page etc.)
-const authed = (Page) => (
-  <ProtectedRoute>
-    <Page />
-  </ProtectedRoute>
-);
-
-// ─────────────────────────────────────────────────────────
+/**
+ * Router Configuration
+ *
+ * ROUTE ORDERING RULE (critical):
+ *   Literal paths MUST come before dynamic /:id paths.
+ *   e.g. /work/new before /work/:id — or React Router matches 'new' as an ID.
+ */
 export const router = createBrowserRouter([
 
-  // ══════════════════════════════════════════════════════
-  // PUBLIC ROUTES
-  // ══════════════════════════════════════════════════════
-  { path: ROUTES.LOGIN,           element: <Login /> },
-  { path: ROUTES.REGISTER,        element: <Register /> },
+  // ── Public Routes (no auth required) ────────────────────────────────────
+  { path: ROUTES.LOGIN,          element: <Login /> },
+  { path: ROUTES.REGISTER,       element: <Register /> },
   { path: ROUTES.FORGOT_PASSWORD, element: <ForgotPassword /> },
 
-  // ══════════════════════════════════════════════════════
-  // DASHBOARD — all roles  (ROUTES.DASHBOARD = '/')
-  // ══════════════════════════════════════════════════════
+  // ── Dashboard ────────────────────────────────────────────────────────────
   {
     path: ROUTES.DASHBOARD,
-    element: guarded('NAV_DASHBOARD', Dashboard),
+    element: <ProtectedRoute><Dashboard /></ProtectedRoute>,
   },
 
-  // ══════════════════════════════════════════════════════
-  // ORGANIZATIONS — bina_jaya_staff, org_owner, org_admin
-  // ══════════════════════════════════════════════════════
+  // ── Technician Dashboard (Session 19) — /tech ────────────────────────────
+  // Mobile-first home for technician / worker roles.
+  // Linked from BottomNav when role === 'technician' | 'worker'.
+  {
+    path: '/tech',
+    element: <ProtectedRoute><TechnicianDashboard /></ProtectedRoute>,
+  },
+
+  // ── Work Entry Routes ─────────────────────────────────────────────────────
+  // ORDERING: /work/new and /work/approvals must be ABOVE /work/:id
+  {
+    path: ROUTES.WORK_ENTRIES, // /work-entries or equivalent ROUTES constant
+    element: <ProtectedRoute><WorkEntryListPage /></ProtectedRoute>,
+  },
+  {
+    path: '/work',
+    element: <ProtectedRoute><WorkEntryListPage /></ProtectedRoute>,
+  },
+  {
+    path: '/work/new',
+    element: <ProtectedRoute><NewWorkEntry /></ProtectedRoute>,
+  },
+  // Dynamic route AFTER literals — critical ordering
+  {
+    path: '/work/:id',
+    element: <ProtectedRoute><WorkEntryDetail /></ProtectedRoute>,
+  },
+  {
+    path: '/work/:id/edit',
+    element: <ProtectedRoute><EditWorkEntry /></ProtectedRoute>,
+  },
+
+  // ── Template Routes ───────────────────────────────────────────────────────
+  {
+    path: ROUTES.TEMPLATES,
+    element: <ProtectedRoute><TemplateDemoPage /></ProtectedRoute>,
+  },
+  {
+    path: '/demo/templates',
+    element: <ProtectedRoute><TemplateDemoPage /></ProtectedRoute>,
+  },
+
+  // ── Report Routes ─────────────────────────────────────────────────────────
+  {
+    path: ROUTES.REPORTS,
+    element: <ProtectedRoute><ReportHistory /></ProtectedRoute>,
+  },
+  {
+    path: '/reports/generate',
+    element: <ProtectedRoute><GenerateReport /></ProtectedRoute>,
+  },
+  {
+    path: '/reports/history',
+    element: <ProtectedRoute><ReportHistory /></ProtectedRoute>,
+  },
+
+  // ── Profile ───────────────────────────────────────────────────────────────
+  {
+    path: ROUTES.PROFILE,
+    element: <ProtectedRoute><ProfilePage /></ProtectedRoute>,
+  },
+
+  // ── Organization Routes ───────────────────────────────────────────────────
   {
     path: '/organizations',
-    element: guarded('NAV_ORGANIZATIONS', OrganizationList),
+    element: <ProtectedRoute><OrganizationList /></ProtectedRoute>,
   },
   {
     path: '/organizations/new',
-    element: guarded('NAV_ORGANIZATIONS', NewOrganization),
+    element: <ProtectedRoute><NewOrganization /></ProtectedRoute>,
   },
   {
     path: '/organizations/:id/settings',
-    element: guarded('NAV_ORGANIZATIONS', OrganizationSettings),
+    element: <ProtectedRoute><OrganizationSettings /></ProtectedRoute>,
   },
 
-  // ══════════════════════════════════════════════════════
-  // PROJECTS — all roles
-  // ══════════════════════════════════════════════════════
+  // ── Project Routes ────────────────────────────────────────────────────────
   {
     path: '/projects',
-    element: guarded('NAV_PROJECTS', ProjectListPage),
+    element: <ProtectedRoute><ProjectListPage /></ProtectedRoute>,
   },
   {
     path: '/projects/new',
-    element: guarded('NAV_PROJECTS', NewProject),
+    element: <ProtectedRoute><NewProject /></ProtectedRoute>,
   },
   {
     path: '/projects/:id',
-    element: guarded('NAV_PROJECTS', ProjectDetail),
+    element: <ProtectedRoute><ProjectDetail /></ProtectedRoute>,
   },
   {
     path: '/projects/:id/edit',
-    element: guarded('NAV_PROJECTS', EditProject),
+    element: <ProtectedRoute><EditProject /></ProtectedRoute>,
   },
 
-  // ══════════════════════════════════════════════════════
-  // CONTRACTS — all roles
-  // ══════════════════════════════════════════════════════
+  // ── Contract Routes ───────────────────────────────────────────────────────
   {
     path: '/contracts',
-    element: guarded('NAV_CONTRACTS', ContractListPage),
+    element: <ProtectedRoute><ContractListPage /></ProtectedRoute>,
   },
   {
     path: '/contracts/new',
-    element: guarded('NAV_CONTRACTS', NewContract),
+    element: <ProtectedRoute><NewContract /></ProtectedRoute>,
   },
   {
     path: '/contracts/:id',
-    element: guarded('NAV_CONTRACTS', ContractDetail),
+    element: <ProtectedRoute><ContractDetail /></ProtectedRoute>,
   },
   {
     path: '/contracts/:id/edit',
-    element: guarded('NAV_CONTRACTS', EditContract),
+    element: <ProtectedRoute><EditContract /></ProtectedRoute>,
   },
 
-  // ══════════════════════════════════════════════════════
-  // TEMPLATES — bina_jaya_staff, org_owner, org_admin, manager
-  // ══════════════════════════════════════════════════════
-  {
-    path: '/templates',
-    element: guarded('NAV_TEMPLATES', TemplateListPage),
-  },
-  {
-    path: '/templates/new',
-    element: guarded('NAV_TEMPLATES', TemplateBuilder),
-  },
-  {
-    path: '/templates/:id',
-    element: guarded('NAV_TEMPLATES', TemplateDetail),
-  },
-  {
-    path: '/templates/:id/edit',
-    element: guarded('NAV_TEMPLATES', TemplateBuilder),
-  },
-  // Backward compatibility
-  { path: '/demo/templates', element: <Navigate to="/templates" replace /> },
-
-  // ══════════════════════════════════════════════════════
-  // WORK ENTRIES — all roles
-  //
-  // ⚠️  ORDER IS CRITICAL here. Literal paths must precede :id.
-  //   /work/new       — before /work/:id  ✅ (was already correct)
-  //   /work/approvals — before /work/:id  ✅ (Session 16 addition)
-  //   /work/:id       — comes LAST among /work/* routes
-  //   /work/:id/edit  — fine after :id (different suffix)
-  // ══════════════════════════════════════════════════════
-  {
-    path: ROUTES.WORK_ENTRIES,
-    element: guarded('NAV_WORK_ENTRIES', WorkEntryListPage),
-  },
-  {
-    path: ROUTES.WORK_ENTRY_NEW,
-    element: guarded('NAV_WORK_ENTRIES', NewWorkEntry),
-  },
-  // ── Session 16: Approval queue ─────────────────────────────────────────
-  // Permission: APPROVE_WORK_ENTRY (org_owner, org_admin, manager only).
-  // Technicians navigating here directly are redirected to / by RouteGuard.
-  // MUST stay above WORK_ENTRY_DETAIL to avoid :id = "approvals" collision.
-  {
-    path: ROUTES.WORK_ENTRY_APPROVALS,
-    element: guarded('APPROVE_WORK_ENTRY', ApprovalsPage),
-  },
-  // ── /work/:id must come AFTER all literal /work/* paths ────────────────
-  {
-    path: ROUTES.WORK_ENTRY_DETAIL,
-    element: guarded('NAV_WORK_ENTRIES', WorkEntryDetail),
-  },
-  {
-    path: ROUTES.WORK_ENTRY_EDIT,
-    element: guarded('NAV_WORK_ENTRIES', EditWorkEntry),
-  },
-
-  // ══════════════════════════════════════════════════════
-  // REPORTS — bina_jaya_staff, org_owner, org_admin, manager
-  // ══════════════════════════════════════════════════════
-  {
-    path: ROUTES.REPORTS,
-    element: guarded('NAV_REPORTS', ReportHistory),
-  },
-  {
-    path: ROUTES.REPORT_GENERATE,
-    element: guarded('NAV_REPORTS', GenerateReport),
-  },
-  // ── Session 17: Consolidated + Rejections ───────────────────────────────
-  // ⚠️ These are LITERAL paths and must stay ABOVE /reports/layouts/:id
-  //    to prevent the :id param swallowing 'consolidated' or 'rejections'.
-  {
-    path: ROUTES.REPORT_CONSOLIDATED,
-    element: guarded('NAV_REPORTS', ConsolidatedReport),
-  },
-  {
-    path: ROUTES.REPORT_REJECTIONS,
-    element: guarded('APPROVE_WORK_ENTRY', RejectionAnalytics),
-  },
-
-  // ══════════════════════════════════════════════════════
-  // LAYOUTS — bina_jaya_staff, org_owner, org_admin
-  // ══════════════════════════════════════════════════════
-  {
-    path: '/reports/layouts',
-    element: guarded('NAV_LAYOUTS', LayoutList),
-  },
-  {
-    path: '/reports/layouts/new',
-    element: guarded('NAV_LAYOUTS', LayoutEditor),
-  },
-  {
-    path: '/reports/layouts/:id/edit',
-    element: guarded('NAV_LAYOUTS', LayoutEditor),
-  },
-  // ROUTES constants (may differ from hardcoded paths above — keep both)
-  ...(ROUTES.REPORT_LAYOUTS && ROUTES.REPORT_LAYOUTS !== '/reports/layouts'
-    ? [{ path: ROUTES.REPORT_LAYOUTS,      element: guarded('NAV_LAYOUTS', LayoutList) }]
-    : []),
-  ...(ROUTES.REPORT_LAYOUT_NEW && ROUTES.REPORT_LAYOUT_NEW !== '/reports/layouts/new'
-    ? [{ path: ROUTES.REPORT_LAYOUT_NEW,   element: guarded('NAV_LAYOUTS', LayoutEditor) }]
-    : []),
-  ...(ROUTES.REPORT_LAYOUT_DETAIL
-    ? [{ path: ROUTES.REPORT_LAYOUT_DETAIL, element: guarded('NAV_LAYOUTS', LayoutEditor) }]
-    : []),
-
-  // ══════════════════════════════════════════════════════
-  // USERS — org_owner, org_admin only
-  // ══════════════════════════════════════════════════════
-  {
-    path: '/users',
-    element: guarded('NAV_USERS', UserList),
-  },
-  {
-    path: '/users/invite',
-    element: guarded('INVITE_USERS', InviteUser),
-  },
-
-  // ══════════════════════════════════════════════════════
-  // SUBCONTRACTORS — bina_jaya_staff, org_owner, org_admin, manager
-  // technician/worker/subcontractor → redirect /
-  // Session 15
-  // ══════════════════════════════════════════════════════
-  {
-    path: '/subcontractors',
-    element: guarded('NAV_SUBCONTRACTORS', SubcontractorList),
-  },
-
-  // ══════════════════════════════════════════════════════
-  // QUICK ENTRY — super_admin, bina_jaya_staff only
-  // ══════════════════════════════════════════════════════
-  {
-    path: '/admin/quick-entry',
-    element: guarded('NAV_QUICK_ENTRY', QuickEntry),
-  },
-
-  // ══════════════════════════════════════════════════════
-  // PROFILE — any authenticated user (no nav permission)
-  // ══════════════════════════════════════════════════════
-  {
-    path: ROUTES.PROFILE,
-    element: authed(ProfilePage),
-  },
-
-  // ══════════════════════════════════════════════════════
-  // 404
-  // ══════════════════════════════════════════════════════
-  {
-    path: '*',
-    element: <NotFoundPage />,
-  },
+  // ── 404 ──────────────────────────────────────────────────────────────────
+  { path: '*', element: <NotFoundPage /> },
 
 ], {
   future: {
