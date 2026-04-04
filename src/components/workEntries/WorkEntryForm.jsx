@@ -2,25 +2,25 @@
  * WorkLedger - Work Entry Form Component
  *
  * SESSION 14 FIX (Feb 24, 2026):
- *   Fixed to use contract_templates junction table via contractService.getContractTemplates().
+ *   Fixed to use contract_templates junction table.
  *
  * SESSION 19 — OFFLINE-FIRST (Apr 4, 2026):
  *   Online/offline branching in loadContracts, resolveJunctionRows, loadTemplate.
+ *   KEY FIX: resolveJunctionRows offline uses getContractJunctionRows() (junction
+ *   table by UUID) instead of category-based lookup (slug vs abbreviation mismatch).
  *
- *   KEY FIX in resolveJunctionRows (offline path):
- *     Old: getTemplatesForContractCategory(contract.contract_category)
- *          → category slug 'preventive-maintenance' didn't match template
- *            abbreviation 'PMC' → zero templates → "template not found"
- *     New: offlineDataService.getContractJunctionRows(contract.id)
- *          → queries db.contractTemplates (Dexie v2) by contract UUID
- *          → returns rows with full template.fields_schema inline
- *          → exact same shape as online junction rows
- *          → no category mismatch possible
+ * SESSION 19 UI FIX (Apr 4, 2026):
+ *   PROBLEM: Two conflicting buttons were shown offline:
+ *     1. DynamicForm submit button labelled "🔴 Offline — save as draft" but its
+ *        onSubmit called handleSubmitEntry → showed error banner instead of saving
+ *     2. "Save as Draft" button below → worked correctly
+ *   FIX: When offline, DynamicForm's onSubmit is routed to handleSaveAsDraft.
+ *        The label changes to "💾 Save as Draft". The duplicate external button
+ *        is hidden offline. Only one button does one thing.
  *
  * @module components/workEntries/WorkEntryForm
  * @created February 1, 2026 - Session 13
- * @updated February 24, 2026 - Session 14: junction table + org-aware
- * @updated April 4, 2026 - Session 19: offline-first + junction-based template lookup
+ * @updated April 4, 2026 - Session 19 offline + UI fix
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -42,7 +42,6 @@ export default function WorkEntryForm({
   const { currentOrg } = useOrganization();
   const { isOnline }   = useOffline();
 
-  // ── Core state ───────────────────────────────────────────────────────────
   const [selectedContract,   setSelectedContract]   = useState(null);
   const [template,           setTemplate]           = useState(null);
   const [entryDate,          setEntryDate]          = useState(
@@ -69,8 +68,6 @@ export default function WorkEntryForm({
 
   // ─────────────────────────────────────────────────────────────────────────
   // LOAD CONTRACTS
-  // Online  → contractService.getUserContracts()
-  // Offline → offlineDataService.getContractsForOrg() from IndexedDB
   // ─────────────────────────────────────────────────────────────────────────
   const loadContracts = useCallback(async () => {
     try {
@@ -79,14 +76,9 @@ export default function WorkEntryForm({
       let active;
 
       if (!isOnline) {
-        console.log('📱 Offline: loading contracts from IndexedDB for org:', orgId);
         active = await offlineDataService.getContractsForOrg(orgId);
-
         if (active.length === 0) {
-          setError(
-            'No contracts cached for offline use. Connect to the internet ' +
-            'and open WorkLedger to cache your contracts.'
-          );
+          setError('No contracts cached. Connect to the internet and open WorkLedger to cache your data.');
         }
       } else {
         const data = await contractService.getUserContracts(orgId);
@@ -115,14 +107,12 @@ export default function WorkEntryForm({
   const loadExistingData = async () => {
     try {
       if (!initialData?.contract_id) return;
-
       const contract = isOnline
         ? await contractService.getContract(initialData.contract_id)
         : await offlineDataService.getContractById(initialData.contract_id);
       if (!contract) return;
 
       setSelectedContract(contract);
-
       const junctionRows = await resolveJunctionRows(contract);
       setContractTemplates(junctionRows);
 
@@ -148,7 +138,6 @@ export default function WorkEntryForm({
       setTemplate(null); setError(null);
       return;
     }
-
     try {
       setError(null);
       setLoadingTemplate(true);
@@ -163,18 +152,16 @@ export default function WorkEntryForm({
       if (junctionRows.length === 0) {
         setError(
           isOnline
-            ? 'This contract has no templates assigned. Go to Contracts → Edit Contract to assign a template first.'
+            ? 'This contract has no templates assigned. Go to Contracts → Edit Contract to assign a template.'
             : 'No templates cached for this contract. Connect to the internet and re-open WorkLedger to cache templates.'
         );
         return;
       }
 
       setContractTemplates(junctionRows);
-
       const defaultRow = junctionRows.find(jt => jt.is_default) ?? junctionRows[0];
       setSelectedTemplateId(defaultRow.template_id);
       await loadTemplate(defaultRow.template_id, junctionRows);
-
     } catch (err) {
       console.error('❌ Error handling contract change:', err);
       setError('Failed to load template. Please try again.');
@@ -200,113 +187,73 @@ export default function WorkEntryForm({
 
   // ─────────────────────────────────────────────────────────────────────────
   // RESOLVE JUNCTION ROWS
-  //
-  // Online: uses contract.contract_templates (pre-loaded by getUserContracts)
-  //         or falls back to contractService.getContractTemplates() query.
-  //
-  // Offline: PRIMARY — offlineDataService.getContractJunctionRows(contract.id)
-  //          Queries db.contractTemplates (Dexie v2) by contract UUID.
-  //          Returns rows with full template.fields_schema inline.
-  //          FALLBACK — category-based (last resort, may not match)
-  //
-  // WHY the change: category slugs ('preventive-maintenance') don't match
-  // template abbreviations ('PMC') in the database, so the old offline path
-  // returned zero rows for every contract → "template not found".
   // ─────────────────────────────────────────────────────────────────────────
   const resolveJunctionRows = async (contract) => {
     if (!isOnline) {
-      console.log('📱 Offline: resolving junction rows from IndexedDB for contract:', contract.id);
-
-      // PRIMARY: cached junction table (Dexie v2, populated by sync)
+      // PRIMARY: db.contractTemplates junction table (Dexie v2)
       const rows = await offlineDataService.getContractJunctionRows(contract.id);
-      if (rows.length > 0) {
-        console.log(`✅ ${rows.length} junction rows from db.contractTemplates`);
-        return rows;
-      }
+      if (rows.length > 0) return rows;
 
-      // FALLBACK A: try category-based template lookup
-      console.log('⚠️  No junction rows cached — trying category fallback');
+      // FALLBACK A: category-based
       if (contract.contract_category) {
-        const byCategory = await offlineDataService.getTemplatesForContractCategory(
-          contract.contract_category
-        );
+        const byCategory = await offlineDataService.getTemplatesForContractCategory(contract.contract_category);
         if (byCategory.length > 0) {
           return byCategory.map((t, i) => ({
-            template_id: t.template_id, // text slug — getTemplateById handles this
-            is_default:  i === 0,
-            label:       t.template_name,
-            templates:   t,
+            template_id: t.template_id,
+            is_default: i === 0,
+            label: t.template_name,
+            templates: t,
           }));
         }
       }
 
-      // FALLBACK B: all cached templates (absolute last resort)
-      console.log('⚠️  Category fallback empty — using all cached templates');
+      // FALLBACK B: all cached templates
       const all = await offlineDataService.getAllTemplates();
       return all.map((t, i) => ({
         template_id: t.template_id,
-        is_default:  i === 0,
-        label:       t.template_name,
-        templates:   t,
+        is_default: i === 0,
+        label: t.template_name,
+        templates: t,
       }));
     }
 
-    // Online: use pre-loaded junction rows from getUserContracts()
-    if (contract.contract_templates?.length > 0) {
-      console.log('✅ Using pre-loaded contract_templates:', contract.contract_templates.length);
-      return contract.contract_templates;
-    }
+    // Online: use pre-loaded junction rows
+    if (contract.contract_templates?.length > 0) return contract.contract_templates;
 
-    // Online fallback: query junction table directly
-    console.log('⏳ Fetching contract_templates from DB for:', contract.id);
+    // Online fallback: query junction table
     const rows = await contractService.getContractTemplates(contract.id);
-    console.log(`✅ Fetched ${rows.length} junction rows from DB`);
     return rows;
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // LOAD TEMPLATE BY ID
-  //
-  // Fast path: if junctionRows carries the full template inline (fields_schema
-  // present), use it directly — zero extra reads.
-  //
-  // Standard path: templateService (online) or offlineDataService (offline).
-  //
-  // The templateId here can be a UUID (from junction rows, online or offline
-  // via getContractJunctionRows) or a text slug (from fallback category path).
-  // Both templateService.getTemplate() and offlineDataService.getTemplateById()
-  // handle both formats.
+  // LOAD TEMPLATE
   // ─────────────────────────────────────────────────────────────────────────
   const loadTemplate = async (templateId, junctionRows = []) => {
     try {
-      // Fast path: inline template in junction row (offline primary path has this)
+      // Fast path: inline template in junction row
       const inlineRow = junctionRows.find(
         jt => jt.template_id === templateId && jt.templates?.fields_schema
       );
       if (inlineRow) {
-        console.log('✅ Template loaded inline from junction row:', inlineRow.templates.template_name);
         setTemplate(inlineRow.templates);
+        console.log('✅ Template from junction row inline:', inlineRow.templates.template_name);
         return;
       }
 
       // Standard path
-      let tpl;
-      if (!isOnline) {
-        tpl = await offlineDataService.getTemplateById(templateId);
-      } else {
-        tpl = await templateService.getTemplate(templateId);
-      }
+      const tpl = isOnline
+        ? await templateService.getTemplate(templateId)
+        : await offlineDataService.getTemplateById(templateId);
 
       if (tpl) {
-        console.log('✅ Template loaded:', tpl.template_name, `(${isOnline ? 'online' : 'offline cached'})`);
         setTemplate(tpl);
+        console.log('✅ Template loaded:', tpl.template_name);
       } else {
-        const msg = isOnline
-          ? 'Template not found. It may have been deleted.'
-          : 'Template not cached. Connect to the internet, open WorkLedger, ' +
-            'and navigate to your contracts so templates sync to your device.';
-        console.error('❌ Template not found for ID:', templateId);
-        setError(msg);
+        setError(
+          isOnline
+            ? 'Template not found. It may have been deleted.'
+            : 'Template not cached. Connect to the internet, open WorkLedger, and navigate to your contracts to cache templates.'
+        );
       }
     } catch (err) {
       console.error('❌ Error loading template:', err);
@@ -315,13 +262,12 @@ export default function WorkEntryForm({
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // FORM HANDLERS
+  // SAVE AS DRAFT — works online and offline
   // ─────────────────────────────────────────────────────────────────────────
-  const handleFormDataChange = (newData) => setFormData(newData);
-
   const handleSaveAsDraft = async (data) => {
     try {
-      setSaving(true); setError(null);
+      setSaving(true);
+      setError(null);
       if (!selectedContract) { setError('Please select a contract'); return; }
       if (!template)         { setError('Template not loaded'); return; }
 
@@ -342,16 +288,19 @@ export default function WorkEntryForm({
     }
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // SUBMIT — online only
+  // ─────────────────────────────────────────────────────────────────────────
   const handleSubmitEntry = async (data) => {
+    // This should never be called offline (routing fix below ensures this),
+    // but guard here as a safety net.
     if (!isOnline) {
-      setError(
-        'You are offline. Submission requires internet. ' +
-        'Save as Draft — it will sync automatically when you reconnect.'
-      );
+      await handleSaveAsDraft(data);
       return;
     }
     try {
-      setSubmitting(true); setError(null);
+      setSubmitting(true);
+      setError(null);
       if (!selectedContract) { setError('Please select a contract'); return; }
       if (!template)         { setError('Template not loaded'); return; }
 
@@ -373,6 +322,8 @@ export default function WorkEntryForm({
     }
   };
 
+  const handleFormDataChange = (newData) => setFormData(newData);
+
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
@@ -386,9 +337,8 @@ export default function WorkEntryForm({
           <div>
             <p className="font-medium text-amber-900 text-sm">You are offline</p>
             <p className="text-xs text-amber-700 mt-0.5">
-              Contracts and templates load from local cache.
-              Save as Draft — syncs automatically when reconnected.
-              Submission for approval requires internet.
+              Contracts and templates are loaded from local cache.
+              Save as Draft — your entry is saved on this device and syncs automatically when you reconnect.
             </p>
           </div>
         </div>
@@ -468,7 +418,7 @@ export default function WorkEntryForm({
             </select>
           </div>
 
-          {/* Template selector — only shown when contract has > 1 template */}
+          {/* Template selector (multi-template contracts only) */}
           {contractTemplates.length > 1 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -497,9 +447,7 @@ export default function WorkEntryForm({
         {/* Contract preview */}
         {selectedContract && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-900">
-              <span className="font-medium">Contract:</span> {selectedContract.contract_number}
-            </p>
+            <p className="text-sm text-blue-900 font-medium">{selectedContract.contract_number}</p>
             <p className="text-sm text-blue-700">{selectedContract.contract_name}</p>
             {selectedContract.project && (
               <p className="text-xs text-blue-600 mt-1">
@@ -508,10 +456,10 @@ export default function WorkEntryForm({
             )}
             {contractTemplates.length === 0 && !loadingTemplate && (
               <p className="text-xs text-amber-700 mt-1 font-medium">
-                ⚠️ No templates {isOnline ? 'assigned to this contract' : 'cached for this contract'}.
+                ⚠️ No templates {isOnline ? 'assigned' : 'cached'} for this contract.
                 {isOnline && (
                   <a href={`/contracts/${selectedContract.id}/edit`} className="ml-1 underline">
-                    Edit contract →
+                    Assign template →
                   </a>
                 )}
               </p>
@@ -526,17 +474,15 @@ export default function WorkEntryForm({
         )}
       </div>
 
-      {/* Template loading spinner */}
+      {/* Loading spinner */}
       {loadingTemplate && (
         <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
-          <p className="text-gray-600">
-            {isOnline ? 'Loading template…' : 'Loading cached template…'}
-          </p>
+          <p className="text-gray-600">Loading template…</p>
         </div>
       )}
 
-      {/* Dynamic Form */}
+      {/* ── Dynamic Form ────────────────────────────────────────────────────── */}
       {template && !loadingTemplate && (
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="mb-4">
@@ -544,35 +490,61 @@ export default function WorkEntryForm({
             <p className="text-sm text-gray-600">Fill in the required fields below</p>
           </div>
 
+          {/*
+            UI FIX (Session 19):
+            Online  → onSubmit = handleSubmitEntry, label = "Submit Entry"
+            Offline → onSubmit = handleSaveAsDraft, label = "💾 Save as Draft"
+
+            This eliminates the confusing dual-button state where the DynamicForm
+            submit button showed an error while the external button saved correctly.
+            Now one button, one action, no confusion.
+          */}
           <DynamicForm
             template={template}
             contract={selectedContract}
             initialData={formData}
             onChange={handleFormDataChange}
-            onSubmit={handleSubmitEntry}
+            onSubmit={isOnline ? handleSubmitEntry : handleSaveAsDraft}
             submitLabel={
               !isOnline
-                ? '🔴 Offline — save as draft instead'
-                : submitting ? 'Submitting…' : 'Submit Entry'
+                ? (saving ? 'Saving…' : '💾 Save as Draft')
+                : (submitting ? 'Submitting…' : 'Submit Entry')
             }
-            submitDisabled={!isOnline}
             showCancel={false}
           />
 
+          {/* Action buttons below the form */}
           <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-end border-t pt-6">
+
+            {/* Cancel — always shown */}
             {onCancel && (
-              <Button variant="outline" onClick={onCancel} disabled={saving || submitting}>
+              <Button
+                variant="outline"
+                onClick={onCancel}
+                disabled={saving || submitting}
+              >
                 Cancel
               </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={() => handleSaveAsDraft(formData)}
-              disabled={saving || submitting || !selectedContract || !template}
-            >
-              {saving ? 'Saving…' : '💾 Save as Draft'}
-            </Button>
+
+            {/* Save as Draft — shown online only (offline, the DynamicForm button IS the save button) */}
+            {isOnline && (
+              <Button
+                variant="outline"
+                onClick={() => handleSaveAsDraft(formData)}
+                disabled={saving || submitting || !selectedContract || !template}
+              >
+                {saving ? 'Saving…' : '💾 Save as Draft'}
+              </Button>
+            )}
           </div>
+
+          {/* Offline reminder below buttons */}
+          {!isOnline && (
+            <p className="text-xs text-amber-600 text-center mt-3">
+              Tap "Save as Draft" above to save locally. Your entry will sync when you go online.
+            </p>
+          )}
         </div>
       )}
 
@@ -585,7 +557,7 @@ export default function WorkEntryForm({
             {contracts.length === 0
               ? isOnline
                 ? 'No active contracts found.'
-                : 'No contracts cached. Connect and open WorkLedger to cache your data.'
+                : 'No contracts cached. Connect to the internet and open WorkLedger to cache your data.'
               : 'Choose a contract from the dropdown above.'}
           </p>
         </div>

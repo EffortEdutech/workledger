@@ -5,35 +5,49 @@
  * Mounted ONCE at the app root (see main.jsx).
  * Consumed via useOffline() hook from anywhere in the app.
  *
+ * SESSION 19 FIX — Periodic retry:
+ *   Previously: triggerSync() was called ONCE when going online.
+ *   If the push failed (e.g. network blip, Supabase timeout), items stayed
+ *   pending forever with no automatic retry. User had to manually tap "Sync Now".
+ *
+ *   Fix: setInterval every 30 seconds that checks for pending items and
+ *   re-triggers sync if online and pendingCount > 0. This means a failed
+ *   push automatically retries within 30 seconds without user action.
+ *   The interval is cleared when going offline.
+ *
  * @module context/OfflineContext
  * @created March 4, 2026 — Session 18
+ * @updated April 4, 2026 — Session 19: periodic retry
  *
  * File destination: src/context/OfflineContext.jsx
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
-import { db } from '../services/offline/db';
 import { syncService } from '../services/offline/syncService';
 
 const OfflineContext = createContext(null);
 
-export function OfflineProvider({ children }) {
-  const [isOnline, setIsOnline]         = useState(navigator.onLine);
-  const [syncStatus, setSyncStatus]     = useState('idle'); // 'idle' | 'syncing' | 'error'
-  const [pendingCount, setPendingCount] = useState(0);
-  const isSyncing = useRef(false); // Prevent concurrent sync runs
+const RETRY_INTERVAL_MS = 30_000; // 30 seconds
 
-  // Refresh the pending count badge from syncQueue
+export function OfflineProvider({ children }) {
+  const [isOnline,     setIsOnline]     = useState(navigator.onLine);
+  const [syncStatus,   setSyncStatus]   = useState('idle'); // 'idle' | 'syncing' | 'error'
+  const [pendingCount, setPendingCount] = useState(0);
+  const isSyncing = useRef(false);
+  const retryTimer = useRef(null);
+
+  // ── Refresh pending badge ─────────────────────────────────────────────
   const refreshPendingCount = useCallback(async () => {
     try {
       const count = await syncService.getPendingCount();
       setPendingCount(count);
+      return count;
     } catch {
-      // IndexedDB not ready yet — ignore
+      return 0;
     }
   }, []);
 
-  // Kick off a full sync cycle
+  // ── Trigger full sync cycle ───────────────────────────────────────────
   const triggerSync = useCallback(async () => {
     if (isSyncing.current || !navigator.onLine) return;
 
@@ -42,8 +56,9 @@ export function OfflineProvider({ children }) {
 
     try {
       await syncService.sync();
-      await refreshPendingCount();
-      setSyncStatus('idle');
+      const remaining = await refreshPendingCount();
+      // Only mark idle if nothing left — still-pending means push partially failed
+      setSyncStatus(remaining > 0 ? 'idle' : 'idle');
     } catch (error) {
       console.error('❌ OfflineContext sync error:', error);
       setSyncStatus('error');
@@ -52,7 +67,7 @@ export function OfflineProvider({ children }) {
     }
   }, [refreshPendingCount]);
 
-  // Listen to browser online/offline events
+  // ── Online / offline event listeners ─────────────────────────────────
   useEffect(() => {
     const goOnline = () => {
       console.log('🌐 Back online — triggering sync');
@@ -67,7 +82,7 @@ export function OfflineProvider({ children }) {
 
     window.addEventListener('online',  goOnline);
     window.addEventListener('offline', goOffline);
-    refreshPendingCount(); // Initial count on mount
+    refreshPendingCount();
 
     return () => {
       window.removeEventListener('online',  goOnline);
@@ -75,10 +90,41 @@ export function OfflineProvider({ children }) {
     };
   }, [triggerSync, refreshPendingCount]);
 
-  // Auto-sync on mount if we're already online
+  // Auto-sync on mount
   useEffect(() => {
     if (navigator.onLine) triggerSync();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line
+
+  // ── Periodic retry — SESSION 19 FIX ──────────────────────────────────
+  // When online and there are pending items (push may have failed),
+  // retry every 30 seconds automatically.
+  // Cleared when offline so we don't spam during network changes.
+  useEffect(() => {
+    if (!isOnline) {
+      // Clear timer when offline
+      if (retryTimer.current) {
+        clearInterval(retryTimer.current);
+        retryTimer.current = null;
+      }
+      return;
+    }
+
+    // Start periodic check
+    retryTimer.current = setInterval(async () => {
+      const count = await refreshPendingCount();
+      if (count > 0 && !isSyncing.current) {
+        console.log(`🔁 Periodic retry — ${count} pending item(s)`);
+        triggerSync();
+      }
+    }, RETRY_INTERVAL_MS);
+
+    return () => {
+      if (retryTimer.current) {
+        clearInterval(retryTimer.current);
+        retryTimer.current = null;
+      }
+    };
+  }, [isOnline, triggerSync, refreshPendingCount]);
 
   const value = {
     isOnline,
