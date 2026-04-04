@@ -1,25 +1,22 @@
 /**
  * WorkLedger — Sync Service
  *
- * SESSION 19 CRITICAL FIXES:
+ * CRITICAL FIX (this session):
  *
- *   FIX 1 — getPendingCount now counts db.workEntries WHERE remoteId IS NULL.
- *     The old version counted db.syncQueue WHERE pending — but after 3 failed
- *     retries the queue item was pruned (FAILED → deleted) while the entry in
- *     db.workEntries still had remoteId=null. Result: pendingCount → 0, banner
- *     disappeared, user thought sync succeeded. Entries were never pushed.
+ *   _pushWorkEntry was building a HAND-CRAFTED payload that differed from what
+ *   workEntryService.createWorkEntry sends online. Any field mismatch caused a
+ *   silent Supabase rejection → sync appeared to run but nothing reached the DB.
  *
- *   FIX 2 — _requeueOrphanedEntries (new).
- *     On every sync cycle, scan db.workEntries for entries with remoteId=null
- *     that have no live queue item. Re-add them to the queue so the next
- *     pushPendingEntries call picks them up. This breaks the "lost entry" state.
+ *   FIX: Strip only Dexie-local fields (localId, remoteId, sync_status) from the
+ *   IndexedDB entry and send the rest directly to Supabase. This exactly mirrors
+ *   the online createWorkEntry path, which is proven to work.
  *
- *   FIX 3 — pruneOldData: never prune FAILED queue items whose work entry
- *     still has remoteId=null. Those entries need to be retried.
- *     Only prune FAILED items where the entry is already synced (has remoteId).
- *
- *   FIX A — _pullContracts: fetches both owned + performing_org_id (Session 19)
- *   FIX B — _pullContractTemplates: junction-based (not category-based) (Session 19)
+ *   Also:
+ *   - getPendingCount counts db.workEntries WHERE remoteId IS NULL (ground truth)
+ *   - _requeueOrphanedEntries re-queues entries with remoteId=null + no live queue item
+ *   - pruneOldData never prunes FAILED queue items whose entry is still unsynced
+ *   - _pullContracts fetches owned + performing_org_id contracts
+ *   - _pullContractTemplates uses junction table (not category-based)
  *
  * @module services/offline/syncService
  * File destination: src/services/offline/syncService.js
@@ -28,7 +25,7 @@
 import { db, SYNC_STATUS } from './db';
 import { supabase } from '../supabase/client';
 
-const MAX_RETRIES  = 3;
+const MAX_RETRIES = 3;
 const ENTRY_WINDOW = 30;
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -50,77 +47,46 @@ export const syncService = {
   },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // getPendingCount — FIX 1
-  //
-  // Ground truth: count workEntries WHERE remoteId IS NULL.
-  // A null remoteId means the entry has never been pushed to Supabase.
-  // Queue item state is unreliable (items get pruned after failures).
+  // getPendingCount — ground truth: count entries with no remoteId
   // ─────────────────────────────────────────────────────────────────────────
   async getPendingCount() {
     try {
-      const count = await db.workEntries
-        .filter(e => !e.remoteId && !e.deleted_at)
-        .count();
-      return count;
-    } catch {
-      return 0;
-    }
+      return await db.workEntries.filter(e => !e.remoteId && !e.deleted_at).count();
+    } catch { return 0; }
   },
 
   // ── PUSH ─────────────────────────────────────────────────────────────────
 
   async pushPendingEntries() {
     try {
-      // FIX 2: Always re-queue orphaned entries FIRST
       await this._requeueOrphanedEntries();
 
       const pending = await db.syncQueue
         .where('sync_status').equals(SYNC_STATUS.PENDING)
         .toArray();
 
-      if (!pending.length) {
-        console.log('📭 Nothing to push');
-        return;
-      }
+      if (!pending.length) { console.log('📭 Nothing to push'); return; }
+      console.log(`📤 Pushing ${pending.length} item(s)...`);
 
-      console.log(`📤 Pushing ${pending.length} pending item(s)...`);
       for (const item of pending) await this._pushSingleItem(item);
-
     } catch (e) {
       console.error('❌ pushPendingEntries failed:', e);
     }
   },
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // _requeueOrphanedEntries — FIX 2 (new method)
-  //
-  // Finds workEntries with remoteId=null that have no live sync queue item.
-  // This happens when queue items exhaust retries → marked FAILED → pruned.
-  // Re-adds them to the queue so the next push attempt finds them.
-  //
-  // Also resets sync_status on the work entry to 'pending' so the UI
-  // correctly shows them as pending instead of stuck in some other state.
-  // ─────────────────────────────────────────────────────────────────────────
+  // Re-queue entries with remoteId=null that lost their queue item
   async _requeueOrphanedEntries() {
     try {
-      const unsynced = await db.workEntries
-        .filter(e => !e.remoteId && !e.deleted_at)
-        .toArray();
-
-      if (!unsynced.length) return;
-
+      const unsynced = await db.workEntries.filter(e => !e.remoteId && !e.deleted_at).toArray();
       for (const entry of unsynced) {
-        // Check for existing live queue item (any status except 'done')
         const liveQueueItem = await db.syncQueue
           .filter(q =>
             q.entity_type === 'work_entry' &&
             q.entity_local_id === entry.localId &&
             q.sync_status !== 'done'
-          )
-          .first();
+          ).first();
 
         if (!liveQueueItem) {
-          // No live queue item — this entry is orphaned. Re-queue it.
           await db.syncQueue.add({
             entity_type:     'work_entry',
             entity_local_id: entry.localId,
@@ -129,20 +95,11 @@ export const syncService = {
             retry_count:     0,
             created_at:      new Date().toISOString(),
           });
-
-          // Reset sync_status on the entry so UI shows correct state
-          if (entry.sync_status !== SYNC_STATUS.PENDING) {
-            await db.workEntries.update(entry.localId, {
-              sync_status: SYNC_STATUS.PENDING,
-            });
-          }
-
-          console.log(`🔁 Re-queued orphaned entry (localId: ${entry.localId}, date: ${entry.entry_date})`);
+          await db.workEntries.update(entry.localId, { sync_status: SYNC_STATUS.PENDING });
+          console.log(`🔁 Re-queued orphaned entry (localId: ${entry.localId})`);
         }
       }
-    } catch (e) {
-      console.warn('⚠️ _requeueOrphanedEntries failed:', e.message);
-    }
+    } catch (e) { console.warn('⚠️ _requeueOrphanedEntries failed:', e.message); }
   },
 
   async _pushSingleItem(queueItem) {
@@ -150,95 +107,106 @@ export const syncService = {
       await db.syncQueue.update(queueItem.id, { sync_status: SYNC_STATUS.SYNCING });
       if (queueItem.entity_type === 'work_entry') await this._pushWorkEntry(queueItem);
     } catch (e) {
-      console.error(`❌ Push failed (queue id ${queueItem.id}):`, e.message);
+      console.error(`❌ Push failed (queue ${queueItem.id}):`, e.message);
 
       const retries = (queueItem.retry_count || 0) + 1;
+      // Store the error message so PendingSyncSection can show it
       await db.syncQueue.update(queueItem.id, {
-        // FIX 3: Don't finalize as FAILED — keep as PENDING so _requeueOrphanedEntries
-        // doesn't re-add a duplicate. Instead, increment retry_count but stay PENDING.
-        // After MAX_RETRIES we keep it PENDING (not FAILED) so the next sync sees it.
         sync_status: SYNC_STATUS.PENDING,
         retry_count: retries,
+        last_error:  e.message,
       });
 
-      if (retries >= MAX_RETRIES) {
-        console.warn(
-          `⚠️ Queue item ${queueItem.id} has failed ${retries} times — will keep retrying. ` +
-          `Check DevTools console for error details.`
-        );
+      // Also store on workEntry so UI can surface it
+      if (queueItem.entity_type === 'work_entry') {
+        await db.workEntries.update(queueItem.entity_local_id, {
+          sync_error: e.message,
+        }).catch(() => {});
       }
     }
   },
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // _pushWorkEntry — THE CRITICAL FIX
+  //
+  // Previous versions built a hand-crafted payload which could differ from
+  // what the online createWorkEntry path sends → Supabase rejected it.
+  //
+  // New approach: strip ONLY the three Dexie-local fields (localId, remoteId,
+  // sync_status) that don't exist on the Supabase table, and send everything
+  // else exactly as stored in IndexedDB — which is exactly what createWorkEntry
+  // wrote during the offline save:
+  //
+  //   { ...workEntryData, created_by, created_at, updated_at }
+  //
+  // The only extra step: validate/resolve template_id to a UUID (text slugs
+  // fail Supabase's UUID FK constraint).
+  // ─────────────────────────────────────────────────────────────────────────
   async _pushWorkEntry(queueItem) {
     const local = await db.workEntries.get(queueItem.entity_local_id);
 
     if (!local) {
       await db.syncQueue.delete(queueItem.id);
-      console.log(`🗑️ Removed orphaned queue item (entry not found)`);
       return;
     }
 
-    // Guard: already synced — cleanup stale queue item
+    // Already synced (stale queue item)
     if (local.remoteId) {
       await db.syncQueue.update(queueItem.id, { sync_status: 'done' });
-      console.log(`⏭️ Entry already synced (remoteId: ${local.remoteId})`);
+      console.log(`⏭️ Already synced (remoteId: ${local.remoteId})`);
       return;
     }
 
-    // Validate and resolve template_id to UUID
-    let { template_id } = local;
-    if (!isUUID(template_id)) {
-      console.warn(`⚠️ template_id "${template_id}" is not a UUID — attempting to resolve...`);
-      const tpl = await db.templates.get(template_id)
-        ?? await db.templates.filter(t => t.template_id === template_id).first();
+    // Strip the three Dexie-local fields — send everything else
+    const { localId, remoteId, sync_status, sync_error, ...supabasePayload } = local;
+
+    // Validate template_id is a UUID (text slugs fail Supabase FK constraint)
+    if (!isUUID(supabasePayload.template_id)) {
+      console.warn(`⚠️ template_id "${supabasePayload.template_id}" is not a UUID — resolving...`);
+
+      const tpl = await db.templates.get(supabasePayload.template_id)
+        ?? await db.templates.filter(t => t.template_id === supabasePayload.template_id).first()
+        ?? await db.contractTemplates.filter(r => r.template?.template_id === supabasePayload.template_id && r.template?.id).map(r => r.template).first();
+
       if (tpl?.id && isUUID(tpl.id)) {
-        template_id = tpl.id;
-        await db.workEntries.update(queueItem.entity_local_id, { template_id });
-        console.log(`✅ Resolved template_id → UUID: ${template_id}`);
+        supabasePayload.template_id = tpl.id;
+        // Fix in IndexedDB so future syncs don't need to resolve again
+        await db.workEntries.update(localId, { template_id: tpl.id });
+        console.log(`✅ Resolved template_id → ${tpl.id}`);
       } else {
         throw new Error(
-          `template_id "${local.template_id}" is not a valid UUID and could not be resolved. ` +
-          `Entry cannot be pushed until template is re-cached.`
+          `template_id "${local.template_id}" could not be resolved to a UUID. ` +
+          `Connect to the internet, open WorkLedger to refresh templates, then retry.`
         );
       }
     }
 
-    // Build clean Supabase payload
-    const payload = {
-      contract_id:     local.contract_id,
-      template_id,
-      organization_id: local.organization_id ?? null,
-      entry_date:      local.entry_date,
-      shift:           local.shift ?? null,
-      data:            local.data ?? {},
-      status:          local.status,
-      created_by:      local.created_by,
-      created_at:      local.created_at,
-      submitted_at:    local.submitted_at ?? null,
-      submitted_by:    local.status === 'submitted' ? local.created_by : null,
-    };
-
-    console.log(`📤 Pushing work entry (localId: ${local.localId}, date: ${payload.entry_date}, status: ${payload.status})...`);
+    console.log(`📤 Pushing entry (localId: ${localId}, date: ${supabasePayload.entry_date}, status: ${supabasePayload.status})`);
 
     const { data, error } = await supabase
       .from('work_entries')
-      .insert(payload)
+      .insert(supabasePayload)
       .select('id')
       .single();
 
     if (error) {
       console.error('❌ Supabase insert failed:', {
-        code: error.code, message: error.message,
-        details: error.details, hint: error.hint,
+        code:    error.code,
+        message: error.message,
+        details: error.details,
+        hint:    error.hint,
+        payload: supabasePayload,
       });
-      throw new Error(`Supabase ${error.code}: ${error.message}`);
+      throw new Error(
+        `${error.message}${error.hint ? ` — ${error.hint}` : ''}${error.details ? ` (${error.details})` : ''}`
+      );
     }
 
-    // Success — update local entry with remote ID
-    await db.workEntries.update(queueItem.entity_local_id, {
+    // Success
+    await db.workEntries.update(localId, {
       remoteId:    data.id,
       sync_status: SYNC_STATUS.SYNCED,
+      sync_error:  null,
     });
     await db.syncQueue.update(queueItem.id, { sync_status: 'done' });
     console.log(`✅ Entry pushed → remoteId: ${data.id}`);
@@ -258,9 +226,7 @@ export const syncService = {
       const contracts = await this._pullContracts(orgId);
       if (contracts.length > 0) await this._pullContractTemplates(contracts.map(c => c.id));
       await this._pullWorkEntries(user.id, orgId, mode);
-    } catch (e) {
-      console.error('❌ pullFromSupabase failed:', e);
-    }
+    } catch (e) { console.error('❌ pullFromSupabase failed:', e); }
   },
 
   async _resolveUserContext(userId) {
@@ -274,10 +240,7 @@ export const syncService = {
       }
       const orgId = await this._pullOrgMembership(userId);
       return { orgId, mode: 'member' };
-    } catch (e) {
-      console.warn('⚠️ _resolveUserContext failed:', e.message);
-      return { orgId: null, mode: 'member' };
-    }
+    } catch (e) { return { orgId: null, mode: 'member' }; }
   },
 
   async _pullOrgMembership(userId) {
@@ -287,7 +250,7 @@ export const syncService = {
       if (error || !data) return null;
       const { data: org } = await supabase
         .from('organizations').select('id, name, slug, settings').eq('id', data.organization_id).single();
-      if (org) { await db.organizations.put(org); }
+      if (org) await db.organizations.put(org);
       return data.organization_id;
     } catch (e) { return null; }
   },
@@ -329,7 +292,6 @@ export const syncService = {
         sort_order: row.sort_order, is_default: row.is_default, assigned_at: row.assigned_at,
         template: row.template,
       })));
-
       const unique = [...new Map(data.map(r => r.template).filter(Boolean).map(t => [t.template_id, t])).values()];
       if (unique.length) await db.templates.bulkPut(unique);
       console.log(`📥 ${data.length} junction rows + ${unique.length} templates cached`);
@@ -363,52 +325,31 @@ export const syncService = {
     } catch (e) { console.warn('⚠️ _pullWorkEntries failed:', e.message); }
   },
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // pruneOldData — FIX 3
-  //
-  // Changed: FAILED queue items are only pruned if the corresponding work
-  // entry already has a remoteId (i.e. was successfully synced elsewhere).
-  // If remoteId is still null, the FAILED item is reset to PENDING so the
-  // entry gets re-tried on the next sync cycle.
-  // ─────────────────────────────────────────────────────────────────────────
   async pruneOldData() {
     try {
-      const c30 = new Date(); c30.setDate(c30.getDate() - 30);
-      const c7  = new Date(); c7.setDate(c7.getDate() - 7);
-      const cut30 = c30.toISOString().split('T')[0];
-      const cut7  = c7.toISOString().split('T')[0];
+      const c30 = new Date(); c30.setDate(c30.getDate() - 30); const cut30 = c30.toISOString().split('T')[0];
+      const c7  = new Date(); c7.setDate(c7.getDate() - 7);    const cut7  = c7.toISOString().split('T')[0];
 
-      // Prune old SYNCED work entries
+      // Only prune SYNCED entries (have remoteId)
       const toDelete = await db.workEntries.filter(e => {
-        if (!e.remoteId) return false; // Never prune unsynced entries
-        if (e.sync_status === SYNC_STATUS.PENDING) return false;
+        if (!e.remoteId) return false; // never prune unsynced
         if (e.status === 'approved' && e.entry_date < cut7)  return true;
         if (e.entry_date < cut30) return true;
         return false;
       }).primaryKeys();
+      if (toDelete.length) { await db.workEntries.bulkDelete(toDelete); console.log(`🧹 Pruned ${toDelete.length} old entries`); }
 
-      if (toDelete.length) {
-        await db.workEntries.bulkDelete(toDelete);
-        console.log(`🧹 Pruned ${toDelete.length} old synced entries`);
-      }
-
-      // Prune only 'done' queue items (not FAILED — see FIX 3)
+      // Prune only completed queue items
       await db.syncQueue.where('sync_status').equals('done').delete();
 
-      // For FAILED items: reset to PENDING if entry still needs syncing
-      const failedItems = await db.syncQueue.where('sync_status').equals(SYNC_STATUS.FAILED).toArray();
-      for (const item of failedItems) {
+      // Reset FAILED items that still have unsynced entries
+      const failed = await db.syncQueue.where('sync_status').equals(SYNC_STATUS.FAILED).toArray();
+      for (const item of failed) {
         if (item.entity_type === 'work_entry') {
           const entry = await db.workEntries.get(item.entity_local_id);
           if (entry && !entry.remoteId) {
-            // Entry still unsynced — reset to pending instead of deleting
-            await db.syncQueue.update(item.id, {
-              sync_status: SYNC_STATUS.PENDING,
-              retry_count: 0, // reset retry count for fresh attempt
-            });
-            console.log(`🔄 Reset FAILED queue item ${item.id} → PENDING (entry still unsynced)`);
+            await db.syncQueue.update(item.id, { sync_status: SYNC_STATUS.PENDING, retry_count: 0 });
           } else {
-            // Entry synced or deleted — safe to prune the FAILED item
             await db.syncQueue.delete(item.id);
           }
         } else {
