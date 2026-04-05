@@ -16,10 +16,17 @@
  *   - getUserWorkEntries: caches results to IndexedDB after each fetch; falls
  *     back to IndexedDB when offline.
  *
+ * SESSION 19 FIX: All supabase.auth.getUser() calls replaced with getSession().
+ *   getUser() makes a live HTTPS request to Supabase — fails offline with
+ *   ERR_NAME_NOT_RESOLVED → user = null → created_by = null stored in
+ *   IndexedDB → NOT NULL constraint violation on sync push.
+ *   getSession() reads the JWT from localStorage — no network, always works.
+ *
  * @module services/api/workEntryService
  * @created February 1, 2026 - Session 13
  * @updated February 20, 2026 - Session 10: orgId param for org switching
  * @updated March 4, 2026     - Session 18: offline-first IndexedDB integration
+ * @updated April 5, 2026     - Session 19: getUser → getSession (offline fix)
  */
 
 import { supabase } from '../supabase/client';
@@ -47,8 +54,10 @@ class WorkEntryService {
     try {
       console.log('📋 Fetching work entries...', orgId ? `(org: ${orgId})` : '(user scope)');
 
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
+      // SESSION 19 FIX: getSession() reads local JWT — no network call, works offline
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) {
         throw new Error('User not authenticated');
       }
 
@@ -290,6 +299,8 @@ class WorkEntryService {
    *
    *   Three args (legacy pattern):
    *     createWorkEntry(contractId, templateId, { entry_date, shift, data })
+   *
+   * SESSION 19 FIX: getSession() instead of getUser() — works offline.
    */
   async createWorkEntry(contractIdOrFlat, templateId, entryData) {
     try {
@@ -310,8 +321,10 @@ class WorkEntryService {
 
       console.log('📝 Creating work entry for contract:', flat.contract_id);
 
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('User not authenticated');
+      // SESSION 19 FIX: getSession() reads local JWT — no network call, works offline
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error('User not authenticated');
 
       const payload = {
         contract_id: flat.contract_id,
@@ -519,7 +532,9 @@ class WorkEntryService {
     try {
       console.log('📤 Submitting work entry:', id);
 
-      const { data: { user } } = await supabase.auth.getUser();
+      // SESSION 19 FIX: getSession() reads local JWT — no network call
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) return { success: false, error: 'Not authenticated' };
 
       const { data, error } = await supabase
@@ -568,8 +583,10 @@ class WorkEntryService {
     try {
       console.log('🗑️ Deleting work entry:', id);
 
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('User not authenticated');
+      // SESSION 19 FIX: getSession() reads local JWT — no network call
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error('User not authenticated');
 
       // ── Ownership guard ───────────────────────────────────────────
       const { data: entry, error: fetchError } = await supabase
@@ -721,8 +738,10 @@ class WorkEntryService {
     try {
       console.log('✅ Approving work entry:', entryId);
 
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('Not authenticated');
+      // SESSION 19 FIX: getSession() reads local JWT — no network call
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error('Not authenticated');
 
       const now = new Date().toISOString();
 
@@ -793,8 +812,10 @@ class WorkEntryService {
 
       console.log('❌ Rejecting work entry:', entryId);
 
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('Not authenticated');
+      // SESSION 19 FIX: getSession() reads local JWT — no network call
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error('Not authenticated');
 
       const now = new Date().toISOString();
 
@@ -885,8 +906,10 @@ class WorkEntryService {
     try {
       console.log('🔄 Resubmitting work entry:', entryId);
 
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error('Not authenticated');
+      // SESSION 19 FIX: getSession() reads local JWT — no network call
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) throw new Error('Not authenticated');
 
       const now = new Date().toISOString();
 

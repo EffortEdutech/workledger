@@ -1,22 +1,17 @@
 /**
  * WorkLedger — Sync Service
  *
- * CRITICAL FIX (this session):
+ * SESSION 19 FIX — created_by null guard in _pushWorkEntry:
+ *   When entries are created offline, workEntryService calls getUser() which
+ *   makes a live network request. This request fails offline (ERR_NAME_NOT_RESOLVED)
+ *   → user = null → created_by = null stored in IndexedDB.
+ *   On sync, Supabase rejects the null (NOT NULL constraint).
  *
- *   _pushWorkEntry was building a HAND-CRAFTED payload that differed from what
- *   workEntryService.createWorkEntry sends online. Any field mismatch caused a
- *   silent Supabase rejection → sync appeared to run but nothing reached the DB.
+ *   Fix: before pushing, if created_by is null, resolve it from getSession()
+ *   which reads the JWT from localStorage — no network needed.
  *
- *   FIX: Strip only Dexie-local fields (localId, remoteId, sync_status) from the
- *   IndexedDB entry and send the rest directly to Supabase. This exactly mirrors
- *   the online createWorkEntry path, which is proven to work.
- *
- *   Also:
- *   - getPendingCount counts db.workEntries WHERE remoteId IS NULL (ground truth)
- *   - _requeueOrphanedEntries re-queues entries with remoteId=null + no live queue item
- *   - pruneOldData never prunes FAILED queue items whose entry is still unsynced
- *   - _pullContracts fetches owned + performing_org_id contracts
- *   - _pullContractTemplates uses junction table (not category-based)
+ *   The permanent fix is in workEntryService.js (getUser→getSession). This
+ *   guard handles entries already stored with created_by=null.
  *
  * @module services/offline/syncService
  * File destination: src/services/offline/syncService.js
@@ -30,6 +25,16 @@ const ENTRY_WINDOW = 30;
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const isUUID = (str) => typeof str === 'string' && UUID_REGEX.test(str);
+
+// ── Helper: get current user ID from local session (no network) ───────────────
+async function getSessionUserId() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export const syncService = {
 
@@ -46,9 +51,7 @@ export const syncService = {
     }
   },
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // getPendingCount — ground truth: count entries with no remoteId
-  // ─────────────────────────────────────────────────────────────────────────
+  // Ground truth: entries with no remoteId haven't reached Supabase
   async getPendingCount() {
     try {
       return await db.workEntries.filter(e => !e.remoteId && !e.deleted_at).count();
@@ -67,33 +70,25 @@ export const syncService = {
 
       if (!pending.length) { console.log('📭 Nothing to push'); return; }
       console.log(`📤 Pushing ${pending.length} item(s)...`);
-
       for (const item of pending) await this._pushSingleItem(item);
-    } catch (e) {
-      console.error('❌ pushPendingEntries failed:', e);
-    }
+    } catch (e) { console.error('❌ pushPendingEntries failed:', e); }
   },
 
-  // Re-queue entries with remoteId=null that lost their queue item
   async _requeueOrphanedEntries() {
     try {
       const unsynced = await db.workEntries.filter(e => !e.remoteId && !e.deleted_at).toArray();
       for (const entry of unsynced) {
-        const liveQueueItem = await db.syncQueue
-          .filter(q =>
-            q.entity_type === 'work_entry' &&
-            q.entity_local_id === entry.localId &&
-            q.sync_status !== 'done'
-          ).first();
+        const live = await db.syncQueue.filter(q =>
+          q.entity_type === 'work_entry' &&
+          q.entity_local_id === entry.localId &&
+          q.sync_status !== 'done'
+        ).first();
 
-        if (!liveQueueItem) {
+        if (!live) {
           await db.syncQueue.add({
-            entity_type:     'work_entry',
-            entity_local_id: entry.localId,
-            action:          'create',
-            sync_status:     SYNC_STATUS.PENDING,
-            retry_count:     0,
-            created_at:      new Date().toISOString(),
+            entity_type: 'work_entry', entity_local_id: entry.localId,
+            action: 'create', sync_status: SYNC_STATUS.PENDING,
+            retry_count: 0, created_at: new Date().toISOString(),
           });
           await db.workEntries.update(entry.localId, { sync_status: SYNC_STATUS.PENDING });
           console.log(`🔁 Re-queued orphaned entry (localId: ${entry.localId})`);
@@ -108,39 +103,32 @@ export const syncService = {
       if (queueItem.entity_type === 'work_entry') await this._pushWorkEntry(queueItem);
     } catch (e) {
       console.error(`❌ Push failed (queue ${queueItem.id}):`, e.message);
-
       const retries = (queueItem.retry_count || 0) + 1;
-      // Store the error message so PendingSyncSection can show it
       await db.syncQueue.update(queueItem.id, {
         sync_status: SYNC_STATUS.PENDING,
         retry_count: retries,
-        last_error:  e.message,
+        last_error: e.message,
       });
-
-      // Also store on workEntry so UI can surface it
       if (queueItem.entity_type === 'work_entry') {
-        await db.workEntries.update(queueItem.entity_local_id, {
-          sync_error: e.message,
-        }).catch(() => {});
+        await db.workEntries.update(queueItem.entity_local_id, { sync_error: e.message }).catch(() => {});
       }
     }
   },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // _pushWorkEntry — THE CRITICAL FIX
+  // _pushWorkEntry
   //
-  // Previous versions built a hand-crafted payload which could differ from
-  // what the online createWorkEntry path sends → Supabase rejected it.
+  // Strip Dexie-local fields and send everything else to Supabase — mirrors
+  // the online createWorkEntry path exactly.
   //
-  // New approach: strip ONLY the three Dexie-local fields (localId, remoteId,
-  // sync_status) that don't exist on the Supabase table, and send everything
-  // else exactly as stored in IndexedDB — which is exactly what createWorkEntry
-  // wrote during the offline save:
+  // Guards:
+  //   1. created_by null — resolve from local session (no network).
+  //      Entries created offline had getUser() fail (network call, offline
+  //      = ERR_NAME_NOT_RESOLVED) → created_by was stored as null.
+  //      getSession() reads the JWT from localStorage — always works offline.
   //
-  //   { ...workEntryData, created_by, created_at, updated_at }
-  //
-  // The only extra step: validate/resolve template_id to a UUID (text slugs
-  // fail Supabase's UUID FK constraint).
+  //   2. template_id not UUID — resolve text slug to UUID via IndexedDB scan.
+  //      Text slugs fail Supabase FK constraint.
   // ─────────────────────────────────────────────────────────────────────────
   async _pushWorkEntry(queueItem) {
     const local = await db.workEntries.get(queueItem.entity_local_id);
@@ -150,38 +138,57 @@ export const syncService = {
       return;
     }
 
-    // Already synced (stale queue item)
     if (local.remoteId) {
       await db.syncQueue.update(queueItem.id, { sync_status: 'done' });
       console.log(`⏭️ Already synced (remoteId: ${local.remoteId})`);
       return;
     }
 
-    // Strip the three Dexie-local fields — send everything else
+    // Strip Dexie-local fields — send everything else
     const { localId, remoteId, sync_status, sync_error, ...supabasePayload } = local;
 
-    // Validate template_id is a UUID (text slugs fail Supabase FK constraint)
+    // ── GUARD 1: created_by must not be null ─────────────────────────────
+    if (!supabasePayload.created_by) {
+      console.warn('⚠️ created_by is null — resolving from local session...');
+      const userId = await getSessionUserId();
+
+      if (!userId) {
+        throw new Error(
+          'created_by is null and no session available. ' +
+          'Log in to WorkLedger while online so the session is cached, then retry.'
+        );
+      }
+
+      supabasePayload.created_by = userId;
+
+      // Fix permanently in IndexedDB so future syncs don't hit this again
+      await db.workEntries.update(localId, { created_by: userId });
+      console.log(`✅ Resolved created_by from session: ${userId}`);
+    }
+
+    // ── GUARD 2: template_id must be a UUID ──────────────────────────────
     if (!isUUID(supabasePayload.template_id)) {
       console.warn(`⚠️ template_id "${supabasePayload.template_id}" is not a UUID — resolving...`);
 
       const tpl = await db.templates.get(supabasePayload.template_id)
         ?? await db.templates.filter(t => t.template_id === supabasePayload.template_id).first()
-        ?? await db.contractTemplates.filter(r => r.template?.template_id === supabasePayload.template_id && r.template?.id).map(r => r.template).first();
+        ?? await db.contractTemplates.filter(r =>
+            r.template?.template_id === supabasePayload.template_id && r.template?.id
+          ).first().then(r => r?.template);
 
       if (tpl?.id && isUUID(tpl.id)) {
         supabasePayload.template_id = tpl.id;
-        // Fix in IndexedDB so future syncs don't need to resolve again
         await db.workEntries.update(localId, { template_id: tpl.id });
         console.log(`✅ Resolved template_id → ${tpl.id}`);
       } else {
         throw new Error(
-          `template_id "${local.template_id}" could not be resolved to a UUID. ` +
-          `Connect to the internet, open WorkLedger to refresh templates, then retry.`
+          `template_id "${local.template_id}" is not a UUID and could not be resolved. ` +
+          `Connect to the internet, open WorkLedger to refresh template cache, then retry.`
         );
       }
     }
 
-    console.log(`📤 Pushing entry (localId: ${localId}, date: ${supabasePayload.entry_date}, status: ${supabasePayload.status})`);
+    console.log(`📤 Pushing entry (localId: ${localId}, date: ${supabasePayload.entry_date}, status: ${supabasePayload.status}, created_by: ${supabasePayload.created_by})`);
 
     const { data, error } = await supabase
       .from('work_entries')
@@ -191,22 +198,18 @@ export const syncService = {
 
     if (error) {
       console.error('❌ Supabase insert failed:', {
-        code:    error.code,
-        message: error.message,
-        details: error.details,
-        hint:    error.hint,
-        payload: supabasePayload,
+        code: error.code, message: error.message,
+        details: error.details, hint: error.hint,
+        created_by: supabasePayload.created_by,
+        template_id: supabasePayload.template_id,
       });
-      throw new Error(
-        `${error.message}${error.hint ? ` — ${error.hint}` : ''}${error.details ? ` (${error.details})` : ''}`
-      );
+      throw new Error(`${error.message}${error.hint ? ` — ${error.hint}` : ''}`);
     }
 
-    // Success
     await db.workEntries.update(localId, {
-      remoteId:    data.id,
+      remoteId: data.id,
       sync_status: SYNC_STATUS.SYNCED,
-      sync_error:  null,
+      sync_error: null,
     });
     await db.syncQueue.update(queueItem.id, { sync_status: 'done' });
     console.log(`✅ Entry pushed → remoteId: ${data.id}`);
@@ -216,7 +219,9 @@ export const syncService = {
 
   async pullFromSupabase() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      // Use getSession() — no network call, reads local JWT
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) return;
 
       const { orgId, mode } = await this._resolveUserContext(user.id);
@@ -330,19 +335,16 @@ export const syncService = {
       const c30 = new Date(); c30.setDate(c30.getDate() - 30); const cut30 = c30.toISOString().split('T')[0];
       const c7  = new Date(); c7.setDate(c7.getDate() - 7);    const cut7  = c7.toISOString().split('T')[0];
 
-      // Only prune SYNCED entries (have remoteId)
       const toDelete = await db.workEntries.filter(e => {
-        if (!e.remoteId) return false; // never prune unsynced
+        if (!e.remoteId) return false;
         if (e.status === 'approved' && e.entry_date < cut7)  return true;
         if (e.entry_date < cut30) return true;
         return false;
       }).primaryKeys();
       if (toDelete.length) { await db.workEntries.bulkDelete(toDelete); console.log(`🧹 Pruned ${toDelete.length} old entries`); }
 
-      // Prune only completed queue items
       await db.syncQueue.where('sync_status').equals('done').delete();
 
-      // Reset FAILED items that still have unsynced entries
       const failed = await db.syncQueue.where('sync_status').equals(SYNC_STATUS.FAILED).toArray();
       for (const item of failed) {
         if (item.entity_type === 'work_entry') {
