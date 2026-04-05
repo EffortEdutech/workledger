@@ -1,61 +1,64 @@
 /**
  * WorkLedger - Router Configuration
  *
- * Defines all application routes using React Router v6.
- * Implements protected routes with authentication checking.
- *
  * @file src/router.jsx
- * @created January 29, 2026
- * @updated February 1, 2026   - Session 13: Added work entry routes
- * @updated April 4, 2026      - Session 19: Added /tech (technician dashboard)
+ * @updated April 5, 2026 - Session 19: /work/offline + /work/offline/:localId/edit
+ *
+ * ROUTE ORDERING RULE (critical):
+ *   Literal paths MUST be defined BEFORE dynamic /:param paths.
+ *   e.g. /work/offline before /work/:id — or React Router matches 'offline' as an ID.
  */
 
 import { createBrowserRouter } from 'react-router-dom';
 import { ROUTES } from './constants/routes';
 
-// Auth Components
-import ProtectedRoute from './components/auth/ProtectedRoute';
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import ForgotPassword from './pages/auth/ForgotPassword';
+// Auth
+import ProtectedRoute    from './components/auth/ProtectedRoute';
+import Login             from './pages/auth/Login';
+import Register          from './pages/auth/Register';
+import ForgotPassword    from './pages/auth/ForgotPassword';
 
-// Main Pages
-import Dashboard from './pages/Dashboard';
+// Core
+import Dashboard         from './pages/Dashboard';
 
-// Organization Pages
-import OrganizationList from './pages/organizations/OrganizationList';
-import NewOrganization from './pages/organizations/NewOrganization';
-import OrganizationSettings from './pages/organizations/OrganizationSettings';
-
-// Project Pages (Session 9)
-import ProjectListPage from './pages/projects/ProjectListPage';
-import NewProject from './pages/projects/NewProject';
-import EditProject from './pages/projects/EditProject';
-import ProjectDetail from './pages/projects/ProjectDetail';
-
-// Contract Pages (Session 10)
-import ContractListPage from './pages/contracts/ContractListPage';
-import NewContract from './pages/contracts/NewContract';
-import EditContract from './pages/contracts/EditContract';
-import ContractDetail from './pages/contracts/ContractDetail';
-
-// Work Entry Pages (Session 13)
-import WorkEntryListPage from './pages/workEntries/WorkEntryListPage';
-import NewWorkEntry from './pages/workEntries/NewWorkEntry';
-import EditWorkEntry from './pages/workEntries/EditWorkEntry';
-import WorkEntryDetail from './pages/workEntries/WorkEntryDetail';
-
-// Report Pages
-import GenerateReport from './pages/reports/GenerateReport';
-import ReportHistory from './pages/reports/ReportHistory';
-
-// Template Demo Page (Session 12)
-import TemplateDemoPage from './pages/demo/TemplateDemoPage';
-
-// Technician Dashboard (Session 19) — mobile-first offline home
+// Technician
 import TechnicianDashboard from './pages/technician/TechnicianDashboard';
 
-// Placeholder Components (will be replaced in future sessions)
+// Organizations
+import OrganizationList     from './pages/organizations/OrganizationList';
+import NewOrganization      from './pages/organizations/NewOrganization';
+import OrganizationSettings from './pages/organizations/OrganizationSettings';
+
+// Projects
+import ProjectListPage from './pages/projects/ProjectListPage';
+import NewProject      from './pages/projects/NewProject';
+import EditProject     from './pages/projects/EditProject';
+import ProjectDetail   from './pages/projects/ProjectDetail';
+
+// Contracts
+import ContractListPage from './pages/contracts/ContractListPage';
+import NewContract      from './pages/contracts/NewContract';
+import EditContract     from './pages/contracts/EditContract';
+import ContractDetail   from './pages/contracts/ContractDetail';
+
+// Work Entries (online)
+import WorkEntryListPage from './pages/workEntries/WorkEntryListPage';
+import NewWorkEntry      from './pages/workEntries/NewWorkEntry';
+import EditWorkEntry     from './pages/workEntries/EditWorkEntry';
+import WorkEntryDetail   from './pages/workEntries/WorkEntryDetail';
+
+// Work Entries (offline — Session 19)
+import OfflineWorkEntryPage from './pages/workEntries/OfflineWorkEntryPage';
+import OfflineEditDraft     from './pages/workEntries/OfflineEditDraft';
+
+// Reports
+import GenerateReport from './pages/reports/GenerateReport';
+import ReportHistory  from './pages/reports/ReportHistory';
+
+// Templates
+import TemplateDemoPage from './pages/demo/TemplateDemoPage';
+
+// Placeholders
 const PlaceholderPage = ({ title }) => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
     <div className="text-center">
@@ -64,151 +67,71 @@ const PlaceholderPage = ({ title }) => (
     </div>
   </div>
 );
+const ProfilePage  = () => <PlaceholderPage title="Profile" />;
+const NotFoundPage = () => <PlaceholderPage title="404 - Page Not Found" />;
 
-const TemplatesPage = () => <PlaceholderPage title="Templates" />;
-const ReportsPage   = () => <PlaceholderPage title="Reports" />;
-const ProfilePage   = () => <PlaceholderPage title="Profile" />;
-const NotFoundPage  = () => <PlaceholderPage title="404 - Page Not Found" />;
+const P = ({ children }) => <ProtectedRoute>{children}</ProtectedRoute>;
 
-/**
- * Router Configuration
- *
- * ROUTE ORDERING RULE (critical):
- *   Literal paths MUST come before dynamic /:id paths.
- *   e.g. /work/new before /work/:id — or React Router matches 'new' as an ID.
- */
 export const router = createBrowserRouter([
 
-  // ── Public Routes (no auth required) ────────────────────────────────────
+  // ── Public ──────────────────────────────────────────────────────────────
   { path: ROUTES.LOGIN,          element: <Login /> },
   { path: ROUTES.REGISTER,       element: <Register /> },
   { path: ROUTES.FORGOT_PASSWORD, element: <ForgotPassword /> },
 
   // ── Dashboard ────────────────────────────────────────────────────────────
-  {
-    path: ROUTES.DASHBOARD,
-    element: <ProtectedRoute><Dashboard /></ProtectedRoute>,
-  },
+  { path: ROUTES.DASHBOARD, element: <P><Dashboard /></P> },
 
-  // ── Technician Dashboard (Session 19) — /tech ────────────────────────────
-  // Mobile-first home for technician / worker roles.
-  // Linked from BottomNav when role === 'technician' | 'worker'.
-  {
-    path: '/tech',
-    element: <ProtectedRoute><TechnicianDashboard /></ProtectedRoute>,
-  },
+  // ── Technician dashboard ─────────────────────────────────────────────────
+  { path: '/tech',              element: <P><TechnicianDashboard /></P> },
 
-  // ── Work Entry Routes ─────────────────────────────────────────────────────
-  // ORDERING: /work/new and /work/approvals must be ABOVE /work/:id
-  {
-    path: ROUTES.WORK_ENTRIES, // /work-entries or equivalent ROUTES constant
-    element: <ProtectedRoute><WorkEntryListPage /></ProtectedRoute>,
-  },
-  {
-    path: '/work',
-    element: <ProtectedRoute><WorkEntryListPage /></ProtectedRoute>,
-  },
-  {
-    path: '/work/new',
-    element: <ProtectedRoute><NewWorkEntry /></ProtectedRoute>,
-  },
-  // Dynamic route AFTER literals — critical ordering
-  {
-    path: '/work/:id',
-    element: <ProtectedRoute><WorkEntryDetail /></ProtectedRoute>,
-  },
-  {
-    path: '/work/:id/edit',
-    element: <ProtectedRoute><EditWorkEntry /></ProtectedRoute>,
-  },
+  // ── Offline work entries — SESSION 19 ────────────────────────────────────
+  // These MUST be before /work/:id to prevent 'offline' being matched as an ID.
+  { path: '/work/offline',                    element: <P><OfflineWorkEntryPage /></P> },
+  { path: '/work/offline/:localId/edit',      element: <P><OfflineEditDraft /></P> },
 
-  // ── Template Routes ───────────────────────────────────────────────────────
-  {
-    path: ROUTES.TEMPLATES,
-    element: <ProtectedRoute><TemplateDemoPage /></ProtectedRoute>,
-  },
-  {
-    path: '/demo/templates',
-    element: <ProtectedRoute><TemplateDemoPage /></ProtectedRoute>,
-  },
+  // ── Work entries (online) ─────────────────────────────────────────────────
+  // Literal paths (/work/new, /work/approvals) BEFORE dynamic /work/:id
+  { path: ROUTES.WORK_ENTRIES, element: <P><WorkEntryListPage /></P> },
+  { path: '/work',             element: <P><WorkEntryListPage /></P> },
+  { path: '/work/new',         element: <P><NewWorkEntry /></P> },
+  { path: '/work/:id',         element: <P><WorkEntryDetail /></P> },
+  { path: '/work/:id/edit',    element: <P><EditWorkEntry /></P> },
 
-  // ── Report Routes ─────────────────────────────────────────────────────────
-  {
-    path: ROUTES.REPORTS,
-    element: <ProtectedRoute><ReportHistory /></ProtectedRoute>,
-  },
-  {
-    path: '/reports/generate',
-    element: <ProtectedRoute><GenerateReport /></ProtectedRoute>,
-  },
-  {
-    path: '/reports/history',
-    element: <ProtectedRoute><ReportHistory /></ProtectedRoute>,
-  },
+  // ── Templates ─────────────────────────────────────────────────────────────
+  { path: ROUTES.TEMPLATES,    element: <P><TemplateDemoPage /></P> },
+  { path: '/demo/templates',   element: <P><TemplateDemoPage /></P> },
+
+  // ── Reports ───────────────────────────────────────────────────────────────
+  { path: ROUTES.REPORTS,      element: <P><ReportHistory /></P> },
+  { path: '/reports/generate', element: <P><GenerateReport /></P> },
+  { path: '/reports/history',  element: <P><ReportHistory /></P> },
 
   // ── Profile ───────────────────────────────────────────────────────────────
-  {
-    path: ROUTES.PROFILE,
-    element: <ProtectedRoute><ProfilePage /></ProtectedRoute>,
-  },
+  { path: ROUTES.PROFILE,      element: <P><ProfilePage /></P> },
 
-  // ── Organization Routes ───────────────────────────────────────────────────
-  {
-    path: '/organizations',
-    element: <ProtectedRoute><OrganizationList /></ProtectedRoute>,
-  },
-  {
-    path: '/organizations/new',
-    element: <ProtectedRoute><NewOrganization /></ProtectedRoute>,
-  },
-  {
-    path: '/organizations/:id/settings',
-    element: <ProtectedRoute><OrganizationSettings /></ProtectedRoute>,
-  },
+  // ── Organizations ──────────────────────────────────────────────────────────
+  { path: '/organizations',                element: <P><OrganizationList /></P> },
+  { path: '/organizations/new',            element: <P><NewOrganization /></P> },
+  { path: '/organizations/:id/settings',   element: <P><OrganizationSettings /></P> },
 
-  // ── Project Routes ────────────────────────────────────────────────────────
-  {
-    path: '/projects',
-    element: <ProtectedRoute><ProjectListPage /></ProtectedRoute>,
-  },
-  {
-    path: '/projects/new',
-    element: <ProtectedRoute><NewProject /></ProtectedRoute>,
-  },
-  {
-    path: '/projects/:id',
-    element: <ProtectedRoute><ProjectDetail /></ProtectedRoute>,
-  },
-  {
-    path: '/projects/:id/edit',
-    element: <ProtectedRoute><EditProject /></ProtectedRoute>,
-  },
+  // ── Projects ──────────────────────────────────────────────────────────────
+  { path: '/projects',         element: <P><ProjectListPage /></P> },
+  { path: '/projects/new',     element: <P><NewProject /></P> },
+  { path: '/projects/:id',     element: <P><ProjectDetail /></P> },
+  { path: '/projects/:id/edit', element: <P><EditProject /></P> },
 
-  // ── Contract Routes ───────────────────────────────────────────────────────
-  {
-    path: '/contracts',
-    element: <ProtectedRoute><ContractListPage /></ProtectedRoute>,
-  },
-  {
-    path: '/contracts/new',
-    element: <ProtectedRoute><NewContract /></ProtectedRoute>,
-  },
-  {
-    path: '/contracts/:id',
-    element: <ProtectedRoute><ContractDetail /></ProtectedRoute>,
-  },
-  {
-    path: '/contracts/:id/edit',
-    element: <ProtectedRoute><EditContract /></ProtectedRoute>,
-  },
+  // ── Contracts ─────────────────────────────────────────────────────────────
+  { path: '/contracts',         element: <P><ContractListPage /></P> },
+  { path: '/contracts/new',     element: <P><NewContract /></P> },
+  { path: '/contracts/:id',     element: <P><ContractDetail /></P> },
+  { path: '/contracts/:id/edit', element: <P><EditContract /></P> },
 
-  // ── 404 ──────────────────────────────────────────────────────────────────
+  // ── 404 ───────────────────────────────────────────────────────────────────
   { path: '*', element: <NotFoundPage /> },
 
 ], {
-  future: {
-    v7_startTransition: true,
-  },
+  future: { v7_startTransition: true },
 });
 
 export default router;
