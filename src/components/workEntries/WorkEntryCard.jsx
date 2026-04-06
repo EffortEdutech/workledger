@@ -11,10 +11,17 @@
  *   - ApprovalBadge replaces StatusBadge (richer status display with pulse)
  *   - Edit button hidden when status = 'approved' (immutable)
  *   - Rejected entries show rejection reason as subtitle
+ * SESSION 19 FIX:
+ *   - isCreator (created_by === user.id) added to BOTH showEdit and showDelete
+ *   - Technicians can only edit/delete entries THEY created
+ *   - Managers (EDIT_ANY_WORK_ENTRY) can edit/delete any entry in own org
+ *   - Previously showEdit had no creator check → Amirul (tech) could see Edit
+ *     on Fazrul's rejected entry and Hafiz's draft entry (same org, wrong user)
  *
  * @module components/workEntries/WorkEntryCard
  * @created February 1, 2026 - Session 13
  * @updated February 27, 2026 - Session 16: ApprovalBadge + immutability guards
+ * @updated April 6, 2026    - Session 19: isCreator guard on showEdit + showDelete
  */
 
 import React from 'react';
@@ -22,6 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import ApprovalBadge from './ApprovalBadge';
 import Button from '../common/Button';
 import { useRole } from '../../hooks/useRole';
+import { useAuth } from '../../context/AuthContext';
 
 export default function WorkEntryCard({
   workEntry,
@@ -34,7 +42,8 @@ export default function WorkEntryCard({
   isSubcontractorView = false,
 }) {
   const navigate = useNavigate();
-  const { can } = useRole();
+  const { can }  = useRole();
+  const { user } = useAuth();
 
   if (!workEntry) return null;
 
@@ -91,10 +100,33 @@ export default function WorkEntryCard({
   };
 
   // ── Button visibility ─────────────────────────────────────────────────────
-  // SESSION 16: Edit hidden when approved (immutable) or submitted (locked for review)
-  const isEditable  = status === 'draft' || status === 'rejected';
-  const showEdit    = can('EDIT_OWN_WORK_ENTRY') && isEditable && !isSubcontractorView;
-  const showDelete  = can('DELETE_WORK_ENTRY') && isOwnEntry && !isSubcontractorView && status === 'draft';
+  //
+  // SESSION 19 FIX: Two levels of ownership check:
+  //
+  //   isOwnEntry    = entry belongs to user's ORG  (prevents MTSB editing FEST ENT)
+  //   isCreator     = entry was created by THIS user (prevents tech A editing tech B)
+  //   isManagerOrAbove = has EDIT_ANY_WORK_ENTRY permission
+  //
+  // Rules:
+  //   Managers/admins/owners → org-level check (isOwnEntry) is sufficient
+  //   Technicians/workers/subcontractors → must be the creator (isCreator)
+  //
+  const isEditable       = status === 'draft' || status === 'rejected';
+  const isCreator        = !!user && workEntry.created_by === user.id;
+  const isManagerOrAbove = can('EDIT_ANY_WORK_ENTRY');
+
+  // Edit: managers can edit any editable entry in own org
+  //       technicians can only edit entries they created
+  const showEdit = can('EDIT_OWN_WORK_ENTRY')
+    && isEditable
+    && !isSubcontractorView
+    && (isManagerOrAbove ? isOwnEntry : isCreator);
+
+  // Delete: draft only; same ownership rule as edit
+  const showDelete = can('DELETE_WORK_ENTRY')
+    && status === 'draft'
+    && !isSubcontractorView
+    && (isManagerOrAbove ? isOwnEntry : isCreator);
 
   // Creator name
   const creatorName = creator?.user_profiles?.[0]?.full_name || creator?.email || null;
@@ -186,7 +218,7 @@ export default function WorkEntryCard({
           View
         </button>
 
-        {/* Edit — draft + rejected only; hidden for approved/submitted */}
+        {/* Edit — own draft/rejected only; hidden for approved/submitted */}
         {showEdit && (
           <button
             onClick={handleEdit}
@@ -197,7 +229,7 @@ export default function WorkEntryCard({
           </button>
         )}
 
-        {/* Delete — draft only; managers+ */}
+        {/* Delete — own draft only */}
         {showDelete && (
           <button
             onClick={handleDelete}

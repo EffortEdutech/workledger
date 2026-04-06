@@ -14,10 +14,18 @@
  * SESSION 16 FIX:
  *   - ApprovalActions now gated by isOwnOrgEntry — MTSB cannot approve FEST ENT entries
  *   - WorkEntryList now passes isOwnEntry prop (was missing — caused Edit/Delete on sub entries)
+ * SESSION 19 FIX:
+ *   - canEditOwn now checks isCreator for technicians (EDIT_ANY_WORK_ENTRY holders bypass)
+ *   - canDelete now checks isCreator for technicians (managers bypass with org check)
+ *   - Previously canEditOwn = can('EDIT_OWN_WORK_ENTRY') — true for ALL roles,
+ *     meaning any org member could edit any entry from the detail page
+ *   - Previously canDelete used (!user || created_by === user.id) — blocks managers
+ *     from deleting entries they didn't personally create, which is wrong
  *
  * @module pages/workEntries/WorkEntryDetail
  * @created February 1, 2026 - Session 13
  * @updated February 27, 2026 - Session 16: Approval workflow
+ * @updated April 6, 2026    - Session 19: isCreator guard on canEditOwn + canDelete
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -34,6 +42,7 @@ import { workEntryService }  from '../../services/api/workEntryService';
 import { attachmentService } from '../../services/api/attachmentService';
 import { useOrganization }   from '../../context/OrganizationContext';
 import { useRole }           from '../../hooks/useRole';
+import { useAuth }           from '../../context/AuthContext';
 import {
   ArrowLeftIcon,
   CalendarIcon,
@@ -76,13 +85,14 @@ export default function WorkEntryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
-  const { can } = useRole();
+  const { can }        = useRole();
+  const { user }       = useAuth();
 
   // ── State ─────────────────────────────────────────────────────────────────
-  const [workEntry,    setWorkEntry]    = useState(null);
-  const [attachments,  setAttachments]  = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState(null);
+  const [workEntry,     setWorkEntry]     = useState(null);
+  const [attachments,   setAttachments]   = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   // ── Load work entry ───────────────────────────────────────────────────────
@@ -186,8 +196,8 @@ export default function WorkEntryDetail() {
       );
     }
 
-    const schema  = workEntry.template.fields_schema;
-    const data    = workEntry.data;
+    const schema   = workEntry.template.fields_schema;
+    const data     = workEntry.data;
     const sections = schema.sections || [];
 
     if (sections.length === 0) {
@@ -292,16 +302,33 @@ export default function WorkEntryDetail() {
   const isRejected  = workEntry.status === 'rejected';
   const isLocked    = isApproved;  // approved = fully immutable
 
-  // Can this user perform actions?
-  const canEditOwn    = can('EDIT_OWN_WORK_ENTRY');
-  const canDelete     = can('DELETE_WORK_ENTRY');
-  const canApprove    = can('APPROVE_WORK_ENTRY');
+  // ── SESSION 19: Creator + manager-level permission checks ─────────────────
+  //
+  // isCreator:        this user personally created this entry
+  // isManagerOrAbove: has EDIT_ANY_WORK_ENTRY → can act on any entry in own org
+  // isOwnOrgEntry:    entry belongs to user's org (cross-org guard for managers)
+  //
+  // For Edit and Delete:
+  //   Managers/admins/owners → org-level check (isOwnOrgEntry) is sufficient
+  //   Technicians/workers    → must be the creator (isCreator)
+  //
+  const isCreator        = !!user && workEntry.created_by === user.id;
+  const isManagerOrAbove = can('EDIT_ANY_WORK_ENTRY');
 
-  // Session 16 fix: org ownership check for approval actions.
-  // A manager at MTSB has APPROVE_WORK_ENTRY permission but must NOT be able to
-  // approve FEST ENT's entries — only the entry's own org manager can approve.
-  // currentOrg?.id is null for super_admin (no active org) → they can approve all.
+  // Session 16: org ownership check for approval actions.
+  // MTSB manager cannot approve FEST ENT entries.
+  // currentOrg?.id is null for super_admin → they can approve all.
   const isOwnOrgEntry = !currentOrg?.id || workEntry.organization_id === currentOrg.id;
+
+  // canEditOwn: managers can edit any entry in own org; technicians only own
+  const canEditOwn = can('EDIT_OWN_WORK_ENTRY')
+    && (isManagerOrAbove ? isOwnOrgEntry : isCreator);
+
+  // canDelete: same logic — managers any in org; technicians only own
+  const canDelete  = can('DELETE_WORK_ENTRY')
+    && (isManagerOrAbove ? isOwnOrgEntry : isCreator);
+
+  const canApprove = can('APPROVE_WORK_ENTRY');
 
   // ─────────────────────────────────────────────────────────────────────────
   // Full render
@@ -410,27 +437,30 @@ export default function WorkEntryDetail() {
                   Edit Entry
                 </Button>
               )}
-              <Button
-                onClick={handleSubmit}
-                variant="primary"
-                disabled={actionLoading}
-              >
-                {actionLoading ? 'Submitting…' : 'Submit for Approval'}
-              </Button>
+              {/* Submit only for the creator — only they should submit their own work */}
+              {isCreator && (
+                <Button
+                  onClick={handleSubmit}
+                  variant="primary"
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Submitting…' : 'Submit for Approval'}
+                </Button>
+              )}
               {canDelete && (
                 <Button
                   onClick={handleDelete}
                   variant="danger"
                   disabled={actionLoading}
                 >
-                  Delete
+                  {actionLoading ? 'Deleting…' : 'Delete'}
                 </Button>
               )}
             </div>
           </div>
         )}
 
-        {/* ── REJECTED — resubmit button (technician) ─────────────────── */}
+        {/* ── REJECTED — resubmit button (technician / creator only) ──── */}
         {isRejected && !canApprove && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Actions</h3>
@@ -447,13 +477,15 @@ export default function WorkEntryDetail() {
                   Edit Entry
                 </Button>
               )}
-              <Button
-                onClick={handleResubmit}
-                variant="primary"
-                disabled={actionLoading}
-              >
-                {actionLoading ? 'Resubmitting…' : 'Resubmit for Review'}
-              </Button>
+              {isCreator && (
+                <Button
+                  onClick={handleResubmit}
+                  variant="primary"
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Resubmitting…' : 'Resubmit for Review'}
+                </Button>
+              )}
             </div>
           </div>
         )}

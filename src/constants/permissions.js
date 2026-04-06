@@ -99,9 +99,14 @@ export const PERMISSIONS = {
     'technician', 'worker', 'subcontractor',
   ],
   // Who can delete entries
+  // Technicians/workers/subcontractors can delete their OWN draft entries only.
+  // User-level guard enforced in WorkEntryCard (created_by === user.id).
+  // Org-level guard enforced in workEntryService.deleteWorkEntry.
+  // DB-level guard enforced by RLS DELETE policy (Migration 029d).
   DELETE_WORK_ENTRY: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
+    'technician', 'worker', 'subcontractor',
   ],
   // Who can submit entries for approval
   SUBMIT_WORK_ENTRY: [
