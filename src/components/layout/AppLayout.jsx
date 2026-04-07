@@ -22,11 +22,20 @@
  *   - Appears when browser supports beforeinstallprompt
  *   - Hidden once installed
  *
+ * SESSION 19 UPDATE — iOS Safe Area Insets:
+ *   - Header gets padding-top: env(safe-area-inset-top) so content
+ *     never hides behind iPhone notch / Dynamic Island in standalone mode
+ *   - BottomNav wrapper gets padding-bottom: env(safe-area-inset-bottom)
+ *     so nothing hides under the iPhone home indicator bar
+ *   - Required because index.html uses viewport-fit=cover +
+ *     apple-mobile-web-app-status-bar-style: black-translucent
+ *
  * @module components/layout/AppLayout
  * @created January 29, 2026
  * @updated February 26, 2026 - Session 15: Org switcher + staff banner
  * @updated March 2, 2026    - Session 17: ErrorBoundary wraps main content
  * @updated March 4, 2026    - Session 18: OfflineIndicator + PWAInstallButton
+ * @updated April 7, 2026    - Session 19: iOS safe-area insets for PWA
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -70,7 +79,25 @@ export function AppLayout({ children }) {
       <Sidebar isCollapsed={sidebarCollapsed} />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+        {/*
+          ── iOS SAFE AREA: HEADER ────────────────────────────────────────
+          env(safe-area-inset-top) = the height of the iPhone notch /
+          Dynamic Island / status bar when running as an installed PWA
+          with black-translucent status bar (set in index.html).
+
+          On Android and desktop this value is always 0 — no visual change.
+          On iPhone in Safari (browser tab) this is also 0 — only applies
+          when launched from the home screen in standalone mode.
+
+          We apply it to the <header> element's padding-top using an inline
+          style because Tailwind's JIT cannot compute env() at build time.
+          The h-16 (64px) becomes h-16 + safe-area-inset-top on notched
+          iPhones so the actual toolbar content sits below the status bar.
+        */}
+        <header
+          className="bg-white border-b border-gray-200 sticky top-0 z-30"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex items-center h-16 gap-3">
               <div className="flex items-center md:hidden">
@@ -270,7 +297,22 @@ export function AppLayout({ children }) {
         </footer>
       </div>
 
-      <BottomNav />
+      {/*
+        ── iOS SAFE AREA: BOTTOM NAV ─────────────────────────────────────
+        BottomNav is a fixed/sticky bar at the bottom of the screen on
+        mobile. On iPhone with a home indicator bar (iPhone X and newer),
+        the indicator overlaps the nav bar content unless we add bottom
+        padding equal to env(safe-area-inset-bottom).
+
+        We wrap BottomNav in a div that adds this padding. BottomNav itself
+        stays unchanged — the wrapper absorbs the safe-area offset.
+
+        On Android and desktop env(safe-area-inset-bottom) is always 0,
+        so this wrapper has zero visual impact on those platforms.
+      */}
+      <div style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <BottomNav />
+      </div>
     </div>
   );
 }
