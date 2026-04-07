@@ -3,41 +3,54 @@
  *
  * Manages org members: listing, role changes, activate/deactivate, invite.
  *
- * All mutations are org-scoped — only touches org_members rows for
- * the caller's current organization. Super admin / BJ staff bypass
- * is handled at RLS level but is intentionally NOT exposed through
- * this service (they manage clients via OrganizationContext, not here).
+ * SESSION 19 UPDATE — getAllPlatformUsers():
+ *   New method for super_admin only. Returns every user in the system
+ *   (from user_profiles) with their org memberships attached. This lets
+ *   super_admin see users who have registered but haven't been assigned
+ *   to any org yet, and invite them directly from the Users page.
+ *
+ *   RLS enforcement: user_profiles is readable by authenticated users
+ *   (own row) and by super_admin (all rows via policy). The existing RLS
+ *   policy on user_profiles must allow super_admin to SELECT all rows.
+ *   If not already in place, add this policy in Supabase:
+ *
+ *   CREATE POLICY "super_admin can view all profiles"
+ *   ON user_profiles FOR SELECT
+ *   TO authenticated
+ *   USING (
+ *     EXISTS (
+ *       SELECT 1 FROM user_profiles up
+ *       WHERE up.id = auth.uid()
+ *       AND up.global_role = 'super_admin'
+ *     )
+ *   );
  *
  * @module services/api/userService
  * @created February 23, 2026 - Session 12
+ * @updated April 7, 2026    - Session 19: getAllPlatformUsers()
  */
 
 import { supabase } from '../supabase/client';
 import { ASSIGNABLE_ORG_ROLES } from '../../constants/permissions';
 
-// Re-export so existing code importing from userService still works
 export { ASSIGNABLE_ORG_ROLES } from '../../constants/permissions';
 
 class UserService {
   // ─────────────────────────────────────────────
-  // READ
+  // READ — ORG-SCOPED
   // ─────────────────────────────────────────────
 
   /**
    * Get all members of an organization.
-   * Joins user_profiles so we get name + email + global_role.
+   * Joins user_profiles so we get name + global_role.
    *
    * @param {string} orgId
-   * @returns {Promise<Array>} Array of member objects
+   * @returns {Promise<Array>}
    */
   async getOrgMembers(orgId) {
     try {
       console.log('👥 Loading org members for:', orgId);
 
-      // ── Step 1: Fetch org_members rows ───────────────────────────────────
-      // NOTE: org_members.user_id is a FK to auth.users (not user_profiles),
-      // so PostgREST CANNOT traverse user_profiles via a join (PGRST200).
-      // We do two queries and merge manually.
       const { data: members, error: membersError } = await supabase
         .from('org_members')
         .select('id, user_id, organization_id, role, is_active, joined_at, created_at')
@@ -50,7 +63,6 @@ class UserService {
         return [];
       }
 
-      // ── Step 2: Fetch user_profiles for those user_ids ───────────────────
       const userIds = members.map(m => m.user_id);
       const { data: profiles, error: profilesError } = await supabase
         .from('user_profiles')
@@ -58,11 +70,9 @@ class UserService {
         .in('id', userIds);
 
       if (profilesError) {
-        // Non-fatal: return members without profile data rather than failing
         console.warn('⚠️ Could not load user profiles:', profilesError.message);
       }
 
-      // ── Step 3: Merge profiles into members ──────────────────────────────
       const profileMap = {};
       (profiles || []).forEach(p => { profileMap[p.id] = p; });
 
@@ -71,15 +81,13 @@ class UserService {
         user: profileMap[m.user_id] || null,
       }));
 
-      // SESSION 15 FIX: Exclude platform staff (super_admin, bina_jaya_staff).
-      // They access orgs via the org switcher — never via org_members.
-      // This is a second layer of defence after Migration 029f.
+      // Exclude platform staff — they use the org switcher, not org_members
       const filtered = merged.filter(m => {
         const g = m.user?.global_role;
         return g !== 'super_admin' && g !== 'bina_jaya_staff';
       });
 
-      console.log(`✅ Loaded members: ${filtered.length} (${merged.length - filtered.length} platform staff excluded)`);
+      console.log(`✅ Loaded members: ${filtered.length}`);
       return filtered;
     } catch (error) {
       console.error('❌ Exception in getOrgMembers:', error);
@@ -87,11 +95,90 @@ class UserService {
     }
   }
 
+  // ─────────────────────────────────────────────
+  // READ — PLATFORM-WIDE (super_admin only)
+  // ─────────────────────────────────────────────
+
   /**
-   * Count active members in an org.
-   * @param {string} orgId
-   * @returns {Promise<number>}
+   * Get ALL users across the entire platform, with their org memberships.
+   *
+   * FOR SUPER_ADMIN ONLY. The caller must verify globalRole before calling.
+   * RLS also enforces this at the database level (see header comment).
+   *
+   * Returns an array of platform user objects:
+   * {
+   *   id,           — user_profiles.id (= auth.users.id)
+   *   full_name,
+   *   phone_number,
+   *   global_role,  — 'super_admin' | 'bina_jaya_staff' | null
+   *   avatar_url,
+   *   created_at,   — user_profiles.created_at (registration date)
+   *   orgs: [       — all active org memberships for this user
+   *     { orgId, orgName, role }
+   *   ],
+   *   hasOrg,       — convenience boolean: orgs.length > 0
+   * }
+   *
+   * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
    */
+  async getAllPlatformUsers() {
+    try {
+      console.log('👥 Loading ALL platform users (super_admin)...');
+
+      // ── Step 1: All user profiles ────────────────────────────────────────
+      const { data: profiles, error: profilesError } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, phone_number, global_role, avatar_url, created_at')
+        .order('created_at', { ascending: false });
+
+      if (profilesError) throw profilesError;
+      if (!profiles || profiles.length === 0) {
+        return { success: true, data: [] };
+      }
+
+      // ── Step 2: All active org memberships with org names ─────────────────
+      // PostgREST supports one-level of foreign key traversal for SELECT.
+      // org_members.organization_id → organizations.name is a valid FK join.
+      const { data: memberships, error: membershipsError } = await supabase
+        .from('org_members')
+        .select('user_id, organization_id, role, is_active, organizations(id, name)')
+        .eq('is_active', true);
+
+      if (membershipsError) {
+        // Non-fatal — return users without org data rather than failing
+        console.warn('⚠️ Could not load org memberships:', membershipsError.message);
+      }
+
+      // ── Step 3: Build userId → orgs map ──────────────────────────────────
+      const orgMap = {};
+      (memberships || []).forEach(m => {
+        if (!orgMap[m.user_id]) orgMap[m.user_id] = [];
+        orgMap[m.user_id].push({
+          orgId:   m.organization_id,
+          orgName: m.organizations?.name ?? 'Unknown org',
+          role:    m.role,
+        });
+      });
+
+      // ── Step 4: Merge ─────────────────────────────────────────────────────
+      const data = profiles.map(p => ({
+        ...p,
+        orgs:   orgMap[p.id] ?? [],
+        hasOrg: (orgMap[p.id] ?? []).length > 0,
+      }));
+
+      console.log(`✅ Loaded platform users: ${data.length} (${data.filter(u => !u.hasOrg).length} without org)`);
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Exception in getAllPlatformUsers:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // COUNTS
+  // ─────────────────────────────────────────────
+
   async getActiveMemberCount(orgId) {
     try {
       const { count, error } = await supabase
@@ -99,7 +186,6 @@ class UserService {
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', orgId)
         .eq('is_active', true);
-
       if (error) throw error;
       return count || 0;
     } catch (error) {
@@ -108,12 +194,6 @@ class UserService {
     }
   }
 
-  /**
-   * Count org_owner members in an org.
-   * Used to prevent demoting the last owner.
-   * @param {string} orgId
-   * @returns {Promise<number>}
-   */
   async getOwnerCount(orgId) {
     try {
       const { count, error } = await supabase
@@ -122,7 +202,6 @@ class UserService {
         .eq('organization_id', orgId)
         .eq('role', 'org_owner')
         .eq('is_active', true);
-
       if (error) throw error;
       return count || 0;
     } catch (error) {
@@ -135,28 +214,14 @@ class UserService {
   // ROLE MANAGEMENT
   // ─────────────────────────────────────────────
 
-  /**
-   * Change the role of an org member.
-   *
-   * Safety checks:
-   * - Cannot demote the last active org_owner
-   * - Cannot assign platform roles (super_admin, bina_jaya_staff)
-   *
-   * @param {string} orgId
-   * @param {string} memberId  — the org_members.id (junction row id)
-   * @param {string} newRole
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
   async updateMemberRole(orgId, memberId, newRole) {
     try {
       console.log('🔄 Updating member role:', { memberId, newRole });
 
-      // Guard: only assignable roles
       if (!ASSIGNABLE_ORG_ROLES.includes(newRole)) {
         return { success: false, error: `Invalid role: ${newRole}` };
       }
 
-      // Fetch current member row to check current role
       const { data: member, error: fetchError } = await supabase
         .from('org_members')
         .select('role, is_active')
@@ -168,7 +233,6 @@ class UserService {
         return { success: false, error: 'Member not found' };
       }
 
-      // Guard: cannot demote last org_owner
       if (member.role === 'org_owner' && newRole !== 'org_owner') {
         const ownerCount = await this.getOwnerCount(orgId);
         if (ownerCount <= 1) {
@@ -181,15 +245,11 @@ class UserService {
 
       const { error } = await supabase
         .from('org_members')
-        .update({
-          role:       newRole,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ role: newRole, updated_at: new Date().toISOString() })
         .eq('id', memberId)
         .eq('organization_id', orgId);
 
       if (error) throw error;
-
       console.log('✅ Role updated to:', newRole);
       return { success: true };
     } catch (error) {
@@ -202,19 +262,10 @@ class UserService {
   // ACTIVATE / DEACTIVATE
   // ─────────────────────────────────────────────
 
-  /**
-   * Deactivate (soft-remove) a member from an org.
-   * Their data is preserved; they just can't log in to this org.
-   *
-   * @param {string} orgId
-   * @param {string} memberId  — org_members.id
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
   async deactivateMember(orgId, memberId) {
     try {
       console.log('🚫 Deactivating member:', memberId);
 
-      // Guard: cannot deactivate last owner
       const { data: member } = await supabase
         .from('org_members')
         .select('role')
@@ -234,15 +285,11 @@ class UserService {
 
       const { error } = await supabase
         .from('org_members')
-        .update({
-          is_active:    false,
-          updated_at:   new Date().toISOString(),
-        })
+        .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('id', memberId)
         .eq('organization_id', orgId);
 
       if (error) throw error;
-
       console.log('✅ Member deactivated');
       return { success: true };
     } catch (error) {
@@ -251,29 +298,15 @@ class UserService {
     }
   }
 
-  /**
-   * Reactivate a previously deactivated member.
-   *
-   * @param {string} orgId
-   * @param {string} memberId  — org_members.id
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
   async reactivateMember(orgId, memberId) {
     try {
       console.log('✅ Reactivating member:', memberId);
-
       const { error } = await supabase
         .from('org_members')
-        .update({
-          is_active:  true,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ is_active: true, updated_at: new Date().toISOString() })
         .eq('id', memberId)
         .eq('organization_id', orgId);
-
       if (error) throw error;
-
-      console.log('✅ Member reactivated');
       return { success: true };
     } catch (error) {
       console.error('❌ Exception in reactivateMember:', error);
@@ -282,46 +315,19 @@ class UserService {
   }
 
   // ─────────────────────────────────────────────
-  // INVITE
+  // INVITE / ADD
   // ─────────────────────────────────────────────
 
-  /**
-   * Look up whether an email address is already registered
-   * in user_profiles (i.e. they have a WorkLedger account).
-   *
-   * Note: We query user_profiles, not auth.users, because RLS
-   * only allows reading your own auth row. user_profiles is
-   * readable by org admins within their org context.
-   *
-   * @param {string} email
-   * @returns {Promise<{found: boolean, userId?: string, profile?: object}>}
-   */
   async findUserByEmail(email) {
     try {
       console.log('🔍 Looking up user by email:', email);
-
-      // user_profiles does not store email — it lives in auth.users.
-      // We use a direct auth lookup via Supabase's built-in signInWithOtp
-      // trick-free approach: query auth.users through the admin API isn't
-      // available on anon key. Instead we attempt to match via a custom
-      // RPC if available, otherwise fall back to checking org_members by
-      // asking the caller to enter the user_id directly.
-      //
-      // Practical zero-budget solution: try to find the profile by calling
-      // supabase.auth.signInWithOtp to verify the email exists — but that
-      // sends an email which we don't want.
-      //
-      // Best available approach without service_role: use a database function.
-      // If no RPC exists, we return not_found and the UI shows the signup link.
-      // The admin can then add by user_id once the user registers.
 
       const { data, error } = await supabase
         .rpc('find_user_by_email', { p_email: email.toLowerCase().trim() });
 
       if (error) {
-        // RPC doesn't exist yet — fall back to "not found" gracefully
         if (error.code === 'PGRST202' || error.message?.includes('find_user_by_email')) {
-          console.log('ℹ️ find_user_by_email RPC not available — treating as not found');
+          console.log('ℹ️ find_user_by_email RPC not available');
           return { found: false };
         }
         throw error;
@@ -333,7 +339,6 @@ class UserService {
         return { found: true, userId: profile.id, profile };
       }
 
-      console.log('ℹ️ User not found in system');
       return { found: false };
     } catch (error) {
       console.error('❌ Exception in findUserByEmail:', error);
@@ -341,13 +346,6 @@ class UserService {
     }
   }
 
-  /**
-   * Check if a user is already a member of this org.
-   *
-   * @param {string} orgId
-   * @param {string} userId
-   * @returns {Promise<{isMember: boolean, member?: object}>}
-   */
   async checkExistingMembership(orgId, userId) {
     try {
       const { data, error } = await supabase
@@ -356,7 +354,6 @@ class UserService {
         .eq('organization_id', orgId)
         .eq('user_id', userId)
         .maybeSingle();
-
       if (error) throw error;
       return { isMember: !!data, member: data || null };
     } catch (error) {
@@ -365,15 +362,6 @@ class UserService {
     }
   }
 
-  /**
-   * Add an existing WorkLedger user to this organization.
-   * Used when the invited email is already registered.
-   *
-   * @param {string} orgId
-   * @param {string} userId
-   * @param {string} role
-   * @returns {Promise<{success: boolean, error?: string}>}
-   */
   async addExistingUserToOrg(orgId, userId, role) {
     try {
       console.log('➕ Adding user to org:', { orgId, userId, role });
@@ -382,7 +370,6 @@ class UserService {
         return { success: false, error: `Invalid role: ${role}` };
       }
 
-      // Check for existing (possibly inactive) membership
       const { isMember, member } = await this.checkExistingMembership(orgId, userId);
 
       if (isMember && member.is_active) {
@@ -390,18 +377,14 @@ class UserService {
       }
 
       if (isMember && !member.is_active) {
-        // Reactivate with new role
         const { error } = await supabase
           .from('org_members')
           .update({ is_active: true, role, updated_at: new Date().toISOString() })
           .eq('id', member.id);
-
         if (error) throw error;
-        console.log('✅ Reactivated existing member with new role');
         return { success: true, reactivated: true };
       }
 
-      // New membership
       const { error } = await supabase
         .from('org_members')
         .insert({
@@ -415,7 +398,6 @@ class UserService {
         });
 
       if (error) throw error;
-
       console.log('✅ User added to org');
       return { success: true };
     } catch (error) {
