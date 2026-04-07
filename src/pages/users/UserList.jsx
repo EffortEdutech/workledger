@@ -36,11 +36,11 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import ChangeRoleModal from '../../components/users/ChangeRoleModal';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { userService } from '../../services/api/userService';
+import { userService, ASSIGNABLE_ORG_ROLES } from '../../services/api/userService';
 import { useOrganization } from '../../context/OrganizationContext';
 import { useRole } from '../../hooks/useRole';
 import { useAuth } from '../../context/AuthContext';
-import { getRoleMeta, ROLE_META, ASSIGNABLE_ORG_ROLES } from '../../constants/permissions';
+import { getRoleMeta, ROLE_META } from '../../constants/permissions';
 import {
   UserPlusIcon,
   MagnifyingGlassIcon,
