@@ -12,9 +12,23 @@
  * Admins and owners see:
  *   Work + Projects + Reports + Users + More
  *
+ * SESSION 19 UPDATE — iOS / Android safe-area inset:
+ *   padding-bottom: env(safe-area-inset-bottom) is applied directly to the
+ *   <nav> element. This is the only correct approach for a position:fixed bar.
+ *
+ *   On Android PWA: prevents the system gesture navigation bar (~40px) from
+ *   physically covering the bottom tabs.
+ *   On iOS PWA (standalone): prevents the home indicator bar from covering tabs.
+ *   On desktop / browser tab: env() resolves to 0 — no visual change.
+ *
+ *   ⚠️  DO NOT apply this via a wrapper div in AppLayout — wrapping a fixed
+ *   element changes nothing because fixed elements ignore their DOM parent
+ *   for positioning. The padding must live on the fixed element itself.
+ *
  * @module components/layout/BottomNav
  * @created January 29, 2026
  * @updated February 21, 2026 - Session 11: Role-filtered tabs
+ * @updated April 7, 2026    - Session 19: iOS/Android safe-area inset
  */
 
 import React from 'react';
@@ -97,7 +111,23 @@ export function BottomNav() {
       : location.pathname === path || location.pathname.startsWith(path + '/');
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+    /*
+      Safe-area inset applied HERE — directly on the fixed <nav> element.
+
+      Why here and not a wrapper div in AppLayout:
+        position:fixed removes the element from normal document flow.
+        A padding on a wrapper div in the DOM has zero effect on a fixed child.
+        The padding must sit on the fixed element itself so the browser adds
+        the gesture-bar height to the nav's own rendered height, pushing the
+        tab bar content up above the system UI.
+
+      The inline style is intentional — Tailwind JIT cannot compute env()
+      values at build time. The style is zero-cost on non-notched devices.
+    */
+    <nav
+      className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
       <div className="flex justify-around items-center h-16">
         {tabs.map((tab) => {
           const active = isActive(tab.path);
