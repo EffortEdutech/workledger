@@ -2,44 +2,61 @@
  * WorkLedger - Router Configuration
  *
  * @file src/router.jsx
- * @updated April 8, 2026 - Session 19: added all missing routes
+ * @updated April 8, 2026 - Session 19: RouteGuard re-applied to all routes
+ *
+ * SECURITY MODEL — every protected route has TWO layers:
+ *
+ *   Layer 1 — ProtectedRoute (authentication)
+ *     Checks: is the user logged in?
+ *     If not → redirect to /login
+ *
+ *   Layer 2 — RouteGuard (authorisation)
+ *     Checks: does this user's role have the required permission?
+ *     If not → redirect to / (dashboard)
+ *
+ *   Both are required. ProtectedRoute alone only blocks unauthenticated
+ *   users. Without RouteGuard, any logged-in user can type any URL in
+ *   the address bar and access any page regardless of their role.
+ *
+ * PERMISSION MAP (mirrors Sidebar + BottomNav exactly):
+ *   NAV_DASHBOARD       → all roles
+ *   NAV_WORK_ENTRIES    → all roles
+ *   NAV_PROJECTS        → all roles
+ *   NAV_CONTRACTS       → all roles
+ *   NAV_TEMPLATES       → bina_jaya_staff, org_owner, org_admin, manager
+ *   NAV_REPORTS         → bina_jaya_staff, org_owner, org_admin, manager
+ *   NAV_LAYOUTS         → bina_jaya_staff, org_owner, org_admin
+ *   NAV_USERS           → org_owner, org_admin (+ super_admin via globalRole bypass)
+ *   NAV_ORGANIZATIONS   → bina_jaya_staff, org_owner, org_admin
+ *   NAV_SUBCONTRACTORS  → bina_jaya_staff, org_owner, org_admin, manager
+ *   NAV_QUICK_ENTRY     → super_admin, bina_jaya_staff
+ *   APPROVE_WORK_ENTRY  → org_owner, org_admin, manager
  *
  * ROUTE ORDERING RULE (critical):
  *   Literal paths MUST be defined BEFORE dynamic /:param paths.
- *   e.g. /work/offline before /work/:id — or React Router matches 'offline' as an ID.
- *   e.g. /work/approvals before /work/:id — same reason.
+ *   /work/offline, /work/approvals, /work/new → BEFORE /work/:id
+ *   /reports/layouts/new → BEFORE /reports/layouts/:id
  *
- * MISSING ROUTES ADDED (Session 19):
- *   Previously the sidebar showed these links but the router had no matching
- *   routes → React Router fell through to * → 404 every time.
- *
- *   Added:
- *     /users                    → UserList
- *     /users/invite             → InviteUser
- *     /work/approvals           → ApprovalsPage  (literal — MUST be before /work/:id)
- *     /subcontractors           → SubcontractorList
- *     /reports/consolidated     → ConsolidatedReport
- *     /reports/rejections       → RejectionAnalytics
- *     /reports/layouts          → ReportLayoutList
- *     /reports/layouts/:id      → ReportLayoutEditor
- *     /reports/layouts/new      → ReportLayoutEditor (new)
- *     /admin/quick-entry        → QuickEntry
  */
 
 import { createBrowserRouter } from 'react-router-dom';
 import { ROUTES } from './constants/routes';
 
-// Auth
-import ProtectedRoute    from './components/auth/ProtectedRoute';
-import Login             from './pages/auth/Login';
-import Register          from './pages/auth/Register';
-import ForgotPassword    from './pages/auth/ForgotPassword';
+// Auth guards
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import RouteGuard     from './components/auth/RouteGuard';
+
+// Public pages
+import Login          from './pages/auth/Login';
+import Register       from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
 
 // Core
-import Dashboard         from './pages/Dashboard';
-
-// Technician
+import Dashboard          from './pages/Dashboard';
 import TechnicianDashboard from './pages/technician/TechnicianDashboard';
+
+// Profile
+import ProfilePage from './pages/profile/ProfilePage';
 
 // Organizations
 import OrganizationList     from './pages/organizations/OrganizationList';
@@ -58,26 +75,24 @@ import NewContract      from './pages/contracts/NewContract';
 import EditContract     from './pages/contracts/EditContract';
 import ContractDetail   from './pages/contracts/ContractDetail';
 
-// Work Entries (online)
+// Work Entries — offline (MUST be before /work/:id)
+import OfflineWorkEntryPage from './pages/workEntries/OfflineWorkEntryPage';
+import OfflineEditDraft     from './pages/workEntries/OfflineEditDraft';
+
+// Work Entries — online (literal paths BEFORE /work/:id)
+import ApprovalsPage     from './pages/workEntries/ApprovalsPage';
 import WorkEntryListPage from './pages/workEntries/WorkEntryListPage';
 import NewWorkEntry      from './pages/workEntries/NewWorkEntry';
 import EditWorkEntry     from './pages/workEntries/EditWorkEntry';
 import WorkEntryDetail   from './pages/workEntries/WorkEntryDetail';
 
-// Work Entries (offline — Session 19)
-import OfflineWorkEntryPage from './pages/workEntries/OfflineWorkEntryPage';
-import OfflineEditDraft     from './pages/workEntries/OfflineEditDraft';
-
-// Approvals — MUST be imported and registered BEFORE /work/:id
-import ApprovalsPage from './pages/workEntries/ApprovalsPage';
-
 // Reports
-import GenerateReport      from './pages/reports/GenerateReport';
-import ReportHistory       from './pages/reports/ReportHistory';
-import ConsolidatedReport  from './pages/reports/ConsolidatedReport';
-import RejectionAnalytics  from './pages/reports/RejectionAnalytics';
+import GenerateReport     from './pages/reports/GenerateReport';
+import ReportHistory      from './pages/reports/ReportHistory';
+import ConsolidatedReport from './pages/reports/ConsolidatedReport';
+import RejectionAnalytics from './pages/reports/RejectionAnalytics';
 
-// Report Layouts — actual path: src/pages/reports/layouts/
+// Report Layouts (new BEFORE :id)
 import ReportLayoutList   from './pages/reports/layouts/LayoutList';
 import ReportLayoutEditor from './pages/reports/layouts/LayoutEditor';
 
@@ -91,109 +106,239 @@ import InviteUser from './pages/users/InviteUser';
 // Subcontractors
 import SubcontractorList from './pages/subcontractors/SubcontractorList';
 
-// Quick Entry (BJ Staff)
+// Admin (BJ Staff)
 import QuickEntry from './pages/admin/QuickEntry';
 
-// Profile
-import ProfilePage from './pages/profile/ProfilePage';
-
-// ── Fallback placeholder for pages not yet built ───────────────────────────
-const PlaceholderPage = ({ title }) => (
+// 404
+const NotFoundPage = () => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
     <div className="text-center">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">{title}</h1>
-      <p className="text-gray-600">This page will be implemented in the next sessions.</p>
+      <h1 className="text-4xl font-bold text-gray-900 mb-4">404 - Page Not Found</h1>
+      <p className="text-gray-600">The page you are looking for does not exist.</p>
     </div>
   </div>
 );
-const NotFoundPage = () => <PlaceholderPage title="404 - Page Not Found" />;
 
-const P = ({ children }) => <ProtectedRoute>{children}</ProtectedRoute>;
+// ── Shorthand wrappers ────────────────────────────────────────────────────────
+
+// Authenticated only (no role requirement — e.g. profile, dashboard)
+const Auth = ({ children }) => (
+  <ProtectedRoute>{children}</ProtectedRoute>
+);
+
+// Authenticated + permission check
+const Guard = ({ permission, children }) => (
+  <ProtectedRoute>
+    <RouteGuard permission={permission}>
+      {children}
+    </RouteGuard>
+  </ProtectedRoute>
+);
+
+// ── Router ────────────────────────────────────────────────────────────────────
 
 export const router = createBrowserRouter([
 
-  // ── Public ──────────────────────────────────────────────────────────────
+  // ── Public ────────────────────────────────────────────────────────────────
   { path: ROUTES.LOGIN,           element: <Login /> },
   { path: ROUTES.REGISTER,        element: <Register /> },
   { path: ROUTES.FORGOT_PASSWORD, element: <ForgotPassword /> },
 
-  // ── Dashboard ────────────────────────────────────────────────────────────
-  { path: ROUTES.DASHBOARD, element: <P><Dashboard /></P> },
+  // ── Dashboard — all authenticated roles ───────────────────────────────────
+  { path: ROUTES.DASHBOARD, element: <Guard permission="NAV_DASHBOARD"><Dashboard /></Guard> },
+  { path: '/tech',          element: <Auth><TechnicianDashboard /></Auth> },
 
-  // ── Technician dashboard ─────────────────────────────────────────────────
-  { path: '/tech', element: <P><TechnicianDashboard /></P> },
+  // ── Profile — all authenticated users (no specific permission needed) ──────
+  { path: ROUTES.PROFILE, element: <Auth><ProfilePage /></Auth> },
 
-  // ── Offline work entries ─────────────────────────────────────────────────
-  // MUST be before /work/:id — 'offline' would match as an ID otherwise.
-  { path: '/work/offline',               element: <P><OfflineWorkEntryPage /></P> },
-  { path: '/work/offline/:localId/edit', element: <P><OfflineEditDraft /></P> },
+  // ── Offline work entries ──────────────────────────────────────────────────
+  // MUST be before /work/:id
+  {
+    path: '/work/offline',
+    element: <Guard permission="NAV_WORK_ENTRIES"><OfflineWorkEntryPage /></Guard>,
+  },
+  {
+    path: '/work/offline/:localId/edit',
+    element: <Guard permission="NAV_WORK_ENTRIES"><OfflineEditDraft /></Guard>,
+  },
 
-  // ── Approvals ─────────────────────────────────────────────────────────────
-  // Literal path — MUST be before /work/:id
-  { path: ROUTES.WORK_ENTRY_APPROVALS,  element: <P><ApprovalsPage /></P> },
-  { path: '/work/approvals',            element: <P><ApprovalsPage /></P> },
+  // ── Approvals — literal path BEFORE /work/:id ─────────────────────────────
+  {
+    path: ROUTES.WORK_ENTRY_APPROVALS,
+    element: <Guard permission="APPROVE_WORK_ENTRY"><ApprovalsPage /></Guard>,
+  },
+  {
+    path: '/work/approvals',
+    element: <Guard permission="APPROVE_WORK_ENTRY"><ApprovalsPage /></Guard>,
+  },
 
-  // ── Work entries (online) ──────────────────────────────────────────────────
-  { path: ROUTES.WORK_ENTRIES, element: <P><WorkEntryListPage /></P> },
-  { path: '/work',             element: <P><WorkEntryListPage /></P> },
-  { path: '/work/new',         element: <P><NewWorkEntry /></P> },
-  { path: '/work/:id',         element: <P><WorkEntryDetail /></P> },
-  { path: '/work/:id/edit',    element: <P><EditWorkEntry /></P> },
+  // ── Work entries — literal paths BEFORE /work/:id ─────────────────────────
+  {
+    path: ROUTES.WORK_ENTRIES,
+    element: <Guard permission="NAV_WORK_ENTRIES"><WorkEntryListPage /></Guard>,
+  },
+  {
+    path: '/work',
+    element: <Guard permission="NAV_WORK_ENTRIES"><WorkEntryListPage /></Guard>,
+  },
+  {
+    path: '/work/new',
+    element: <Guard permission="NAV_WORK_ENTRIES"><NewWorkEntry /></Guard>,
+  },
+  {
+    path: '/work/:id',
+    element: <Guard permission="NAV_WORK_ENTRIES"><WorkEntryDetail /></Guard>,
+  },
+  {
+    path: '/work/:id/edit',
+    element: <Guard permission="NAV_WORK_ENTRIES"><EditWorkEntry /></Guard>,
+  },
 
   // ── Users ─────────────────────────────────────────────────────────────────
-  { path: ROUTES.USERS,   element: <P><UserList /></P> },
-  { path: '/users',       element: <P><UserList /></P> },
-  { path: '/users/invite', element: <P><InviteUser /></P> },
+  {
+    path: ROUTES.USERS,
+    element: <Guard permission="NAV_USERS"><UserList /></Guard>,
+  },
+  {
+    path: '/users',
+    element: <Guard permission="NAV_USERS"><UserList /></Guard>,
+  },
+  {
+    path: '/users/invite',
+    element: <Guard permission="INVITE_USERS"><InviteUser /></Guard>,
+  },
 
   // ── Subcontractors ────────────────────────────────────────────────────────
-  { path: ROUTES.SUBCONTRACTORS, element: <P><SubcontractorList /></P> },
-  { path: '/subcontractors',     element: <P><SubcontractorList /></P> },
+  {
+    path: ROUTES.SUBCONTRACTORS,
+    element: <Guard permission="NAV_SUBCONTRACTORS"><SubcontractorList /></Guard>,
+  },
+  {
+    path: '/subcontractors',
+    element: <Guard permission="NAV_SUBCONTRACTORS"><SubcontractorList /></Guard>,
+  },
 
   // ── Templates ─────────────────────────────────────────────────────────────
-  { path: ROUTES.TEMPLATES,  element: <P><TemplateDemoPage /></P> },
-  { path: '/demo/templates', element: <P><TemplateDemoPage /></P> },
+  {
+    path: ROUTES.TEMPLATES,
+    element: <Guard permission="NAV_TEMPLATES"><TemplateDemoPage /></Guard>,
+  },
+  {
+    path: '/demo/templates',
+    element: <Guard permission="NAV_TEMPLATES"><TemplateDemoPage /></Guard>,
+  },
 
-  // ── Reports ───────────────────────────────────────────────────────────────
-  // Literal sub-paths BEFORE dynamic paths
-  { path: ROUTES.REPORTS,              element: <P><ReportHistory /></P> },
-  { path: '/reports',                  element: <P><ReportHistory /></P> },
-  { path: '/reports/generate',         element: <P><GenerateReport /></P> },
-  { path: '/reports/history',          element: <P><ReportHistory /></P> },
-  { path: ROUTES.REPORT_CONSOLIDATED,  element: <P><ConsolidatedReport /></P> },
-  { path: '/reports/consolidated',     element: <P><ConsolidatedReport /></P> },
-  { path: ROUTES.REPORT_REJECTIONS,    element: <P><RejectionAnalytics /></P> },
-  { path: '/reports/rejections',       element: <P><RejectionAnalytics /></P> },
+  // ── Reports — literal sub-paths BEFORE dynamic paths ─────────────────────
+  {
+    path: ROUTES.REPORTS,
+    element: <Guard permission="NAV_REPORTS"><ReportHistory /></Guard>,
+  },
+  {
+    path: '/reports',
+    element: <Guard permission="NAV_REPORTS"><ReportHistory /></Guard>,
+  },
+  {
+    path: '/reports/generate',
+    element: <Guard permission="NAV_REPORTS"><GenerateReport /></Guard>,
+  },
+  {
+    path: '/reports/history',
+    element: <Guard permission="NAV_REPORTS"><ReportHistory /></Guard>,
+  },
+  {
+    path: ROUTES.REPORT_CONSOLIDATED,
+    element: <Guard permission="NAV_SUBCONTRACTORS"><ConsolidatedReport /></Guard>,
+  },
+  {
+    path: '/reports/consolidated',
+    element: <Guard permission="NAV_SUBCONTRACTORS"><ConsolidatedReport /></Guard>,
+  },
+  {
+    path: ROUTES.REPORT_REJECTIONS,
+    element: <Guard permission="APPROVE_WORK_ENTRY"><RejectionAnalytics /></Guard>,
+  },
+  {
+    path: '/reports/rejections',
+    element: <Guard permission="APPROVE_WORK_ENTRY"><RejectionAnalytics /></Guard>,
+  },
 
-  // ── Report Layouts ────────────────────────────────────────────────────────
-  // /reports/layouts/new BEFORE /reports/layouts/:id — otherwise 'new' matches as :id
-  { path: ROUTES.REPORT_LAYOUTS,       element: <P><ReportLayoutList /></P> },
-  { path: '/reports/layouts',          element: <P><ReportLayoutList /></P> },
-  { path: '/reports/layouts/new',      element: <P><ReportLayoutEditor /></P> },
-  { path: '/reports/layouts/:id',      element: <P><ReportLayoutEditor /></P> },
+  // ── Report Layouts — /new BEFORE /:id ─────────────────────────────────────
+  {
+    path: ROUTES.REPORT_LAYOUTS,
+    element: <Guard permission="NAV_LAYOUTS"><ReportLayoutList /></Guard>,
+  },
+  {
+    path: '/reports/layouts',
+    element: <Guard permission="NAV_LAYOUTS"><ReportLayoutList /></Guard>,
+  },
+  {
+    path: '/reports/layouts/new',
+    element: <Guard permission="NAV_LAYOUTS"><ReportLayoutEditor /></Guard>,
+  },
+  {
+    path: '/reports/layouts/:id',
+    element: <Guard permission="NAV_LAYOUTS"><ReportLayoutEditor /></Guard>,
+  },
 
-  // ── Quick Entry (BJ Staff only) ───────────────────────────────────────────
-  { path: ROUTES.QUICK_ENTRY,   element: <P><QuickEntry /></P> },
-  { path: '/admin/quick-entry', element: <P><QuickEntry /></P> },
+  // ── Quick Entry — BJ Staff / super_admin only ─────────────────────────────
+  {
+    path: ROUTES.QUICK_ENTRY,
+    element: <Guard permission="NAV_QUICK_ENTRY"><QuickEntry /></Guard>,
+  },
+  {
+    path: '/admin/quick-entry',
+    element: <Guard permission="NAV_QUICK_ENTRY"><QuickEntry /></Guard>,
+  },
 
-  // ── Profile ───────────────────────────────────────────────────────────────
-  { path: ROUTES.PROFILE, element: <P><ProfilePage /></P> },
-
-  // ── Organizations ──────────────────────────────────────────────────────────
-  { path: '/organizations',              element: <P><OrganizationList /></P> },
-  { path: '/organizations/new',          element: <P><NewOrganization /></P> },
-  { path: '/organizations/:id/settings', element: <P><OrganizationSettings /></P> },
+  // ── Organizations ─────────────────────────────────────────────────────────
+  {
+    path: '/organizations',
+    element: <Guard permission="NAV_ORGANIZATIONS"><OrganizationList /></Guard>,
+  },
+  {
+    path: '/organizations/new',
+    element: <Guard permission="NAV_ORGANIZATIONS"><NewOrganization /></Guard>,
+  },
+  {
+    path: '/organizations/:id/settings',
+    element: <Guard permission="NAV_ORGANIZATIONS"><OrganizationSettings /></Guard>,
+  },
 
   // ── Projects ──────────────────────────────────────────────────────────────
-  { path: '/projects',          element: <P><ProjectListPage /></P> },
-  { path: '/projects/new',      element: <P><NewProject /></P> },
-  { path: '/projects/:id',      element: <P><ProjectDetail /></P> },
-  { path: '/projects/:id/edit', element: <P><EditProject /></P> },
+  {
+    path: '/projects',
+    element: <Guard permission="NAV_PROJECTS"><ProjectListPage /></Guard>,
+  },
+  {
+    path: '/projects/new',
+    element: <Guard permission="NAV_PROJECTS"><NewProject /></Guard>,
+  },
+  {
+    path: '/projects/:id',
+    element: <Guard permission="NAV_PROJECTS"><ProjectDetail /></Guard>,
+  },
+  {
+    path: '/projects/:id/edit',
+    element: <Guard permission="NAV_PROJECTS"><EditProject /></Guard>,
+  },
 
   // ── Contracts ─────────────────────────────────────────────────────────────
-  { path: '/contracts',          element: <P><ContractListPage /></P> },
-  { path: '/contracts/new',      element: <P><NewContract /></P> },
-  { path: '/contracts/:id',      element: <P><ContractDetail /></P> },
-  { path: '/contracts/:id/edit', element: <P><EditContract /></P> },
+  {
+    path: '/contracts',
+    element: <Guard permission="NAV_CONTRACTS"><ContractListPage /></Guard>,
+  },
+  {
+    path: '/contracts/new',
+    element: <Guard permission="NAV_CONTRACTS"><NewContract /></Guard>,
+  },
+  {
+    path: '/contracts/:id',
+    element: <Guard permission="NAV_CONTRACTS"><ContractDetail /></Guard>,
+  },
+  {
+    path: '/contracts/:id/edit',
+    element: <Guard permission="NAV_CONTRACTS"><EditContract /></Guard>,
+  },
 
   // ── 404 ───────────────────────────────────────────────────────────────────
   { path: '*', element: <NotFoundPage /> },
