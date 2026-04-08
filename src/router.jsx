@@ -94,6 +94,9 @@ import SubcontractorList from './pages/subcontractors/SubcontractorList';
 // Quick Entry (BJ Staff)
 import QuickEntry from './pages/admin/QuickEntry';
 
+// Profile
+import ProfilePage from './pages/profile/ProfilePage';
+
 // ── Fallback placeholder for pages not yet built ───────────────────────────
 const PlaceholderPage = ({ title }) => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -103,7 +106,6 @@ const PlaceholderPage = ({ title }) => (
     </div>
   </div>
 );
-const ProfilePage  = () => <PlaceholderPage title="Profile" />;
 const NotFoundPage = () => <PlaceholderPage title="404 - Page Not Found" />;
 
 const P = ({ children }) => <ProtectedRoute>{children}</ProtectedRoute>;

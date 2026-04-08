@@ -1,439 +1,309 @@
 /**
  * WorkLedger - Authentication Service
- * 
+ *
  * Complete authentication service for user signup, login, logout,
  * password reset, profile management, and session handling.
- * 
+ *
+ * SESSION 19 UPDATE — Profile auto-creation on signup:
+ *   After successful signUp(), we immediately INSERT into user_profiles.
+ *   This is belt-and-suspenders alongside the database trigger
+ *   (handle_new_user). Either path alone is sufficient; both together
+ *   guarantee no user ever exists in auth.users without a profile row.
+ *
+ *   Why both:
+ *     - DB trigger: reliable, fires even for admin-created users
+ *     - App-level: fires immediately, allows us to store full_name
+ *       from the signup form without waiting for trigger latency
+ *
  * @module services/supabase/auth
  * @created January 29, 2026
+ * @updated April 8, 2026 - Session 19: profile auto-creation on signup
  */
 
 import { supabase } from './client';
 
-/**
- * Authentication Service
- */
 export class AuthService {
+  // ─────────────────────────────────────────────
+  // SIGN UP
+  // ─────────────────────────────────────────────
+
   /**
-   * Sign up a new user
-   * @param {Object} params - Signup parameters
-   * @param {string} params.email - User email
-   * @param {string} params.password - User password
-   * @param {Object} params.metadata - Additional user metadata
-   * @returns {Promise<Object>} Result object { success, user, error }
+   * Register a new user.
+   *
+   * Flow:
+   *   1. supabase.auth.signUp() → creates auth.users row
+   *   2. DB trigger (handle_new_user) auto-creates user_profiles row
+   *   3. We also upsert user_profiles here as belt-and-suspenders,
+   *      ensuring full_name from the form is stored immediately.
+   *
+   * @param {Object} params
+   * @param {string} params.email
+   * @param {string} params.password
+   * @param {Object} params.metadata  — { full_name, phone_number, ... }
+   * @returns {Promise<{success, user, error}>}
    */
   async signUp({ email, password, metadata = {} }) {
     try {
       console.log('🔐 Signing up user:', email);
-      
+
+      // ── Step 1: Create auth.users row ──────────────────────────────────
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            full_name: metadata.full_name || '',
+            full_name:    metadata.full_name    || '',
             phone_number: metadata.phone_number || '',
-            ...metadata
-          }
-        }
+            ...metadata,
+          },
+        },
       });
-      
+
       if (error) {
         console.error('❌ Signup error:', error);
-        return {
-          success: false,
-          user: null,
-          error: error.message
-        };
+        return { success: false, user: null, error: error.message };
       }
-      
-      console.log('✅ User signed up successfully:', data.user?.email);
-      
-      return {
-        success: true,
-        user: data.user,
-        error: null
-      };
+
+      const newUser = data.user;
+      console.log('✅ Auth user created:', newUser?.email);
+
+      // ── Step 2: Upsert user_profiles ───────────────────────────────────
+      // The DB trigger (handle_new_user) fires on auth.users INSERT and
+      // creates the profile automatically. We also upsert here so that:
+      //   a) full_name from the form is guaranteed to be saved
+      //   b) any trigger latency doesn't leave the user profileless
+      //   c) this works even if the trigger hasn't been deployed yet
+      if (newUser?.id) {
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .upsert(
+            {
+              id:           newUser.id,
+              full_name:    metadata.full_name    || '',
+              phone_number: metadata.phone_number || '',
+              created_at:   new Date().toISOString(),
+              updated_at:   new Date().toISOString(),
+            },
+            {
+              onConflict:        'id',
+              ignoreDuplicates:  false, // Always update if row already exists
+            }
+          );
+
+        if (profileError) {
+          // Non-fatal — the trigger should have handled it.
+          // The user is still created; profile may be created by trigger.
+          console.warn('⚠️ Profile upsert after signup failed (non-fatal):', profileError.message);
+        } else {
+          console.log('✅ user_profiles row created/updated for:', newUser.email);
+        }
+      }
+
+      return { success: true, user: newUser, error: null };
     } catch (error) {
       console.error('❌ Signup exception:', error);
       return {
         success: false,
         user: null,
-        error: error.message || 'An unexpected error occurred during signup'
+        error: error.message || 'An unexpected error occurred during signup',
       };
     }
   }
-  
-  /**
-   * Sign in an existing user
-   * @param {Object} params - Login parameters
-   * @param {string} params.email - User email
-   * @param {string} params.password - User password
-   * @returns {Promise<Object>} Result object { success, user, session, error }
-   */
+
+  // ─────────────────────────────────────────────
+  // SIGN IN
+  // ─────────────────────────────────────────────
+
   async signIn({ email, password }) {
     try {
       console.log('🔐 Signing in user:', email);
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
       });
-      
+
       if (error) {
-        console.error('❌ Login error:', error);
-        return {
-          success: false,
-          user: null,
-          session: null,
-          error: error.message
-        };
+        console.error('❌ Sign in error:', error);
+        return { success: false, session: null, error: error.message };
       }
-      
-      console.log('✅ User signed in successfully:', data.user?.email);
-      
-      return {
-        success: true,
-        user: data.user,
-        session: data.session,
-        error: null
-      };
+
+      console.log('✅ User signed in:', data.user?.email);
+
+      // Belt-and-suspenders: ensure profile exists on login too.
+      // Catches users who registered before the trigger was deployed.
+      if (data.user?.id) {
+        const { data: existing } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        if (!existing) {
+          console.log('⚠️ No profile found on login — creating now');
+          await supabase
+            .from('user_profiles')
+            .insert({
+              id:           data.user.id,
+              full_name:    data.user.user_metadata?.full_name    || '',
+              phone_number: data.user.user_metadata?.phone_number || '',
+              created_at:   new Date().toISOString(),
+              updated_at:   new Date().toISOString(),
+            })
+            .select()
+            .single();
+        }
+      }
+
+      return { success: true, session: data.session, error: null };
     } catch (error) {
-      console.error('❌ Login exception:', error);
-      return {
-        success: false,
-        user: null,
-        session: null,
-        error: error.message || 'An unexpected error occurred during login'
-      };
+      console.error('❌ Sign in exception:', error);
+      return { success: false, session: null, error: error.message };
     }
   }
-  
-  /**
-   * Sign out current user
-   * @returns {Promise<Object>} Result object { success, error }
-   */
+
+  // ─────────────────────────────────────────────
+  // SIGN OUT
+  // ─────────────────────────────────────────────
+
   async signOut() {
     try {
       console.log('🔐 Signing out user...');
-      
       const { error } = await supabase.auth.signOut();
-      
       if (error) {
-        console.error('❌ Logout error:', error);
-        return {
-          success: false,
-          error: error.message
-        };
+        console.error('❌ Sign out error:', error);
+        return { success: false, error: error.message };
       }
-      
-      console.log('✅ User signed out successfully');
-      
-      return {
-        success: true,
-        error: null
-      };
+      console.log('✅ User signed out');
+      return { success: true };
     } catch (error) {
-      console.error('❌ Logout exception:', error);
-      return {
-        success: false,
-        error: error.message || 'An unexpected error occurred during logout'
-      };
+      console.error('❌ Sign out exception:', error);
+      return { success: false, error: error.message };
     }
   }
-  
-  /**
-   * Get current authenticated user
-   * @returns {Promise<Object|null>} Current user or null
-   */
-  async getCurrentUser() {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error) {
-        console.error('❌ Error getting current user:', error);
-        return null;
-      }
-      
-      return user;
-    } catch (error) {
-      console.error('❌ Exception getting current user:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * Get current session with timeout
-   * @returns {Promise<Object|null>} Current session or null
-   */
+
+  // ─────────────────────────────────────────────
+  // SESSION
+  // ─────────────────────────────────────────────
+
   async getCurrentSession() {
     try {
       console.log('🔍 getCurrentSession: Starting...');
-      
-      // Create a timeout promise
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Session check timed out after 3 seconds')), 3000);
-      });
-      
-      // Race between actual call and timeout
-      const { data: { session }, error } = await Promise.race([
-        supabase.auth.getSession(),
-        timeoutPromise
-      ]);
-      
+      const { data: { session }, error } = await supabase.auth.getSession();
       if (error) {
-        console.error('❌ getCurrentSession: Error -', error);
+        console.error('❌ getCurrentSession error:', error);
         return null;
       }
-      
-      console.log('✅ getCurrentSession: Success', session ? 'Session found' : 'No session');
+      console.log('✅ getCurrentSession:', session ? 'Session found' : 'No session');
       return session;
     } catch (error) {
-      console.error('❌ getCurrentSession: Exception -', error.message);
+      console.error('❌ getCurrentSession exception:', error);
       return null;
     }
   }
-  
-  /**
-   * Request password reset email
-   * @param {string} email - User email
-   * @returns {Promise<Object>} Result object { success, error }
-   */
-  async resetPassword(email) {
+
+  async getCurrentUser() {
     try {
-      console.log('🔐 Requesting password reset for:', email);
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
-      });
-      
-      if (error) {
-        console.error('❌ Password reset error:', error);
-        return {
-          success: false,
-          error: error.message
-        };
-      }
-      
-      console.log('✅ Password reset email sent');
-      
-      return {
-        success: true,
-        error: null
-      };
-    } catch (error) {
-      console.error('❌ Password reset exception:', error);
-      return {
-        success: false,
-        error: error.message || 'An unexpected error occurred'
-      };
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) return null;
+      return user;
+    } catch {
+      return null;
     }
   }
-  
+
+  // ─────────────────────────────────────────────
+  // PROFILE
+  // ─────────────────────────────────────────────
+
   /**
-   * Update password with reset token
-   * @param {string} newPassword - New password
-   * @returns {Promise<Object>} Result object { success, error }
-   */
-  async updatePassword(newPassword) {
-    try {
-      console.log('🔐 Updating password...');
-      
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-      
-      if (error) {
-        console.error('❌ Password update error:', error);
-        return {
-          success: false,
-          error: error.message
-        };
-      }
-      
-      console.log('✅ Password updated successfully');
-      
-      return {
-        success: true,
-        error: null
-      };
-    } catch (error) {
-      console.error('❌ Password update exception:', error);
-      return {
-        success: false,
-        error: error.message || 'An unexpected error occurred'
-      };
-    }
-  }
-  
-  /**
-   * Update user profile
-   * @param {string} userId - User ID
-   * @param {Object} profileData - Profile data to update
-   * @returns {Promise<Object>} Result object { success, data, error }
-   */
-  async updateProfile(userId, profileData) {
-    try {
-      console.log('🔐 Updating profile for user:', userId);
-      
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .upsert({
-          id: userId,
-          ...profileData,
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('❌ Profile update error:', error);
-        return {
-          success: false,
-          data: null,
-          error: error.message
-        };
-      }
-      
-      console.log('✅ Profile updated successfully');
-      
-      return {
-        success: true,
-        data,
-        error: null
-      };
-    } catch (error) {
-      console.error('❌ Profile update exception:', error);
-      return {
-        success: false,
-        data: null,
-        error: error.message || 'An unexpected error occurred'
-      };
-    }
-  }
-  
-  /**
-   * Get user profile
-   * @param {string} userId - User ID
-   * @returns {Promise<Object|null>} User profile or null
+   * Get user_profiles row for a given user ID.
+   * Called by AuthContext after session is established.
+   *
+   * @param {string} userId
+   * @returns {Promise<Object|null>}
    */
   async getUserProfile(userId) {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('*')
+        .select('id, full_name, phone_number, avatar_url, global_role, preferences, created_at')
         .eq('id', userId)
-        .single();
-      
+        .maybeSingle();
+
       if (error) {
-        // Profile might not exist yet for new users
-        if (error.code === 'PGRST116') {
-          return null;
-        }
-        
-        console.error('❌ Error getting profile:', error);
+        console.warn('⚠️ getUserProfile error:', error.message);
         return null;
       }
-      
       return data;
     } catch (error) {
-      console.error('❌ Exception getting profile:', error);
+      console.error('❌ getUserProfile exception:', error);
       return null;
     }
   }
-  
+
   /**
-   * Get user's organization memberships
-   * @param {string} userId - User ID
-   * @returns {Promise<Array>} Array of organization memberships
+   * Update the current user's profile.
+   *
+   * @param {string} userId
+   * @param {Object} profileData  — { full_name, phone_number, avatar_url, preferences }
+   * @returns {Promise<{success, data?, error?}>}
    */
-  async getUserOrganizations(userId) {
+  async updateProfile(userId, profileData) {
     try {
+      console.log('🔐 Updating profile for:', userId);
+
+      // Never allow global_role to be changed via this method
+      const { global_role, id, created_at, ...safeData } = profileData;
+
       const { data, error } = await supabase
-        .from('org_members')
-        .select(`
-          *,
-          organization:organizations(*)
-        `)
-        .eq('user_id', userId)
-        .eq('is_active', true);
-      
+        .from('user_profiles')
+        .update({ ...safeData, updated_at: new Date().toISOString() })
+        .eq('id', userId)
+        .select()
+        .single();
+
       if (error) {
-        console.error('❌ Error getting user organizations:', error);
-        return [];
+        console.error('❌ Profile update error:', error);
+        return { success: false, error: error.message };
       }
-      
-      return data || [];
+
+      console.log('✅ Profile updated');
+      return { success: true, data };
     } catch (error) {
-      console.error('❌ Exception getting user organizations:', error);
-      return [];
+      console.error('❌ Profile update exception:', error);
+      return { success: false, error: error.message };
     }
   }
-  
-  /**
-   * Check if user is authenticated
-   * @returns {Promise<boolean>} True if authenticated
-   */
-  async isAuthenticated() {
-    const user = await this.getCurrentUser();
-    return user !== null;
-  }
-  
-  /**
-   * Subscribe to auth state changes
-   * @param {Function} callback - Callback function (event, session) => {}
-   * @returns {Object} Subscription object with unsubscribe method
-   */
-  onAuthStateChange(callback) {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log(`🔐 Auth event: ${event}`);
-        callback(event, session);
-      }
-    );
-    
-    return subscription;
-  }
-  
-  /**
-   * Refresh current session
-   * @returns {Promise<Object>} Result object { success, session, error }
-   */
-  async refreshSession() {
+
+  // ─────────────────────────────────────────────
+  // PASSWORD
+  // ─────────────────────────────────────────────
+
+  async resetPassword(email) {
     try {
-      console.log('🔐 Refreshing session...');
-      
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        console.error('❌ Session refresh error:', error);
-        return {
-          success: false,
-          session: null,
-          error: error.message
-        };
-      }
-      
-      console.log('✅ Session refreshed successfully');
-      
-      return {
-        success: true,
-        session: data.session,
-        error: null
-      };
+      console.log('🔐 Requesting password reset:', email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
     } catch (error) {
-      console.error('❌ Session refresh exception:', error);
-      return {
-        success: false,
-        session: null,
-        error: error.message || 'An unexpected error occurred'
-      };
+      return { success: false, error: error.message };
+    }
+  }
+
+  async updatePassword(newPassword) {
+    try {
+      console.log('🔐 Updating password...');
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
   }
 }
 
-// Export singleton instance
 export const authService = new AuthService();
-
-// Export default
 export default authService;

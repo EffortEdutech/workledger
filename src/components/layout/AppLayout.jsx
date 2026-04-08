@@ -4,29 +4,28 @@
  * SESSION 15 UPDATE — Org Switcher for super_admin / bina_jaya_staff
  * SESSION 17 UPDATE — ErrorBoundary wraps <main> content
  * SESSION 18 UPDATE — OfflineIndicator + PWAInstallButton
+ * SESSION 19 UPDATE — iOS/Android safe-area fixes + profile link
  *
  * SESSION 19 UPDATE — iOS/Android safe-area fixes:
  *   Header: paddingTop = env(safe-area-inset-top)
- *     → prevents content hiding behind iPhone notch / Dynamic Island
- *     → requires viewport-fit=cover in index.html (already set)
+ *   BottomNav: safe-area handled INSIDE BottomNav.jsx — not here.
  *
- *   BottomNav: safe-area padding is handled INSIDE BottomNav.jsx directly
- *     on its <nav> element. DO NOT wrap BottomNav in a div with padding here.
- *     Reason: BottomNav is position:fixed. A wrapper div's padding has zero
- *     effect on a fixed child — fixed elements are positioned relative to
- *     the viewport, not their DOM parent. The padding must be on the fixed
- *     element itself.
+ * SESSION 19 UPDATE — Profile link:
+ *   The user name / email in the top-right header is now a clickable
+ *   link to /profile. This gives every user a consistent, discoverable
+ *   way to access their profile page regardless of role or device.
+ *   Mobile users can also reach it via the header (visible on sm+).
  *
  * @module components/layout/AppLayout
  * @created January 29, 2026
  * @updated February 26, 2026 - Session 15
  * @updated March 2, 2026    - Session 17
  * @updated March 4, 2026    - Session 18
- * @updated April 7, 2026    - Session 19: safe-area insets, removed broken BottomNav wrapper
+ * @updated April 8, 2026    - Session 19: profile link, safe-area insets
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useOrganization } from '../../context/OrganizationContext';
 import { ROUTES } from '../../constants/routes';
@@ -69,9 +68,9 @@ export function AppLayout({ children }) {
 
         {/*
           ── iOS SAFE AREA: HEADER ──────────────────────────────────────────
-          env(safe-area-inset-top) = height of iPhone notch / Dynamic Island /
-          status bar in standalone PWA mode with black-translucent status bar.
-          On Android and desktop this value is 0 — no visual change.
+          env(safe-area-inset-top) pushes header content below the iPhone
+          notch / Dynamic Island in standalone PWA mode.
+          Value is 0 on Android and desktop — no visual change.
         */}
         <header
           className="bg-white border-b border-gray-200 sticky top-0 z-30"
@@ -79,6 +78,8 @@ export function AppLayout({ children }) {
         >
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex items-center h-16 gap-3">
+
+              {/* Mobile logo */}
               <div className="flex items-center md:hidden">
                 <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">W</span>
@@ -86,6 +87,7 @@ export function AppLayout({ children }) {
                 <span className="ml-2 text-lg font-bold text-gray-900">WorkLedger</span>
               </div>
 
+              {/* Sidebar toggle + home button */}
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -111,6 +113,7 @@ export function AppLayout({ children }) {
                 </button>
               </div>
 
+              {/* BJ Staff org switcher (centre) */}
               {isBinaJayaStaff ? (
                 <div className="flex-1 flex justify-center" ref={dropdownRef}>
                   <div className="relative">
@@ -217,9 +220,27 @@ export function AppLayout({ children }) {
                 <div className="flex-1" />
               )}
 
+              {/* Right side: user info + PWA install + logout */}
               <div className="flex items-center gap-3">
-                <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-sm font-medium text-gray-800 truncate max-w-[160px]">
+
+                {/*
+                  ── PROFILE LINK ──────────────────────────────────────────
+                  Clicking the user name / email navigates to /profile.
+                  This is the primary entry point to the profile page for
+                  all users on both desktop and mobile.
+
+                  - Shows name if profile loaded, email as fallback
+                  - Shows current org name below (for regular users)
+                  - Hover shows a subtle underline to signal it's clickable
+                  - Hidden on xs (< sm) — mobile users access profile
+                    via the BottomNav "More" tab or direct URL
+                */}
+                <Link
+                  to={ROUTES.PROFILE}
+                  className="hidden sm:flex flex-col items-end group"
+                  title="Edit your profile"
+                >
+                  <span className="text-sm font-medium text-gray-800 truncate max-w-[160px] group-hover:text-primary-600 group-hover:underline transition-colors">
                     {profile?.full_name || user?.email}
                   </span>
                   {!isBinaJayaStaff && currentOrg && (
@@ -227,7 +248,7 @@ export function AppLayout({ children }) {
                       {currentOrg.name}
                     </span>
                   )}
-                </div>
+                </Link>
 
                 <PWAInstallButton />
 
@@ -241,6 +262,7 @@ export function AppLayout({ children }) {
             </div>
           </div>
 
+          {/* BJ Staff warning banner */}
           {isBinaJayaStaff && currentOrg && (
             <div className="bg-amber-500 px-4 py-1 flex items-center justify-center gap-2">
               <svg className="w-3.5 h-3.5 text-white flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -277,9 +299,8 @@ export function AppLayout({ children }) {
       </div>
 
       {/*
-        BottomNav renders itself as position:fixed bottom-0.
-        Its own safe-area padding is handled INSIDE BottomNav.jsx.
-        DO NOT wrap this in a div — see Session 19 notes at top of file.
+        BottomNav is position:fixed — safe-area padding lives inside
+        BottomNav.jsx directly on the <nav> element. Do not wrap here.
       */}
       <BottomNav />
     </div>
