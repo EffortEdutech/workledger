@@ -145,7 +145,7 @@ export const router = createBrowserRouter([
   { path: ROUTES.FORGOT_PASSWORD, element: <ForgotPassword /> },
 
   // ── Dashboard — all authenticated roles ───────────────────────────────────
-  { path: ROUTES.DASHBOARD, element: <Guard permission="NAV_DASHBOARD"><Dashboard /></Guard> },
+  { path: ROUTES.DASHBOARD, element: <Auth><Dashboard /></Auth> },
   { path: '/tech',          element: <Auth><TechnicianDashboard /></Auth> },
 
   // ── Profile — all authenticated users (no specific permission needed) ──────
