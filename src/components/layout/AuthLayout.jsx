@@ -40,7 +40,7 @@ export function AuthLayout({ children }) {
       <footer className="py-6 px-4 border-t border-gray-200">
         <div className="max-w-7xl mx-auto text-center text-sm text-gray-600">
           <p>
-            © {new Date().getFullYear()} WorkLedger by Bina Jaya / Effort Edutech. All rights reserved.
+            © {new Date().getFullYear()} WorkLedger by KL. All rights reserved.
           </p>
           <div className="mt-2 space-x-4">
             <a href="#" className="hover:text-gray-900">Privacy Policy</a>

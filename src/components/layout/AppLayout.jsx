@@ -292,7 +292,7 @@ export function AppLayout({ children }) {
         <footer className="hidden md:block border-t border-gray-200 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <p className="text-center text-xs text-gray-500">
-              © {new Date().getFullYear()} WorkLedger by Bina Jaya / Effort Edutech
+              © {new Date().getFullYear()} WorkLedger by KL. All rights reserved.
             </p>
           </div>
         </footer>
