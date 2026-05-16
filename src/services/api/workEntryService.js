@@ -729,8 +729,7 @@ class WorkEntryService {
           .eq('organization_id', orgId)
           .eq('status', 'submitted')
           .is('deleted_at', null)
-          .order('submitted_at', { ascending: true })
-          .single;
+          .order('submitted_at', { ascending: true });
 
         if (error) {
           throw error;
