@@ -251,9 +251,14 @@ export function Sidebar({ isCollapsed = false }) {
           <span className="text-white font-bold text-sm">W</span>
         </div>
         {!isCollapsed && (
-          <span className="ml-3 text-lg font-bold text-gray-900 truncate">
-            WorkLedger
-          </span>
+          <div className="ml-3 min-w-0">
+            <p className="text-sm font-bold text-gray-900 truncate leading-tight">
+              {currentOrg?.slug
+                ? currentOrg.slug.toUpperCase()
+                : 'WorkLedger'}
+            </p>
+            <p className="text-xs text-gray-400 leading-none mt-0.5">WorkLedger</p>
+          </div>
         )}
       </div>
 
