@@ -41,14 +41,16 @@ import { supabase } from '../services/supabase/client';
 const CACHE_KEYS = {
   ORGS:       'wl_cached_orgs',
   USER_ROLE:  'wl_cached_user_role',
-  ACTIVE_ORG: 'wl_active_org_id',
+  ACTIVE_ORG: 'wl_active_org_id'
 };
 
 function readCache(key) {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  } catch {
+    return null; 
+  }
 }
 
 function writeCache(key, value) {
@@ -98,7 +100,9 @@ export function OrganizationProvider({ children }) {
   // Load organizations (runs when auth settles)
   // ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading) {
+      return;
+    }
     if (!user) {
       setAllOrgs([]);
       setCurrentOrg(null);
@@ -122,7 +126,9 @@ export function OrganizationProvider({ children }) {
           .is('deleted_at', null)
           .order('name');
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
         orgs = data || [];
       } else {
         const { data, error } = await supabase
@@ -135,7 +141,9 @@ export function OrganizationProvider({ children }) {
           .eq('is_active', true)
           .is('organizations.deleted_at', null);
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
         orgs = (data || [])
           .filter(m => m.organization)
           .map(m => m.organization);
@@ -215,7 +223,9 @@ export function OrganizationProvider({ children }) {
       // Offline — use cached role
       const cachedRole = readCache(CACHE_KEYS.USER_ROLE);
       console.warn('⚠️ fetchUserOrgRole offline, using cache:', cachedRole);
-      if (cachedRole) setUserOrgRole(cachedRole);
+      if (cachedRole) {
+        setUserOrgRole(cachedRole);
+      }
     }
   }, [currentOrg?.id, user?.id, isBinaJayaStaff, profile?.global_role]);
 
@@ -251,7 +261,7 @@ export function OrganizationProvider({ children }) {
     orgId,
     isBinaJayaStaff,
     userOrgRole,
-    switchOrganization,
+    switchOrganization
   };
 
   return (

@@ -34,7 +34,9 @@ import { useOrganization } from '../../context/OrganizationContext';
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
 function formatDate(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) {
+    return '—';
+  }
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short' });
 }
@@ -43,7 +45,7 @@ const STATUS_STYLE = {
   draft:     { bg: 'bg-gray-100',   text: 'text-gray-700',   label: 'Draft'     },
   submitted: { bg: 'bg-blue-100',   text: 'text-blue-800',   label: 'Submitted' },
   approved:  { bg: 'bg-green-100',  text: 'text-green-800',  label: 'Approved'  },
-  rejected:  { bg: 'bg-red-100',    text: 'text-red-800',    label: 'Rejected'  },
+  rejected:  { bg: 'bg-red-100',    text: 'text-red-800',    label: 'Rejected'  }
 };
 
 function StatusPill({ status }) {
@@ -71,9 +73,9 @@ function EntryCard({ entry, onClick }) {
         <div
           className={`w-3 h-3 rounded-full ${
             entry.status === 'approved' ? 'bg-green-400' :
-            entry.status === 'rejected' ? 'bg-red-400'   :
-            entry.status === 'submitted' ? 'bg-blue-400' :
-            'bg-gray-300'
+              entry.status === 'rejected' ? 'bg-red-400'   :
+                entry.status === 'submitted' ? 'bg-blue-400' :
+                  'bg-gray-300'
           }`}
         />
       </div>
@@ -155,7 +157,7 @@ export default function TechnicianDashboard() {
 
       const [localEntries, cache] = await Promise.all([
         offlineDataService.getWorkEntries(),
-        offlineDataService.getCacheStatus(),
+        offlineDataService.getCacheStatus()
       ]);
 
       setEntries(localEntries);
@@ -167,11 +169,15 @@ export default function TechnicianDashboard() {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData(); 
+  }, [loadData]);
 
   // Reload when coming back online (sync may have updated entries)
   useEffect(() => {
-    if (isOnline) loadData();
+    if (isOnline) {
+      loadData();
+    }
   }, [isOnline]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived counts ──────────────────────────────────────────────────────

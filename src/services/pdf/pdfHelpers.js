@@ -58,7 +58,9 @@ export function formatFieldValue(field, value) {
  * @returns {string} Formatted date
  */
 export function formatDate(dateString) {
-  if (!dateString) return '-';
+  if (!dateString) {
+    return '-';
+  }
   
   const date = new Date(dateString);
   const day = String(date.getDate()).padStart(2, '0');
@@ -75,7 +77,9 @@ export function formatDate(dateString) {
  * @returns {string} Formatted datetime
  */
 export function formatDateTime(dateTimeString) {
-  if (!dateTimeString) return '-';
+  if (!dateTimeString) {
+    return '-';
+  }
   
   const date = new Date(dateTimeString);
   const day = String(date.getDate()).padStart(2, '0');
@@ -95,10 +99,14 @@ export function formatDateTime(dateTimeString) {
  * @returns {string} Formatted number
  */
 export function formatNumber(value, decimals = 0) {
-  if (value === null || value === undefined || value === '') return '-';
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
   
   const num = parseFloat(value);
-  if (isNaN(num)) return '-';
+  if (isNaN(num)) {
+    return '-';
+  }
   
   return num.toFixed(decimals);
 }
@@ -128,7 +136,9 @@ export function getFieldLabel(field) {
  * @returns {number} Height in mm
  */
 export function calculateTextHeight(pdf, text, maxWidth) {
-  if (!text || text === '-') return 5;
+  if (!text || text === '-') {
+    return 5;
+  }
   
   const lines = pdf.splitTextToSize(String(text), maxWidth);
   const lineHeight = 5;
@@ -145,7 +155,9 @@ export function calculateTextHeight(pdf, text, maxWidth) {
  * @returns {Array<string>} Array of text lines
  */
 export function wrapText(pdf, text, maxWidth) {
-  if (!text) return [''];
+  if (!text) {
+    return [''];
+  }
   
   return pdf.splitTextToSize(String(text), maxWidth);
 }
@@ -304,8 +316,11 @@ export async function embedImage(pdf, imageUrl, x, y, maxWidth, maxHeight) {
     
     // Determine format from blob type
     let format = 'JPEG';
-    if (blob.type.includes('png')) format = 'PNG';
-    else if (blob.type.includes('webp')) format = 'WEBP';
+    if (blob.type.includes('png')) {
+      format = 'PNG';
+    } else if (blob.type.includes('webp')) {
+      format = 'WEBP';
+    }
     
     // Add to PDF
     pdf.addImage(base64, format, x, y, width, height);

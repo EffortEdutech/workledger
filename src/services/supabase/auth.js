@@ -54,9 +54,9 @@ export class AuthService {
           data: {
             full_name:    metadata.full_name    || '',
             phone_number: metadata.phone_number || '',
-            ...metadata,
-          },
-        },
+            ...metadata
+          }
+        }
       });
 
       if (error) {
@@ -82,11 +82,11 @@ export class AuthService {
               full_name:    metadata.full_name    || '',
               phone_number: metadata.phone_number || '',
               created_at:   new Date().toISOString(),
-              updated_at:   new Date().toISOString(),
+              updated_at:   new Date().toISOString()
             },
             {
               onConflict:        'id',
-              ignoreDuplicates:  false, // Always update if row already exists
+              ignoreDuplicates:  false // Always update if row already exists
             }
           );
 
@@ -105,7 +105,7 @@ export class AuthService {
       return {
         success: false,
         user: null,
-        error: error.message || 'An unexpected error occurred during signup',
+        error: error.message || 'An unexpected error occurred during signup'
       };
     }
   }
@@ -120,7 +120,7 @@ export class AuthService {
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password,
+        password
       });
 
       if (error) {
@@ -148,7 +148,7 @@ export class AuthService {
               full_name:    data.user.user_metadata?.full_name    || '',
               phone_number: data.user.user_metadata?.phone_number || '',
               created_at:   new Date().toISOString(),
-              updated_at:   new Date().toISOString(),
+              updated_at:   new Date().toISOString()
             })
             .select()
             .single();
@@ -205,7 +205,9 @@ export class AuthService {
   async getCurrentUser() {
     try {
       const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) return null;
+      if (error) {
+        return null;
+      }
       return user;
     } catch {
       return null;
@@ -254,7 +256,7 @@ export class AuthService {
       console.log('🔐 Updating profile for:', userId);
 
       // Never allow global_role to be changed via this method
-      const { global_role, id, created_at, ...safeData } = profileData;
+      const { global_role: _global_role, id: _id, created_at: _created_at, ...safeData } = profileData;
 
       const { data, error } = await supabase
         .from('user_profiles')
@@ -284,9 +286,11 @@ export class AuthService {
     try {
       console.log('🔐 Requesting password reset:', email);
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/reset-password`
       });
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        return { success: false, error: error.message };
+      }
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -297,7 +301,9 @@ export class AuthService {
     try {
       console.log('🔐 Updating password...');
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        return { success: false, error: error.message };
+      }
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };

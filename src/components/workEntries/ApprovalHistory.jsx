@@ -30,7 +30,7 @@ import {
   PaperAirplaneIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ClockIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +38,9 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatTimestamp(ts) {
-  if (!ts) return null;
+  if (!ts) {
+    return null;
+  }
   try {
     return new Intl.DateTimeFormat('en-MY', {
       day:    'numeric',
@@ -46,7 +48,7 @@ function formatTimestamp(ts) {
       year:   'numeric',
       hour:   '2-digit',
       minute: '2-digit',
-      hour12: true,
+      hour12: true
     }).format(new Date(ts));
   } catch {
     return ts;
@@ -58,7 +60,9 @@ function formatTimestamp(ts) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function extractName(userRel) {
-  if (!userRel) return null;
+  if (!userRel) {
+    return null;
+  }
   // userRel shape: { email, user_profiles: [{ full_name }] }
   return (
     userRel.user_profiles?.[0]?.full_name ||
@@ -82,7 +86,7 @@ function TimelineEvent({
   note,
   noteColor = 'text-gray-600',
   notePrefix = '',
-  isLast = false,
+  isLast = false
 }) {
   return (
     <div className="relative flex gap-4">
@@ -132,7 +136,9 @@ function TimelineEvent({
  * @param {Object} props.entry - Full work entry object (with joined relations)
  */
 export default function ApprovalHistory({ entry }) {
-  if (!entry) return null;
+  if (!entry) {
+    return null;
+  }
 
   // Build events array — only include events that have actually occurred
   const events = [];
@@ -146,7 +152,7 @@ export default function ApprovalHistory({ entry }) {
     label:     'Created',
     byName:    extractName(entry.creator),
     timestamp: formatTimestamp(entry.created_at),
-    note:      null,
+    note:      null
   });
 
   // ── 2. Submitted ────────────────────────────────────────────────────────
@@ -159,7 +165,7 @@ export default function ApprovalHistory({ entry }) {
       label:     'Submitted for Review',
       byName:    extractName(entry.submitter) || extractName(entry.creator),
       timestamp: formatTimestamp(entry.submitted_at),
-      note:      null,
+      note:      null
     });
   }
 
@@ -175,7 +181,7 @@ export default function ApprovalHistory({ entry }) {
       timestamp:  formatTimestamp(entry.approved_at),
       note:       entry.approval_remarks || null,
       noteColor:  'text-green-700',
-      notePrefix: 'Remarks:',
+      notePrefix: 'Remarks:'
     });
   }
 
@@ -191,7 +197,7 @@ export default function ApprovalHistory({ entry }) {
       timestamp:  formatTimestamp(entry.rejected_at),
       note:       entry.rejection_reason || null,
       noteColor:  'text-red-700',
-      notePrefix: 'Reason:',
+      notePrefix: 'Reason:'
     });
   }
 

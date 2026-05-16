@@ -31,38 +31,38 @@ const STATUS_CONFIG = {
     label:    'Draft',
     icon:     '○',
     classes:  'bg-gray-100 text-gray-600 border-gray-200',
-    dotClass: 'bg-gray-400',
+    dotClass: 'bg-gray-400'
   },
   submitted: {
     label:    'Pending Review',
     icon:     '◉',
     classes:  'bg-blue-50 text-blue-700 border-blue-200',
-    dotClass: 'bg-blue-500',
+    dotClass: 'bg-blue-500'
   },
   approved: {
     label:    'Approved',
     icon:     '✓',
     classes:  'bg-green-50 text-green-700 border-green-200',
-    dotClass: 'bg-green-500',
+    dotClass: 'bg-green-500'
   },
   rejected: {
     label:    'Rejected',
     icon:     '✕',
     classes:  'bg-red-50 text-red-700 border-red-200',
-    dotClass: 'bg-red-500',
-  },
+    dotClass: 'bg-red-500'
+  }
 };
 
 const SIZE_CLASSES = {
   sm:   'px-2 py-0.5 text-xs gap-1',
   md:   'px-2.5 py-1 text-xs gap-1.5',
-  lg:   'px-3 py-1.5 text-sm gap-2',
+  lg:   'px-3 py-1.5 text-sm gap-2'
 };
 
 const DOT_SIZE_CLASSES = {
   sm:  'w-1.5 h-1.5',
   md:  'w-2 h-2',
-  lg:  'w-2.5 h-2.5',
+  lg:  'w-2.5 h-2.5'
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ export default function ApprovalBadge({
   status,
   size = 'md',
   showDot = true,
-  className = '',
+  className = ''
 }) {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
   const sizeClass = SIZE_CLASSES[size] || SIZE_CLASSES.md;

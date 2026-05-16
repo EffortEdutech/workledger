@@ -20,16 +20,21 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { contractService } from '../../services/api/contractService';
 import { projectService } from '../../services/api/projectService';
 import { templateService } from '../../services/api/templateService';
+import { subcontractorService } from '../../services/api/subcontractorService';
 import { useOrganization } from '../../context/OrganizationContext';
+import { ORG_TYPES } from '../../constants/orgTypes';
+import { useToast } from '../../context/ToastContext';
 
 export function NewContract() {
+  const toast = useToast();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
 
-  const [projects, setProjects]     = useState([]);
-  const [templates, setTemplates]   = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [projects,          setProjects]          = useState([]);
+  const [templates,         setTemplates]         = useState([]);
+  const [subcontractorOrgs, setSubcontractorOrgs] = useState([]);
+  const [loading,           setLoading]           = useState(true);
+  const [submitting,        setSubmitting]         = useState(false);
 
   useEffect(() => {
     loadData();
@@ -43,7 +48,7 @@ export function NewContract() {
 
       const [projectsData, templatesData] = await Promise.all([
         projectService.getUserProjects(orgId),
-        templateService.getTemplates(),          // ← FIXED (no RLS issue)
+        templateService.getTemplates()          // ← FIXED (no RLS issue)
       ]);
 
       setProjects(projectsData   || []);
@@ -51,6 +56,22 @@ export function NewContract() {
 
       console.log('✅ Loaded projects:', projectsData?.length || 0);
       console.log('✅ Loaded templates:', templatesData?.length || 0);
+
+      // Load subcontractor orgs if current org is a main contractor
+      if (orgId && currentOrg?.org_type === ORG_TYPES.MAIN_CONTRACTOR) {
+        const relationships = await subcontractorService.getSubcontractorRelationships(orgId);
+        // Deduplicate orgs (a sub may appear in multiple project relationships)
+        const seen = new Set();
+        const orgs = [];
+        relationships.forEach(r => {
+          if (r.subcontractor_org && !seen.has(r.subcontractor_org.id)) {
+            seen.add(r.subcontractor_org.id);
+            orgs.push(r.subcontractor_org);
+          }
+        });
+        setSubcontractorOrgs(orgs);
+        console.log('✅ Loaded subcontractor orgs:', orgs.length);
+      }
     } catch (err) {
       console.error('❌ Error loading data:', err);
     } finally {
@@ -69,7 +90,7 @@ export function NewContract() {
       const result = await contractService.createContract(projectId, contractData);
 
       if (!result.success) {
-        alert(result.error || 'Failed to create contract. Please try again.');
+        toast.error(result.error || 'Failed to create contract. Please try again.');
         return;
       }
 
@@ -81,7 +102,7 @@ export function NewContract() {
       if (template_ids.length > 0) {
         for (let i = 0; i < template_ids.length; i++) {
           await contractService.addContractTemplate(contractId, template_ids[i], {
-            isDefault: i === 0,
+            isDefault: i === 0
           });
         }
         console.log('✅ Templates assigned:', template_ids.length);
@@ -90,7 +111,7 @@ export function NewContract() {
       navigate(`/contracts/${contractId}`);
     } catch (err) {
       console.error('❌ Error creating contract:', err);
-      alert('Failed to create contract. Please try again.');
+      toast.error('Failed to create contract. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -126,6 +147,7 @@ export function NewContract() {
         <ContractForm
           projects={projects}
           templates={templates}
+          subcontractorOrgs={subcontractorOrgs}
           mode="create"
           onSubmit={handleSubmit}
           onCancel={handleCancel}

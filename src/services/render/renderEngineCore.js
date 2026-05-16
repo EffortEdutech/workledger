@@ -10,7 +10,7 @@
  * @updated February 16, 2026 - Photo/Signature auto-extraction fix
  */
 
-import { extractSectionData, extractPhotos, extractSignatures, getFieldLabel } from '../../utils/templateBindingMapper';
+import { extractSectionData, extractPhotos, extractSignatures } from '../../utils/templateBindingMapper';
 
 class RenderEngineCore {
   /**
@@ -173,7 +173,7 @@ class RenderEngineCore {
         let found = false;
         
         // Search in all sections of entry data
-        for (const [sectionKey, sectionData] of Object.entries(entryData)) {
+        for (const [_sectionKey, sectionData] of Object.entries(entryData)) {
           if (typeof sectionData === 'object' && sectionData !== null) {
             if (fieldKey in sectionData) {
               mappedData[fieldKey] = sectionData[fieldKey];
@@ -237,7 +237,9 @@ class RenderEngineCore {
    * Resolve data path using dot notation
    */
   resolveDataPath(data, path) {
-    if (!path) return null;
+    if (!path) {
+      return null;
+    }
     
     // Handle array filtering
     if (path.includes('[')) {
@@ -333,7 +335,9 @@ class RenderEngineCore {
     const { template_section, fields } = bindingRules;
     const labels = {};
     
-    if (!template?.fields_schema?.sections) return labels;
+    if (!template?.fields_schema?.sections) {
+      return labels;
+    }
     
     // Find the matching section in template
     const section = template.fields_schema.sections.find(
@@ -390,22 +394,42 @@ class RenderEngineCore {
     const options = {};
     
     // Common options
-    if (section.show_logo !== undefined) options.showLogo = section.show_logo;
-    if (section.show_contract !== undefined) options.showContract = section.show_contract;
-    if (section.columns !== undefined) options.columns = section.columns;
-    if (section.title !== undefined) options.title = section.title;
+    if (section.show_logo !== undefined) {
+      options.showLogo = section.show_logo;
+    }
+    if (section.show_contract !== undefined) {
+      options.showContract = section.show_contract;
+    }
+    if (section.columns !== undefined) {
+      options.columns = section.columns;
+    }
+    if (section.title !== undefined) {
+      options.title = section.title;
+    }
     
     // Photo-specific
-    if (section.show_timestamps !== undefined) options.showTimestamps = section.show_timestamps;
-    if (section.show_captions !== undefined) options.showCaptions = section.show_captions;
-    if (section.show_location !== undefined) options.showLocation = section.show_location;
-    if (section.photo_size !== undefined) options.photoSize = section.photo_size;
+    if (section.show_timestamps !== undefined) {
+      options.showTimestamps = section.show_timestamps;
+    }
+    if (section.show_captions !== undefined) {
+      options.showCaptions = section.show_captions;
+    }
+    if (section.show_location !== undefined) {
+      options.showLocation = section.show_location;
+    }
+    if (section.photo_size !== undefined) {
+      options.photoSize = section.photo_size;
+    }
     
     // Checklist-specific
-    if (section.show_status !== undefined) options.showStatus = section.show_status;
+    if (section.show_status !== undefined) {
+      options.showStatus = section.show_status;
+    }
     
     // Header-specific
-    if (section.content) options.content = section.content;
+    if (section.content) {
+      options.content = section.content;
+    }
     
     return options;
   }

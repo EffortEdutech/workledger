@@ -27,7 +27,7 @@ import { workEntryService } from '../../services/api/workEntryService';
 import { useOrganization } from '../../context/OrganizationContext';
 import {
   CheckCircleIcon,
-  ArrowPathIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 export default function ApprovalsPage() {
@@ -43,7 +43,9 @@ export default function ApprovalsPage() {
   // ─────────────────────────────────────────────────────────────────────────
 
   const loadPending = useCallback(async () => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -79,9 +81,11 @@ export default function ApprovalsPage() {
   const pendingCount = entries.length;
 
   const formatRefreshTime = () => {
-    if (!lastRefresh) return '';
+    if (!lastRefresh) {
+      return '';
+    }
     return new Intl.DateTimeFormat('en-MY', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
     }).format(lastRefresh);
   };
 

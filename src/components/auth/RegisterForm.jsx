@@ -23,7 +23,7 @@ export function RegisterForm() {
     email: '',
     password: '',
     confirmPassword: '',
-    termsAccepted: false,
+    termsAccepted: false
   });
 
   // Error state
@@ -57,23 +57,41 @@ export function RegisterForm() {
    * Calculate password strength
    */
   const getPasswordStrength = (password) => {
-    if (!password) return { score: 0, label: '', color: '' };
+    if (!password) {
+      return { score: 0, label: '', color: '' };
+    }
 
     let score = 0;
     
     // Length
-    if (password.length >= 8) score++;
-    if (password.length >= 12) score++;
+    if (password.length >= 8) {
+      score++;
+    }
+    if (password.length >= 12) {
+      score++;
+    }
     
     // Character variety
-    if (/[a-z]/.test(password)) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^a-zA-Z0-9]/.test(password)) score++;
+    if (/[a-z]/.test(password)) {
+      score++;
+    }
+    if (/[A-Z]/.test(password)) {
+      score++;
+    }
+    if (/[0-9]/.test(password)) {
+      score++;
+    }
+    if (/[^a-zA-Z0-9]/.test(password)) {
+      score++;
+    }
 
     // Map score to strength
-    if (score <= 2) return { score, label: 'Weak', color: 'bg-red-500' };
-    if (score <= 4) return { score, label: 'Medium', color: 'bg-yellow-500' };
+    if (score <= 2) {
+      return { score, label: 'Weak', color: 'bg-red-500' };
+    }
+    if (score <= 4) {
+      return { score, label: 'Medium', color: 'bg-yellow-500' };
+    }
     return { score, label: 'Strong', color: 'bg-green-500' };
   };
 
@@ -143,7 +161,7 @@ export function RegisterForm() {
 
     // Attempt registration
     const result = await register(formData.email, formData.password, {
-      full_name: formData.fullName.trim(),
+      full_name: formData.fullName.trim()
     });
 
     if (result.success) {
@@ -267,8 +285,8 @@ export function RegisterForm() {
                 <span className="text-xs text-gray-600">Password strength:</span>
                 <span className={`text-xs font-medium ${
                   passwordStrength.score <= 2 ? 'text-red-600' :
-                  passwordStrength.score <= 4 ? 'text-yellow-600' :
-                  'text-green-600'
+                    passwordStrength.score <= 4 ? 'text-yellow-600' :
+                      'text-green-600'
                 }`}>
                   {passwordStrength.label}
                 </span>

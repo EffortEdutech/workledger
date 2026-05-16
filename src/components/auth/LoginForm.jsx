@@ -21,7 +21,7 @@ export function LoginForm() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    rememberMe: false,
+    rememberMe: false
   });
 
   // Error state

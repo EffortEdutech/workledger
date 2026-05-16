@@ -28,7 +28,7 @@ import {
   CalendarIcon,
   DocumentTextIcon,
   BuildingOffice2Icon,
-  UserGroupIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 
 export function ContractCard({
@@ -36,7 +36,7 @@ export function ContractCard({
   onDelete,
   canEdit   = false,
   canDelete = false,
-  currentOrgId = null,   // ← NEW: current user's org, used to auto-derive permissions
+  currentOrgId = null   // ← NEW: current user's org, used to auto-derive permissions
 }) {
   const navigate = useNavigate();
 
@@ -62,7 +62,7 @@ export function ContractCard({
     active:    'bg-green-100 text-green-800 border-green-200',
     suspended: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     completed: 'bg-blue-100  text-blue-800  border-blue-200',
-    cancelled: 'bg-red-100   text-red-800   border-red-200',
+    cancelled: 'bg-red-100   text-red-800   border-red-200'
   };
 
   const statusLabels = {
@@ -70,20 +70,24 @@ export function ContractCard({
     active:    'Active',
     suspended: 'Suspended',
     completed: 'Completed',
-    cancelled: 'Cancelled',
+    cancelled: 'Cancelled'
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) {
+      return 'N/A';
+    }
     return new Date(dateString).toLocaleDateString('en-MY', {
       year:  'numeric',
       month: 'short',
-      day:   'numeric',
+      day:   'numeric'
     });
   };
 
   const handleView   = ()  => navigate(`/contracts/${contract.id}`);
-  const handleEdit   = (e) => { e.stopPropagation(); navigate(`/contracts/${contract.id}/edit`); };
+  const handleEdit   = (e) => {
+    e.stopPropagation(); navigate(`/contracts/${contract.id}/edit`); 
+  };
   const handleDelete = (e) => {
     e.stopPropagation();
     if (window.confirm(`Are you sure you want to delete contract "${contract.contract_number}"?`)) {

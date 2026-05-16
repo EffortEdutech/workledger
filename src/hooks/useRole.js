@@ -65,13 +65,19 @@ export function useRole() {
    */
   const can = useCallback((permission) => {
     // Not logged in → no permissions
-    if (!profile) return false;
+    if (!profile) {
+      return false;
+    }
 
     // super_admin → always allowed (no matrix check needed)
-    if (globalRole === 'super_admin') return true;
+    if (globalRole === 'super_admin') {
+      return true;
+    }
 
     // No effective role yet (loading / no org membership) → deny
-    if (!effectiveRole) return false;
+    if (!effectiveRole) {
+      return false;
+    }
 
     // Look up the permission matrix
     const allowed = PERMISSIONS[permission];
@@ -92,7 +98,7 @@ export function useRole() {
     globalRole,                        // 'super_admin' | 'bina_jaya_staff' | null
     isBinaJayaStaff,
     isFieldWorker,
-    loading: orgLoading,
+    loading: orgLoading
   };
 }
 

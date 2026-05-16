@@ -32,7 +32,7 @@ export function ProjectList({
   onRefresh,
   canCreate = false,   // ← NEW
   canEdit   = false,   // ← NEW
-  canDelete = false,   // ← NEW
+  canDelete = false   // ← NEW
 }) {
   const navigate = useNavigate();
 
@@ -50,7 +50,7 @@ export function ProjectList({
     { value: 'active',    label: 'Active' },
     { value: 'completed', label: 'Completed' },
     { value: 'on_hold',   label: 'On Hold' },
-    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'cancelled', label: 'Cancelled' }
   ];
 
   const sortOptions = [
@@ -58,7 +58,7 @@ export function ProjectList({
     { value: 'project_name', label: 'Project Name' },
     { value: 'client_name',  label: 'Client Name' },
     { value: 'start_date',   label: 'Start Date' },
-    { value: 'status',       label: 'Status' },
+    { value: 'status',       label: 'Status' }
   ];
 
   // ── Filter + sort ─────────────────────────────────────────
@@ -86,14 +86,22 @@ export function ProjectList({
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
-      if (!aValue) return sortOrder === 'asc' ? 1 : -1;
-      if (!bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (!aValue) {
+        return sortOrder === 'asc' ? 1 : -1;
+      }
+      if (!bValue) {
+        return sortOrder === 'asc' ? -1 : 1;
+      }
       if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      if (aValue < bValue) {
+        return sortOrder === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortOrder === 'asc' ? 1 : -1;
+      }
       return 0;
     });
 

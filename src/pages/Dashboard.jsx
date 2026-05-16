@@ -38,7 +38,7 @@ import {
   DocumentDuplicateIcon,
   BuildingOffice2Icon,
   PlusIcon,
-  CheckCircleIcon,     // Session 16: used for Review Approvals action
+  CheckCircleIcon     // Session 16: used for Review Approvals action
 } from '@heroicons/react/24/outline';
 import { ROUTES } from '../constants/routes';
 
@@ -52,7 +52,7 @@ export function Dashboard() {
     projects:       0,
     contracts:      0,
     organizations:  0,
-    pendingApprovals: 0,   // Session 16
+    pendingApprovals: 0   // Session 16
   });
   const [loading, setLoading] = useState(true);
 
@@ -100,7 +100,7 @@ export function Dashboard() {
         projectsResult,
         contractsResult,
         orgsResult,
-        pendingResult,     // Session 16
+        pendingResult     // Session 16
       ] = await Promise.all(fetches);
 
       setStats({
@@ -108,7 +108,7 @@ export function Dashboard() {
         projects:         projectsResult                             ?? 0,
         contracts:        contractsResult                            ?? 0,
         organizations:    Array.isArray(orgsResult) ? orgsResult.length : 0,
-        pendingApprovals: pendingResult?.count                       ?? 0,   // Session 16
+        pendingApprovals: pendingResult?.count                       ?? 0   // Session 16
       });
     } catch (error) {
       console.error('❌ Dashboard: Error loading stats:', error);
@@ -130,7 +130,7 @@ export function Dashboard() {
       icon:        <DocumentTextIcon className="w-6 h-6" />,
       color:       'blue',
       link:        '/work',
-      description: currentOrg ? `In ${currentOrg.name}` : 'Your entries',
+      description: currentOrg ? `In ${currentOrg.name}` : 'Your entries'
     },
     {
       permission:  'VIEW_PROJECTS',
@@ -139,7 +139,7 @@ export function Dashboard() {
       icon:        <FolderIcon className="w-6 h-6" />,
       color:       'green',
       link:        '/projects',
-      description: currentOrg ? `In ${currentOrg.name}` : 'Across all orgs',
+      description: currentOrg ? `In ${currentOrg.name}` : 'Across all orgs'
     },
     {
       permission:  'VIEW_CONTRACTS',
@@ -148,7 +148,7 @@ export function Dashboard() {
       icon:        <DocumentDuplicateIcon className="w-6 h-6" />,
       color:       'purple',
       link:        '/contracts',
-      description: currentOrg ? `In ${currentOrg.name}` : 'Across all orgs',
+      description: currentOrg ? `In ${currentOrg.name}` : 'Across all orgs'
     },
     {
       permission:  'NAV_ORGANIZATIONS',
@@ -157,8 +157,8 @@ export function Dashboard() {
       icon:        <BuildingOffice2Icon className="w-6 h-6" />,
       color:       'orange',
       link:        '/organizations',
-      description: isBinaJayaStaff ? 'All client orgs' : 'Your organization',
-    },
+      description: isBinaJayaStaff ? 'All client orgs' : 'Your organization'
+    }
   ];
 
   // Filter to only cards the user has permission to see
@@ -173,7 +173,7 @@ export function Dashboard() {
       icon:       <PlusIcon className="w-6 h-6" />,
       hoverColor: 'hover:border-blue-400 hover:bg-blue-50',
       iconHover:  'group-hover:text-blue-500',
-      labelHover: 'group-hover:text-blue-600',
+      labelHover: 'group-hover:text-blue-600'
     },
     {
       permission: 'CREATE_PROJECT',
@@ -182,7 +182,7 @@ export function Dashboard() {
       icon:       <PlusIcon className="w-6 h-6" />,
       hoverColor: 'hover:border-green-400 hover:bg-green-50',
       iconHover:  'group-hover:text-green-500',
-      labelHover: 'group-hover:text-green-600',
+      labelHover: 'group-hover:text-green-600'
     },
     {
       permission: 'CREATE_CONTRACT',
@@ -191,7 +191,7 @@ export function Dashboard() {
       icon:       <PlusIcon className="w-6 h-6" />,
       hoverColor: 'hover:border-purple-400 hover:bg-purple-50',
       iconHover:  'group-hover:text-purple-500',
-      labelHover: 'group-hover:text-purple-600',
+      labelHover: 'group-hover:text-purple-600'
     },
     {
       permission: 'GENERATE_REPORTS',
@@ -200,24 +200,24 @@ export function Dashboard() {
       icon:       <DocumentTextIcon className="w-6 h-6" />,
       hoverColor: 'hover:border-orange-400 hover:bg-orange-50',
       iconHover:  'group-hover:text-orange-500',
-      labelHover: 'group-hover:text-orange-600',
+      labelHover: 'group-hover:text-orange-600'
     },
     // ── Session 16: Approvals quick action ────────────────────────────────
     {
       permission:   'APPROVE_WORK_ENTRY',
       to:           ROUTES.WORK_ENTRY_APPROVALS,
       label:        loading
-                      ? 'Review Approvals'
-                      : stats.pendingApprovals > 0
-                        ? `Review Approvals (${stats.pendingApprovals})`
-                        : 'Review Approvals',
+        ? 'Review Approvals'
+        : stats.pendingApprovals > 0
+          ? `Review Approvals (${stats.pendingApprovals})`
+          : 'Review Approvals',
       icon:         <CheckCircleIcon className="w-6 h-6" />,
       hoverColor:   'hover:border-teal-400 hover:bg-teal-50',
       iconHover:    'group-hover:text-teal-500',
       labelHover:   'group-hover:text-teal-600',
       // badge is used in the render below to show a dot/number
-      badge:        !loading && stats.pendingApprovals > 0 ? stats.pendingApprovals : null,
-    },
+      badge:        !loading && stats.pendingApprovals > 0 ? stats.pendingApprovals : null
+    }
   ];
 
   const visibleQuickActions = allQuickActions.filter(a => can(a.permission));
@@ -225,8 +225,8 @@ export function Dashboard() {
   // ── Responsive grid cols based on how many cards are visible ────────
   const statGridCols = visibleStatCards.length === 1 ? 'grid-cols-1 max-w-xs'
     : visibleStatCards.length === 2               ? 'grid-cols-1 sm:grid-cols-2 max-w-xl'
-    : visibleStatCards.length === 3               ? 'grid-cols-1 sm:grid-cols-3'
-    :                                               'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+      : visibleStatCards.length === 3               ? 'grid-cols-1 sm:grid-cols-3'
+        :                                               'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
 
   const actionGridCols = visibleQuickActions.length <= 2
     ? 'grid-cols-2'

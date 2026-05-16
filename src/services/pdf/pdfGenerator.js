@@ -12,7 +12,6 @@ import jsPDF from 'jspdf';
 import {
   formatDate,
   formatDateTime,
-  checkPageBreak,
   addPageNumbers,
   drawHorizontalLine
 } from './pdfHelpers';
@@ -62,7 +61,9 @@ class PDFService {
         s => s.section_id === sectionLayout.section_id
       );
       
-      if (!section) continue;
+      if (!section) {
+        continue;
+      }
       
       // Check show_if condition
       if (sectionLayout.show_if) {
@@ -70,7 +71,9 @@ class PDFService {
           sectionLayout.show_if,
           workEntry.data
         );
-        if (!shouldShow) continue;
+        if (!shouldShow) {
+          continue;
+        }
       }
       
       // Render based on layout
@@ -222,9 +225,9 @@ class PDFService {
         );
         const signatureAttachment = signatureField
           ? attachments.find(a => 
-              a.field_id === `${section.section_id}.${signatureField.field_id}` &&
+            a.field_id === `${section.section_id}.${signatureField.field_id}` &&
               a.attachment_type === 'signature'
-            )
+          )
           : null;
         
         return await renderSignatureBox(
@@ -319,8 +322,12 @@ class PDFService {
         const fieldValue = this.getFieldValue(data, field);
         const expectedValue = value.replace(/['"]/g, '').trim();
         
-        if (expectedValue === 'true') return fieldValue === true;
-        if (expectedValue === 'false') return fieldValue === false;
+        if (expectedValue === 'true') {
+          return fieldValue === true;
+        }
+        if (expectedValue === 'false') {
+          return fieldValue === false;
+        }
         
         return String(fieldValue) === expectedValue;
       }
@@ -330,8 +337,12 @@ class PDFService {
         const fieldValue = this.getFieldValue(data, field);
         const expectedValue = value.replace(/['"]/g, '').trim();
         
-        if (expectedValue === 'true') return fieldValue !== true;
-        if (expectedValue === 'false') return fieldValue !== false;
+        if (expectedValue === 'true') {
+          return fieldValue !== true;
+        }
+        if (expectedValue === 'false') {
+          return fieldValue !== false;
+        }
         
         return String(fieldValue) !== expectedValue;
       }

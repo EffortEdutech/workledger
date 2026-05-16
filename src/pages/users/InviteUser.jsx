@@ -27,7 +27,7 @@ import {
   ArrowLeftIcon,
   CheckCircleIcon,
   MagnifyingGlassIcon,
-  ClipboardDocumentIcon,
+  ClipboardDocumentIcon
 } from '@heroicons/react/24/outline';
 
 // Roles available when inviting (omit org_owner by default — too powerful to grant easily)
@@ -57,7 +57,9 @@ export default function InviteUser() {
   const handleLookup = async (e) => {
     e.preventDefault();
     const trimmed = email.trim().toLowerCase();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
 
     try {
       setChecking(true);

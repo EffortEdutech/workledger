@@ -23,8 +23,10 @@ import AppLayout from '../../components/layout/AppLayout';
 import TemplatePreview from '../../components/templates/TemplatePreview';
 import DynamicForm from '../../components/templates/DynamicForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { useToast } from '../../context/ToastContext';
 
 export default function TemplateDetail() {
+  const toast = useToast();
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -80,17 +82,19 @@ export default function TemplateDetail() {
   // ============================================
 
   const handleClone = async () => {
-    if (!cloneName.trim()) return;
+    if (!cloneName.trim()) {
+      return;
+    }
     try {
       setActionLoading(true);
       const result = await templateService.cloneTemplate(id, cloneName.trim());
       if (!result.success) {
-        alert(result.error);
+        toast.error(result.error);
         return;
       }
       navigate(`/templates/${result.data.id}`);
     } catch (err) {
-      alert('Clone failed: ' + err.message);
+      toast.error('Clone failed: ' + err.message);
     } finally {
       setActionLoading(false);
       setCloneModal(false);
@@ -102,12 +106,12 @@ export default function TemplateDetail() {
       setActionLoading(true);
       const result = await templateService.deleteTemplate(id);
       if (!result.success) {
-        alert(result.error);
+        toast.error(result.error);
         return;
       }
       navigate('/templates');
     } catch (err) {
-      alert('Delete failed: ' + err.message);
+      toast.error('Delete failed: ' + err.message);
     } finally {
       setActionLoading(false);
       setDeleteModal(false);
@@ -136,7 +140,9 @@ export default function TemplateDetail() {
     TEMPLATE_INDUSTRIES.find(i => i.value === val)?.label || val || '-';
 
   const formatDate = (d) => {
-    if (!d) return '-';
+    if (!d) {
+      return '-';
+    }
     return new Date(d).toLocaleDateString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
@@ -274,7 +280,7 @@ export default function TemplateDetail() {
               { id: 'preview', label: 'Preview', icon: '👁️' },
               { id: 'contracts', label: `Contracts (${contracts.length})`, icon: '📄' },
               { id: 'test', label: 'Test Form', icon: '🧪' },
-              { id: 'json', label: 'JSON', icon: '{ }' },
+              { id: 'json', label: 'JSON', icon: '{ }' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -372,8 +378,8 @@ export default function TemplateDetail() {
                           contract.status === 'active'
                             ? 'bg-green-50 text-green-700'
                             : contract.status === 'completed'
-                            ? 'bg-gray-100 text-gray-600'
-                            : 'bg-yellow-50 text-yellow-700'
+                              ? 'bg-gray-100 text-gray-600'
+                              : 'bg-yellow-50 text-yellow-700'
                         }`}>
                           {contract.status}
                         </span>
@@ -402,7 +408,7 @@ export default function TemplateDetail() {
                 template={template}
                 onSubmit={(data) => {
                   console.log('🧪 Test form submitted:', data);
-                  alert('Form submitted successfully! Check console for collected data.');
+                  toast.info('Form submitted successfully! Check console for collected data.');
                 }}
               />
             </div>
@@ -417,7 +423,7 @@ export default function TemplateDetail() {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify(template.fields_schema, null, 2));
-                  alert('Copied to clipboard!');
+                  toast.success('Copied to clipboard!');
                 }}
                 className="text-xs text-blue-600 hover:text-blue-800"
               >

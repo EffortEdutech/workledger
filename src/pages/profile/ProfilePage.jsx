@@ -35,7 +35,7 @@ export default function ProfilePage() {
   const [toast,       setToast]       = useState(null);
   const [formData,    setFormData]    = useState({
     full_name:    profile?.full_name    || '',
-    phone_number: profile?.phone_number || '',
+    phone_number: profile?.phone_number || ''
   });
 
   const showToast = (message, type = 'success') => {
@@ -47,7 +47,7 @@ export default function ProfilePage() {
     // Reset form to current profile values when opening editor
     setFormData({
       full_name:    profile?.full_name    || '',
-      phone_number: profile?.phone_number || '',
+      phone_number: profile?.phone_number || ''
     });
     setEditing(true);
   };
@@ -66,7 +66,7 @@ export default function ProfilePage() {
       setSaving(true);
       const result = await updateProfile({
         full_name:    formData.full_name.trim(),
-        phone_number: formData.phone_number.trim(),
+        phone_number: formData.phone_number.trim()
       });
 
       if (!result.success) {

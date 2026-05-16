@@ -55,7 +55,9 @@ class LayoutRegistryService {
       
       const { data, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       // Transform data
       const layouts = data.map(layout => ({
@@ -106,7 +108,9 @@ class LayoutRegistryService {
         .eq('is_active', true)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       if (!data) {
         throw new Error(`Layout not found: ${layoutId}`);

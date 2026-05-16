@@ -159,9 +159,9 @@ export default function TemplateSelector({ onSelect, onClose }) {
                     className={`
                       w-full text-left p-3 rounded-lg border transition-colors
                       ${selectedTemplate?.id === template.id
-                        ? 'bg-blue-50 border-blue-500'
-                        : 'bg-white border-gray-200 hover:border-blue-300'
-                      }
+                    ? 'bg-blue-50 border-blue-500'
+                    : 'bg-white border-gray-200 hover:border-blue-300'
+                  }
                     `}
                   >
                     <div className="font-medium text-gray-900 text-sm">

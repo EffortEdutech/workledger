@@ -37,7 +37,9 @@ export default function OrgSwitchToast() {
       prevOrgRef.current = currentOrg.id;
 
       // Clear any existing timer
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
 
       setToast({ orgName: currentOrg.name });
       setVisible(true);
@@ -51,10 +53,14 @@ export default function OrgSwitchToast() {
 
   // Cleanup timer on unmount
   useEffect(() => () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
   }, []);
 
-  if (!toast) return null;
+  if (!toast) {
+    return null;
+  }
 
   return (
     <div
@@ -62,9 +68,9 @@ export default function OrgSwitchToast() {
         fixed bottom-6 left-1/2 -translate-x-1/2 z-50
         transition-all duration-300 ease-in-out
         ${visible
-          ? 'opacity-100 translate-y-0'
-          : 'opacity-0 translate-y-4 pointer-events-none'
-        }
+      ? 'opacity-100 translate-y-0'
+      : 'opacity-0 translate-y-4 pointer-events-none'
+    }
       `}
     >
       <div className="flex items-center gap-2.5 bg-gray-900 text-white text-sm font-medium

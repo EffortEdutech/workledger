@@ -51,7 +51,7 @@ export function DynamicForm({
     if (initialData && Object.keys(initialData).length > 0) {
       setFormData(prev => ({
         ...initialData,   // loaded entry data takes precedence
-        ...prev,          // keep any in-progress user edits on top
+        ...prev          // keep any in-progress user edits on top
       }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,7 +70,9 @@ export function DynamicForm({
           const fieldPath = `${section.section_id}.${field.field_id}`;
           
           // Skip if value already exists
-          if (formData[fieldPath] !== undefined) return;
+          if (formData[fieldPath] !== undefined) {
+            return;
+          }
 
           // Handle default_value
           if (field.default_value) {

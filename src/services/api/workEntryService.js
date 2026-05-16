@@ -125,10 +125,18 @@ class WorkEntryService {
       // If null → RLS handles visibility (user sees their own entries)
 
       // ── Additional filters ──
-      if (filters.contractId) query = query.eq('contract_id', filters.contractId);
-      if (filters.status) query = query.eq('status', filters.status);
-      if (filters.startDate) query = query.gte('entry_date', filters.startDate);
-      if (filters.endDate) query = query.lte('entry_date', filters.endDate);
+      if (filters.contractId) {
+        query = query.eq('contract_id', filters.contractId);
+      }
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+      if (filters.startDate) {
+        query = query.gte('entry_date', filters.startDate);
+      }
+      if (filters.endDate) {
+        query = query.lte('entry_date', filters.endDate);
+      }
 
       // ── Sorting ──
       const sortBy = filters.sortBy || 'entry_date';
@@ -270,7 +278,9 @@ class WorkEntryService {
         throw error;
       }
 
-      if (!data) throw new Error('Work entry not found');
+      if (!data) {
+        throw new Error('Work entry not found');
+      }
 
       console.log('✅ Fetched work entry:', data.id);
       return { success: true, data };
@@ -315,7 +325,7 @@ class WorkEntryService {
           entry_date: entryData?.entry_date,
           shift: entryData?.shift,
           data: entryData?.data,
-          status: entryData?.status || 'draft',
+          status: entryData?.status || 'draft'
         };
       }
 
@@ -324,7 +334,9 @@ class WorkEntryService {
       // SESSION 19 FIX: getSession() reads local JWT — no network call, works offline
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
 
       const payload = {
         contract_id: flat.contract_id,
@@ -336,7 +348,7 @@ class WorkEntryService {
         submitted_at: flat.submitted_at || null,
         created_by: user.id,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
         // organization_id auto-set by DB trigger (migration 023) — do NOT pass
       };
 
@@ -346,7 +358,7 @@ class WorkEntryService {
         localId = await db.workEntries.add({
           ...payload,
           remoteId: null,
-          sync_status: SYNC_STATUS.PENDING,
+          sync_status: SYNC_STATUS.PENDING
         });
         console.log('💾 Saved to IndexedDB locally (localId:', localId, ')');
       } catch (dbError) {
@@ -367,7 +379,7 @@ class WorkEntryService {
             if (localId) {
               await db.workEntries.update(localId, {
                 remoteId: data.id,
-                sync_status: SYNC_STATUS.SYNCED,
+                sync_status: SYNC_STATUS.SYNCED
               });
             }
             console.log('✅ Work entry created (online):', data.id);
@@ -392,7 +404,7 @@ class WorkEntryService {
             payload: JSON.stringify(payload),
             sync_status: SYNC_STATUS.PENDING,
             retry_count: 0,
-            created_at: new Date().toISOString(),
+            created_at: new Date().toISOString()
           });
           console.log('📋 Entry queued for sync when online');
         } catch (queueError) {
@@ -407,8 +419,8 @@ class WorkEntryService {
         data: {
           ...payload,
           id: null,
-          _localId: localId,
-        },
+          _localId: localId
+        }
       };
     } catch (error) {
       console.error('❌ Exception creating work entry:', error);
@@ -436,7 +448,7 @@ class WorkEntryService {
 
       const updateData = {
         ...updates,
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       // Protect immutable fields
@@ -463,7 +475,7 @@ class WorkEntryService {
               if (localEntry) {
                 await db.workEntries.update(localEntry.localId, {
                   ...updateData,
-                  sync_status: SYNC_STATUS.SYNCED,
+                  sync_status: SYNC_STATUS.SYNCED
                 });
               }
             } catch (dbError) {
@@ -489,7 +501,7 @@ class WorkEntryService {
         if (localEntry) {
           await db.workEntries.update(localEntry.localId, {
             ...updateData,
-            sync_status: SYNC_STATUS.PENDING,
+            sync_status: SYNC_STATUS.PENDING
           });
 
           await db.syncQueue.add({
@@ -499,14 +511,14 @@ class WorkEntryService {
             payload: JSON.stringify({ id, ...updateData }),
             sync_status: SYNC_STATUS.PENDING,
             retry_count: 0,
-            created_at: new Date().toISOString(),
+            created_at: new Date().toISOString()
           });
 
           console.log('📱 Work entry updated offline (localId:', localEntry.localId, ')');
           return {
             success: true,
             isOffline: true,
-            data: { ...localEntry, ...updateData },
+            data: { ...localEntry, ...updateData }
           };
         }
       } catch (dbError) {
@@ -535,7 +547,9 @@ class WorkEntryService {
       // SESSION 19 FIX: getSession() reads local JWT — no network call
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) return { success: false, error: 'Not authenticated' };
+      if (!user) {
+        return { success: false, error: 'Not authenticated' };
+      }
 
       const { data, error } = await supabase
         .from('work_entries')
@@ -543,7 +557,7 @@ class WorkEntryService {
           status: 'submitted',
           submitted_at: new Date().toISOString(),
           submitted_by: user.id,
-          updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq('id', id)
         .eq('status', 'draft')
@@ -586,7 +600,9 @@ class WorkEntryService {
       // SESSION 19 FIX: getSession() reads local JWT — no network call
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
 
       // ── Ownership guard ───────────────────────────────────────────
       const { data: entry, error: fetchError } = await supabase
@@ -603,7 +619,7 @@ class WorkEntryService {
         console.warn('⛔ Delete blocked — entry belongs to org:', entry.organization_id, 'caller org:', callerOrgId);
         return {
           success: false,
-          error: "You cannot delete a subcontractor's work entry. Only the performing organisation can delete their own entries.",
+          error: "You cannot delete a subcontractor's work entry. Only the performing organisation can delete their own entries."
         };
       }
 
@@ -633,9 +649,9 @@ class WorkEntryService {
             entry_date: entry.entry_date,
             entry_status: entry.status,
             contract_id: entry.contract_id,
-            created_by: entry.created_by,
+            created_by: entry.created_by
           },
-          created_at: now,
+          created_at: now
         });
         console.log('📋 Audit log written for delete:', id);
       } catch (auditErr) {
@@ -681,7 +697,9 @@ class WorkEntryService {
           .eq('status', 'submitted')
           .is('deleted_at', null);
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
         console.log(`✅ Pending approvals count: ${count || 0}`);
         return { success: true, count: count || 0 };
@@ -714,7 +732,9 @@ class WorkEntryService {
           .order('submitted_at', { ascending: true })
           .single;
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
         console.log(`✅ Fetched ${data?.length || 0} pending approvals`);
         return { success: true, data: data || [] };
@@ -741,7 +761,9 @@ class WorkEntryService {
       // SESSION 19 FIX: getSession() reads local JWT — no network call
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
 
       const now = new Date().toISOString();
 
@@ -752,7 +774,7 @@ class WorkEntryService {
           approved_by: user.id,
           approved_at: now,
           approval_remarks: remarks?.trim() || null,
-          updated_at: now,
+          updated_at: now
         })
         .eq('id', entryId)
         .eq('status', 'submitted')
@@ -778,9 +800,9 @@ class WorkEntryService {
             approval_remarks: remarks?.trim() || null,
             entry_date: data.entry_date,
             contract_id: data.contract_id,
-            technician_id: data.created_by,
+            technician_id: data.created_by
           },
-          created_at: now,
+          created_at: now
         });
       } catch (logError) {
         console.warn('⚠️ Failed to write approval audit log:', logError.message);
@@ -806,7 +828,7 @@ class WorkEntryService {
       if (!reason?.trim()) {
         return {
           success: false,
-          error: 'Rejection reason is required. Please explain what needs to be corrected.',
+          error: 'Rejection reason is required. Please explain what needs to be corrected.'
         };
       }
 
@@ -815,7 +837,9 @@ class WorkEntryService {
       // SESSION 19 FIX: getSession() reads local JWT — no network call
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
 
       const now = new Date().toISOString();
 
@@ -826,7 +850,7 @@ class WorkEntryService {
           rejected_by: user.id,
           rejected_at: now,
           rejection_reason: reason.trim(),
-          updated_at: now,
+          updated_at: now
         })
         .eq('id', entryId)
         .eq('status', 'submitted')
@@ -861,7 +885,7 @@ class WorkEntryService {
           rejection_reason: reason.trim(),
           rejection_count: rejectionCount,
           entry_data_snapshot: typeof data.data === 'string' ? JSON.parse(data.data) : (data.data || {}),
-          created_at: now,
+          created_at: now
         });
 
         console.log(`📋 Rejection #${rejectionCount} logged to reject_entry_history`);
@@ -880,9 +904,9 @@ class WorkEntryService {
             rejection_reason: reason.trim(),
             entry_date: data.entry_date,
             contract_id: data.contract_id,
-            technician_id: data.created_by,
+            technician_id: data.created_by
           },
-          created_at: now,
+          created_at: now
         });
       } catch (logError) {
         console.warn('⚠️ Failed to write rejection audit log:', logError.message);
@@ -909,7 +933,9 @@ class WorkEntryService {
       // SESSION 19 FIX: getSession() reads local JWT — no network call
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
 
       const now = new Date().toISOString();
 
@@ -919,7 +945,7 @@ class WorkEntryService {
           status: 'submitted',
           submitted_at: now,
           submitted_by: user.id,
-          updated_at: now,
+          updated_at: now
           // Intentionally NOT clearing rejected_by / rejected_at / rejection_reason
           // so ApprovalHistory can display the full audit trail.
         })

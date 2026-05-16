@@ -29,7 +29,9 @@ export const offlineDataService = {
    */
   async getContractsForOrg(orgId) {
     try {
-      if (!orgId) return [];
+      if (!orgId) {
+        return [];
+      }
 
       // Query A: contracts the org owns (indexed)
       const owned = await db.contracts
@@ -47,7 +49,9 @@ export const offlineDataService = {
       const seen = new Set();
       const merged = [];
       for (const c of [...owned, ...performing]) {
-        if (!seen.has(c.id)) { seen.add(c.id); merged.push(c); }
+        if (!seen.has(c.id)) {
+          seen.add(c.id); merged.push(c); 
+        }
       }
 
       const active = merged.filter(c => c.status === 'active' && !c.deleted_at);
@@ -96,7 +100,9 @@ export const offlineDataService = {
    */
   async getContractJunctionRows(contractId) {
     try {
-      if (!contractId) return [];
+      if (!contractId) {
+        return [];
+      }
 
       const rows = await db.contractTemplates
         .where('contract_id').equals(contractId)
@@ -115,7 +121,7 @@ export const offlineDataService = {
           is_default:  row.is_default,
           label:       row.label ?? row.template?.template_name ?? null,
           sort_order:  row.sort_order,
-          templates:   row.template,        // full template object with fields_schema
+          templates:   row.template        // full template object with fields_schema
         }));
 
       console.log(`📱 offlineDataService: ${shaped.length} junction rows for contract ${contractId}`);
@@ -138,21 +144,29 @@ export const offlineDataService = {
    */
   async getTemplateById(templateId) {
     try {
-      if (!templateId) return null;
+      if (!templateId) {
+        return null;
+      }
 
       // Fast path: text slug is the Dexie PK
-      let template = await db.templates.get(templateId);
-      if (template) return template;
+      const template = await db.templates.get(templateId);
+      if (template) {
+        return template;
+      }
 
       // Fallback: caller passed a UUID — scan by id field
       const byUuid = await db.templates.filter(t => t.id === templateId).first();
-      if (byUuid) return byUuid;
+      if (byUuid) {
+        return byUuid;
+      }
 
       // Last resort: scan contractTemplates for inline template
       const jRow = await db.contractTemplates
         .filter(r => r.template_id === templateId && r.template?.fields_schema)
         .first();
-      if (jRow?.template) return jRow.template;
+      if (jRow?.template) {
+        return jRow.template;
+      }
 
       console.warn('⚠️ offlineDataService.getTemplateById: not found:', templateId);
       return null;
@@ -169,7 +183,9 @@ export const offlineDataService = {
    */
   async getTemplatesForContractCategory(contractCategory) {
     try {
-      if (!contractCategory) return [];
+      if (!contractCategory) {
+        return [];
+      }
       const templates = await db.templates
         .where('contract_category').equals(contractCategory)
         .toArray();
@@ -205,10 +221,18 @@ export const offlineDataService = {
     try {
       let entries = await db.workEntries.orderBy('entry_date').reverse().toArray();
 
-      if (filters.contractId) entries = entries.filter(e => e.contract_id === filters.contractId);
-      if (filters.status)     entries = entries.filter(e => e.status === filters.status);
-      if (filters.startDate)  entries = entries.filter(e => e.entry_date >= filters.startDate);
-      if (filters.endDate)    entries = entries.filter(e => e.entry_date <= filters.endDate);
+      if (filters.contractId) {
+        entries = entries.filter(e => e.contract_id === filters.contractId);
+      }
+      if (filters.status)     {
+        entries = entries.filter(e => e.status === filters.status);
+      }
+      if (filters.startDate)  {
+        entries = entries.filter(e => e.entry_date >= filters.startDate);
+      }
+      if (filters.endDate)    {
+        entries = entries.filter(e => e.entry_date <= filters.endDate);
+      }
 
       entries = entries.filter(e => !e.deleted_at);
 
@@ -230,7 +254,7 @@ export const offlineDataService = {
           db.templates.count(),
           db.workEntries.count(),
           db.contractTemplates.count(),
-          db.syncQueue.where('sync_status').equals('pending').count(),
+          db.syncQueue.where('sync_status').equals('pending').count()
         ]);
 
       return {
@@ -239,7 +263,7 @@ export const offlineDataService = {
         contractTemplates: junctionCount,
         workEntries:      workEntryCount,
         pendingSync:      pendingCount,
-        hasCachedData:    contractCount > 0 && junctionCount > 0,
+        hasCachedData:    contractCount > 0 && junctionCount > 0
       };
     } catch {
       return { contracts: 0, templates: 0, contractTemplates: 0, workEntries: 0, pendingSync: 0, hasCachedData: false };
@@ -256,9 +280,15 @@ export const offlineDataService = {
       const cut7  = c7.toISOString().split('T')[0];
 
       const toDelete = await db.workEntries.filter(entry => {
-        if (entry.sync_status === 'pending' || entry.sync_status === 'syncing') return false;
-        if (entry.status === 'approved' && entry.entry_date < cut7)  return true;
-        if (entry.entry_date < cut30) return true;
+        if (entry.sync_status === 'pending' || entry.sync_status === 'syncing') {
+          return false;
+        }
+        if (entry.status === 'approved' && entry.entry_date < cut7)  {
+          return true;
+        }
+        if (entry.entry_date < cut30) {
+          return true;
+        }
         return false;
       }).primaryKeys();
 
@@ -272,7 +302,7 @@ export const offlineDataService = {
       console.error('❌ offlineDataService.pruneOldEntries:', error);
       return 0;
     }
-  },
+  }
 };
 
 export default offlineDataService;

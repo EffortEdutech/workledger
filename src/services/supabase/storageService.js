@@ -44,7 +44,7 @@ class StorageService {
     try {
       console.log('📤 Uploading file:', path);
 
-      const { onProgress, metadata = {} } = options;
+      const { onProgress: _onProgress, metadata = {} } = options;
 
       // Upload file
       const { data, error } = await supabase.storage

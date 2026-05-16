@@ -8,9 +8,13 @@
  * [] due to RLS on the templates table. templateService already works
  * correctly (used on the Templates page) and respects auth context.
  *
+ * SESSION 16 UPDATE: subcontractorOrgs now loaded and passed to ContractForm
+ * so that performing_org_id / contract_role are preserved on edit.
+ *
  * @module pages/contracts/EditContract
  * @created January 31, 2026 - Session 10
  * @updated February 21, 2026 - Session 13: use templateService for templates
+ * @updated May 16, 2026 - Session 16: subcontract fields on edit
  */
 
 import React, { useState, useEffect } from 'react';
@@ -21,34 +25,41 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { contractService } from '../../services/api/contractService';
 import { projectService } from '../../services/api/projectService';
 import { templateService } from '../../services/api/templateService';
+import { subcontractorService } from '../../services/api/subcontractorService';
+import { useOrganization } from '../../context/OrganizationContext';
+import { ORG_TYPES } from '../../constants/orgTypes';
+import { useToast } from '../../context/ToastContext';
 
 export function EditContract() {
+  const toast = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentOrg } = useOrganization();
 
-  const [contract, setContract]     = useState(null);
-  const [projects, setProjects]     = useState([]);
-  const [templates, setTemplates]   = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError]           = useState(null);
+  const [contract,          setContract]          = useState(null);
+  const [projects,          setProjects]          = useState([]);
+  const [templates,         setTemplates]         = useState([]);
+  const [subcontractorOrgs, setSubcontractorOrgs] = useState([]);
+  const [loading,           setLoading]           = useState(true);
+  const [submitting,        setSubmitting]        = useState(false);
+  const [error,             setError]             = useState(null);
 
   useEffect(() => {
     loadData();
-  }, [id]);
+  }, [id, currentOrg?.id]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // ── Load all three in parallel ────────────────────────────────
-      // templateService.getTemplates() uses auth context correctly —
-      // it does NOT get blocked by RLS unlike a raw supabase query.
+      const orgId = currentOrg?.id ?? null;
+
+      // ── Load contract, projects, templates in parallel ────────────────
       const [contractData, projectsData, templatesData] = await Promise.all([
         contractService.getContract(id),
-        projectService.getUserProjects(),
-        templateService.getTemplates(),          // ← FIXED
+        projectService.getUserProjects(orgId),
+        templateService.getTemplates()
       ]);
 
       if (!contractData) {
@@ -63,6 +74,34 @@ export function EditContract() {
 
       console.log('✅ Loaded contract for editing:', contractData.contract_number);
       console.log('✅ Templates loaded:', templatesData?.length || 0);
+
+      // ── Load subcontractor orgs (main contractors only) ───────────────
+      if (orgId && currentOrg?.org_type === ORG_TYPES.MAIN_CONTRACTOR) {
+        const relationships = await subcontractorService.getSubcontractorRelationships(orgId);
+
+        // Deduplicate across multiple project relationships
+        const seen = new Set();
+        const orgs = [];
+        relationships.forEach(r => {
+          if (r.subcontractor_org && !seen.has(r.subcontractor_org.id)) {
+            seen.add(r.subcontractor_org.id);
+            orgs.push(r.subcontractor_org);
+          }
+        });
+
+        // If the contract already has a performing_org that is no longer in
+        // an active relationship (e.g. relationship terminated), still include
+        // it so the form can display the current value without losing it.
+        if (contractData.performing_org_id && !seen.has(contractData.performing_org_id)) {
+          const performingOrg = contractData.performing_org;
+          if (performingOrg) {
+            orgs.push(performingOrg);
+          }
+        }
+
+        setSubcontractorOrgs(orgs);
+        console.log('✅ Loaded subcontractor orgs:', orgs.length);
+      }
     } catch (err) {
       console.error('❌ Error loading contract:', err);
       setError('Failed to load contract. Please try again.');
@@ -82,7 +121,7 @@ export function EditContract() {
       const result = await contractService.updateContract(id, contractData);
 
       if (!result.success) {
-        alert(result.error || 'Failed to update contract. Please try again.');
+        toast.error(result.error || 'Failed to update contract. Please try again.');
         return;
       }
       console.log('✅ Contract updated');
@@ -99,9 +138,9 @@ export function EditContract() {
         await contractService.removeContractTemplate(jt.id, id);
       }
 
-      // Add newly selected — first selected that's also first overall becomes default
+      // Add newly selected — first new entry becomes default if none existed
       for (let i = 0; i < toAdd.length; i++) {
-        const isDefault = currentIds.length === 0 && i === 0; // only set default if none existed
+        const isDefault = currentIds.length === 0 && i === 0;
         await contractService.addContractTemplate(id, toAdd[i], { isDefault });
       }
 
@@ -110,7 +149,6 @@ export function EditContract() {
         jt => jt.is_default && template_ids.includes(jt.template_id)
       );
       if (!remainingDefault && template_ids.length > 0 && toAdd.length === 0) {
-        // Find the junction row of the first kept template and set it as default
         const firstKept = currentTemplates.find(jt => template_ids.includes(jt.template_id));
         if (firstKept) {
           await contractService.setDefaultContractTemplate(id, firstKept.id);
@@ -121,7 +159,7 @@ export function EditContract() {
       navigate(`/contracts/${id}`);
     } catch (err) {
       console.error('❌ Error updating contract:', err);
-      alert('Failed to update contract. Please try again.');
+      toast.error('Failed to update contract. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -173,6 +211,7 @@ export function EditContract() {
           initialData={contract}
           projects={projects}
           templates={templates}
+          subcontractorOrgs={subcontractorOrgs}
           mode="edit"
           onSubmit={handleSubmit}
           onCancel={handleCancel}

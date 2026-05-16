@@ -17,8 +17,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { layoutService } from '../../../services/api/layoutService';
 import AppLayout from '../../../components/layout/AppLayout';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
+import { useToast } from '../../../context/ToastContext';
 
 export default function LayoutList() {
+  const toast = useToast();
   const navigate = useNavigate();
   
   const [layouts, setLayouts] = useState([]);
@@ -55,7 +57,7 @@ export default function LayoutList() {
       
     } catch (error) {
       console.error('❌ Error loading layouts:', error);
-      alert('Failed to load layouts: ' + (error.message || 'Unknown error'));
+      toast.error('Failed to load layouts: ' + (error.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -69,20 +71,22 @@ export default function LayoutList() {
   const handleClone = async (layout) => {
     const newName = prompt(`Clone "${layout.layout_name}" as:`, `${layout.layout_name} (Copy)`);
     
-    if (!newName) return;
+    if (!newName) {
+      return;
+    }
     
     try {
       const cloned = await layoutService.cloneLayout(layout.id, newName);
       
       if (cloned && cloned.id) {
-        alert(`✅ Layout cloned: ${cloned.layout_name}`);
+        toast.success(`Layout cloned: ${cloned.layout_name}`);
         loadLayouts();
       } else {
-        alert('Failed to clone layout');
+        toast.error('Failed to clone layout');
       }
     } catch (error) {
       console.error('❌ Error cloning layout:', error);
-      alert(`Failed to clone: ${error.message || 'Unknown error'}`);
+      toast.error(`Failed to clone: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -97,26 +101,26 @@ export default function LayoutList() {
       const result = await layoutService.deleteLayout(layout.id);
       
       if (result === true) {
-        alert('✅ Layout deactivated successfully');
+        toast.success('Layout deactivated successfully');
         loadLayouts();
       } else {
-        alert('Layout deactivation status unclear - refreshing list');
+        toast.warning('Layout deactivation status unclear - refreshing list');
         loadLayouts();
       }
       
     } catch (error) {
       console.error('❌ Error deactivating layout:', error);
       const errorMsg = error.message || error.toString() || 'Unknown error';
-      alert(`Failed to deactivate: ${errorMsg}`);
+      toast.error(`Failed to deactivate: ${errorMsg}`);
     }
   };
 
   const handleHardDelete = async (layout) => {
     const confirmation = prompt(
-      `⚠️ PERMANENT DELETE\n\n` +
+      '⚠️ PERMANENT DELETE\n\n' +
       `This will PERMANENTLY delete "${layout.layout_name}" from the database.\n` +
-      `This action CANNOT be undone!\n\n` +
-      `Type "DELETE" to confirm:`,
+      'This action CANNOT be undone!\n\n' +
+      'Type "DELETE" to confirm:',
       ''
     );
     
@@ -130,17 +134,17 @@ export default function LayoutList() {
       const result = await layoutService.hardDeleteLayout(layout.id);
       
       if (result === true) {
-        alert('✅ Layout permanently deleted from database');
+        toast.success('Layout permanently deleted from database');
         loadLayouts();
       } else {
-        alert('Layout deletion status unclear - refreshing list');
+        toast.warning('Layout deletion status unclear - refreshing list');
         loadLayouts();
       }
       
     } catch (error) {
       console.error('❌ Error permanently deleting layout:', error);
       const errorMsg = error.message || error.toString() || 'Unknown error';
-      alert(`Failed to delete permanently: ${errorMsg}`);
+      toast.error(`Failed to delete permanently: ${errorMsg}`);
     }
   };
 
@@ -157,17 +161,17 @@ export default function LayoutList() {
       });
       
       if (result && result.id) {
-        alert('✅ Layout reactivated successfully');
+        toast.success('Layout reactivated successfully');
         loadLayouts();
       } else {
-        alert('Layout reactivation status unclear - refreshing list');
+        toast.warning('Layout reactivation status unclear - refreshing list');
         loadLayouts();
       }
       
     } catch (error) {
       console.error('❌ Error reactivating layout:', error);
       const errorMsg = error.message || error.toString() || 'Unknown error';
-      alert(`Failed to reactivate: ${errorMsg}`);
+      toast.error(`Failed to reactivate: ${errorMsg}`);
     }
   };
 

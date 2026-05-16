@@ -67,7 +67,9 @@ export function AuthProvider({ children }) {
     const loadProfile = (userId) => {
       authService.getUserProfile(userId)
         .then(userProfile => {
-          if (!isMounted) return;
+          if (!isMounted) {
+            return;
+          }
           setProfile(userProfile ?? null);
           if (userProfile) {
             console.log('✅ AuthContext: Profile loaded', userProfile.full_name);
@@ -75,7 +77,9 @@ export function AuthProvider({ children }) {
         })
         .catch(err => {
           console.error('❌ AuthContext: Profile load error (non-blocking):', err);
-          if (isMounted) setProfile(null);
+          if (isMounted) {
+            setProfile(null);
+          }
         });
     };
 
@@ -98,7 +102,9 @@ export function AuthProvider({ children }) {
       async (event, newSession) => {
         console.log(`🔐 AuthContext: Auth event → ${event}`, { hasSession: !!newSession });
 
-        if (!isMounted) return;
+        if (!isMounted) {
+          return;
+        }
 
         if (event === 'INITIAL_SESSION') {
           // Fired once on every app boot. newSession is the current valid session
@@ -157,7 +163,9 @@ export function AuthProvider({ children }) {
         console.log('🔄 AuthContext: initializeAuth — checking session...');
         const currentSession = await authService.getCurrentSession();
 
-        if (!isMounted) return;
+        if (!isMounted) {
+          return;
+        }
 
         // Only apply the result if loading is STILL true
         // (INITIAL_SESSION may have already resolved it — don't overwrite)
@@ -166,7 +174,9 @@ export function AuthProvider({ children }) {
           // Don't overwrite if INITIAL_SESSION already set the user
           setSession(prev => prev ?? currentSession);
           setUser(prev => prev ?? currentSession.user);
-          if (!profile) loadProfile(currentSession.user.id);
+          if (!profile) {
+            loadProfile(currentSession.user.id);
+          }
         } else {
           console.log('ℹ️ AuthContext: initializeAuth — no session (fallback path)');
         }
@@ -258,7 +268,9 @@ export function AuthProvider({ children }) {
     console.log('🔐 AuthContext: Requesting password reset...', email);
     try {
       const result = await authService.resetPassword(email);
-      if (result.success) return { success: true };
+      if (result.success) {
+        return { success: true };
+      }
       return { success: false, error: result.error };
     } catch (error) {
       return { success: false, error: error.message };
@@ -269,7 +281,9 @@ export function AuthProvider({ children }) {
     console.log('🔐 AuthContext: Updating password...');
     try {
       const result = await authService.updatePassword(newPassword);
-      if (result.success) return { success: true };
+      if (result.success) {
+        return { success: true };
+      }
       return { success: false, error: result.error };
     } catch (error) {
       return { success: false, error: error.message };
@@ -278,7 +292,9 @@ export function AuthProvider({ children }) {
 
   const updateProfile = async (profileData) => {
     console.log('🔐 AuthContext: Updating profile...');
-    if (!user) return { success: false, error: 'No user logged in' };
+    if (!user) {
+      return { success: false, error: 'No user logged in' };
+    }
     try {
       const result = await authService.updateProfile(user.id, profileData);
       if (result.success) {
@@ -303,7 +319,7 @@ export function AuthProvider({ children }) {
     logout,
     resetPassword,
     updatePassword,
-    updateProfile,
+    updateProfile
   };
 
   return (

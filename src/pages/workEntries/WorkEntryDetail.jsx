@@ -47,18 +47,21 @@ import {
   ArrowLeftIcon,
   CalendarIcon,
   DocumentTextIcon,
-  ExclamationTriangleIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import { useToast } from '../../context/ToastContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) {
+    return '—';
+  }
   try {
     return new Intl.DateTimeFormat('en-MY', {
-      day: 'numeric', month: 'long', year: 'numeric',
+      day: 'numeric', month: 'long', year: 'numeric'
     }).format(new Date(dateStr));
   } catch {
     return dateStr;
@@ -66,11 +69,13 @@ function formatDate(dateStr) {
 }
 
 function formatDateTime(ts) {
-  if (!ts) return '—';
+  if (!ts) {
+    return '—';
+  }
   try {
     return new Intl.DateTimeFormat('en-MY', {
       day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', hour12: true,
+      hour: '2-digit', minute: '2-digit', hour12: true
     }).format(new Date(ts));
   } catch {
     return ts;
@@ -82,6 +87,7 @@ function formatDateTime(ts) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function WorkEntryDetail() {
+  const toast = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
@@ -120,7 +126,9 @@ export default function WorkEntryDetail() {
   const loadAttachments = useCallback(async () => {
     try {
       const result = await attachmentService.getAttachments(id);
-      if (result.success) setAttachments(result.data || []);
+      if (result.success) {
+        setAttachments(result.data || []);
+      }
     } catch (err) {
       console.error('❌ Error loading attachments:', err);
     }
@@ -134,7 +142,9 @@ export default function WorkEntryDetail() {
   // ── Action handlers ───────────────────────────────────────────────────────
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this work entry? This cannot be undone.')) return;
+    if (!window.confirm('Delete this work entry? This cannot be undone.')) {
+      return;
+    }
 
     try {
       setActionLoading(true);
@@ -142,17 +152,19 @@ export default function WorkEntryDetail() {
       if (result.success) {
         navigate('/work');
       } else {
-        alert(`Failed to delete: ${result.error}`);
+        toast.error(`Failed to delete: ${result.error}`);
       }
     } catch (err) {
-      alert('Failed to delete work entry');
+      toast.error('Failed to delete work entry');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!window.confirm("Submit this work entry for approval? You won't be able to edit it after submission.")) return;
+    if (!window.confirm("Submit this work entry for approval? You won't be able to edit it after submission.")) {
+      return;
+    }
 
     try {
       setActionLoading(true);
@@ -160,17 +172,19 @@ export default function WorkEntryDetail() {
       if (result.success) {
         await loadWorkEntry();   // reload to show updated status
       } else {
-        alert(`Failed to submit: ${result.error}`);
+        toast.error(`Failed to submit: ${result.error}`);
       }
     } catch (err) {
-      alert('Failed to submit work entry');
+      toast.error('Failed to submit work entry');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleResubmit = async () => {
-    if (!window.confirm('Resubmit this entry for review? The manager will see it again in their queue.')) return;
+    if (!window.confirm('Resubmit this entry for review? The manager will see it again in their queue.')) {
+      return;
+    }
 
     try {
       setActionLoading(true);
@@ -178,10 +192,10 @@ export default function WorkEntryDetail() {
       if (result.success) {
         await loadWorkEntry();
       } else {
-        alert(`Failed to resubmit: ${result.error}`);
+        toast.error(`Failed to resubmit: ${result.error}`);
       }
     } catch (err) {
-      alert('Failed to resubmit');
+      toast.error('Failed to resubmit');
     } finally {
       setActionLoading(false);
     }
@@ -213,7 +227,9 @@ export default function WorkEntryDetail() {
         return data[key] !== undefined && data[key] !== null && data[key] !== '';
       });
 
-      if (!sectionHasData) return null;
+      if (!sectionHasData) {
+        return null;
+      }
 
       return (
         <div key={section.section_id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -230,7 +246,9 @@ export default function WorkEntryDetail() {
               const fieldKey = `${section.section_id}.${field.field_id}`;
               const value    = data[fieldKey];
 
-              if (value === undefined || value === null || value === '') return null;
+              if (value === undefined || value === null || value === '') {
+                return null;
+              }
 
               return (
                 <div key={field.field_id} className="px-5 py-3 flex gap-4">

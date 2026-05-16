@@ -23,7 +23,7 @@ const SYNC_CONFIG = {
     bg:        'bg-amber-100',
     text:      'text-amber-800',
     border:    'border-amber-200',
-    dot:       'bg-amber-400',
+    dot:       'bg-amber-400'
   },
   syncing: {
     icon:      '🔄',
@@ -32,7 +32,7 @@ const SYNC_CONFIG = {
     text:      'text-blue-800',
     border:    'border-blue-200',
     dot:       'bg-blue-400',
-    animate:   true,
+    animate:   true
   },
   synced: {
     icon:      '✅',
@@ -40,7 +40,7 @@ const SYNC_CONFIG = {
     bg:        'bg-green-100',
     text:      'text-green-800',
     border:    'border-green-200',
-    dot:       'bg-green-400',
+    dot:       'bg-green-400'
   },
   failed: {
     icon:      '⚠️',
@@ -48,15 +48,19 @@ const SYNC_CONFIG = {
     bg:        'bg-red-100',
     text:      'text-red-800',
     border:    'border-red-200',
-    dot:       'bg-red-400',
-  },
+    dot:       'bg-red-400'
+  }
 };
 
 // Dot-only variant — compact, for card lists
 export function SyncDot({ syncStatus }) {
-  if (!syncStatus || syncStatus === 'synced') return null;
+  if (!syncStatus || syncStatus === 'synced') {
+    return null;
+  }
   const cfg = SYNC_CONFIG[syncStatus];
-  if (!cfg) return null;
+  if (!cfg) {
+    return null;
+  }
 
   return (
     <span
@@ -71,12 +75,16 @@ export default function SyncStatusBadge({
   syncStatus,
   size      = 'sm',
   showLabel = true,
-  className = '',
+  className = ''
 }) {
-  if (!syncStatus) return null;
+  if (!syncStatus) {
+    return null;
+  }
 
   const cfg = SYNC_CONFIG[syncStatus];
-  if (!cfg) return null;
+  if (!cfg) {
+    return null;
+  }
 
   const sizeClasses = size === 'md'
     ? 'text-sm px-3 py-1.5 gap-2'

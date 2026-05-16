@@ -36,7 +36,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 const TABS = [
   { id: 'info', label: 'Template Info', icon: '📋' },
   { id: 'builder', label: 'Form Builder', icon: '🔧' },
-  { id: 'preview', label: 'Preview', icon: '👁️' },
+  { id: 'preview', label: 'Preview', icon: '👁️' }
 ];
 
 const PREFILL_OPTIONS = [
@@ -45,7 +45,7 @@ const PREFILL_OPTIONS = [
   { value: 'contract.contract_name', label: 'Contract Name' },
   { value: 'contract.client_name', label: 'Client Name' },
   { value: 'contract.site_name', label: 'Site Name' },
-  { value: 'contract.period', label: 'Contract Period' },
+  { value: 'contract.period', label: 'Contract Period' }
 ];
 
 // ============================================
@@ -74,7 +74,7 @@ export default function TemplateBuilder() {
     contract_category: 'custom',
     report_type: '',
     version: '1.0',
-    is_public: true,
+    is_public: true
   });
 
   const [sections, setSections] = useState([
@@ -116,7 +116,7 @@ export default function TemplateBuilder() {
         contract_category: template.contract_category || 'custom',
         report_type: template.report_type || '',
         version: template.version || '1.0',
-        is_public: template.is_public !== false,
+        is_public: template.is_public !== false
       });
 
       const loadedSections = template.fields_schema?.sections || [];
@@ -146,7 +146,7 @@ export default function TemplateBuilder() {
         ...templateInfo,
         fields_schema: { sections },
         validation_rules: {},
-        pdf_layout: {},
+        pdf_layout: {}
       };
 
       // Validate
@@ -199,14 +199,18 @@ export default function TemplateBuilder() {
   };
 
   const removeSection = (idx) => {
-    if (sections.length <= 1) return;
+    if (sections.length <= 1) {
+      return;
+    }
     setSections(prev => prev.filter((_, i) => i !== idx));
     setEditingField(null);
   };
 
   const moveSection = (idx, direction) => {
     const newIdx = idx + direction;
-    if (newIdx < 0 || newIdx >= sections.length) return;
+    if (newIdx < 0 || newIdx >= sections.length) {
+      return;
+    }
     setSections(prev => {
       const copy = [...prev];
       [copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]];
@@ -250,9 +254,13 @@ export default function TemplateBuilder() {
   const moveField = (sectionIdx, fieldIdx, direction) => {
     const newIdx = fieldIdx + direction;
     const section = sections[sectionIdx];
-    if (newIdx < 0 || newIdx >= section.fields.length) return;
+    if (newIdx < 0 || newIdx >= section.fields.length) {
+      return;
+    }
     setSections(prev => prev.map((s, i) => {
-      if (i !== sectionIdx) return s;
+      if (i !== sectionIdx) {
+        return s;
+      }
       const fields = [...s.fields];
       [fields[fieldIdx], fields[newIdx]] = [fields[newIdx], fields[fieldIdx]];
       return { ...s, fields };
@@ -265,7 +273,9 @@ export default function TemplateBuilder() {
 
   const updateField = (sectionIdx, fieldIdx, updates) => {
     setSections(prev => prev.map((s, i) => {
-      if (i !== sectionIdx) return s;
+      if (i !== sectionIdx) {
+        return s;
+      }
       return {
         ...s,
         fields: s.fields.map((f, fi) => fi === fieldIdx ? { ...f, ...updates } : f)
@@ -307,7 +317,7 @@ export default function TemplateBuilder() {
   const previewTemplate = {
     ...templateInfo,
     template_id: templateService.generateTemplateId(templateInfo),
-    fields_schema: { sections },
+    fields_schema: { sections }
   };
 
   // ============================================

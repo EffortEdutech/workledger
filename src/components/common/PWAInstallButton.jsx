@@ -57,7 +57,9 @@ const DISMISS_DAYS = 7;
 function wasRecentlyDismissed() {
   try {
     const ts = localStorage.getItem(IOS_DISMISSED_KEY);
-    if (!ts) return false;
+    if (!ts) {
+      return false;
+    }
     const days = (Date.now() - parseInt(ts, 10)) / (1000 * 60 * 60 * 24);
     return days < DISMISS_DAYS;
   } catch {
@@ -94,7 +96,7 @@ function IOSInstallModal({ onClose }) {
           <path strokeLinecap="round" strokeLinejoin="round"
             d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
         </svg>
-      ),
+      )
     },
     {
       num: 2,
@@ -104,7 +106,7 @@ function IOSInstallModal({ onClose }) {
           <path strokeLinecap="round" strokeLinejoin="round"
             d="M12 4v16m8-8H4" />
         </svg>
-      ),
+      )
     },
     {
       num: 3,
@@ -114,8 +116,8 @@ function IOSInstallModal({ onClose }) {
           <path strokeLinecap="round" strokeLinejoin="round"
             d="M5 13l4 4L19 7" />
         </svg>
-      ),
-    },
+      )
+    }
   ];
 
   return (
@@ -301,7 +303,9 @@ export default function PWAInstallButton() {
   }, []);
 
   // Nothing to show
-  if (!platform) return null;
+  if (!platform) {
+    return null;
+  }
 
   return (
     <>

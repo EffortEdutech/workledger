@@ -1,6 +1,7 @@
 // vite.config.js
 // WorkLedger — Production Vite Configuration
 // Session 19: PWA + iOS/Android installability
+// Session 16: console.* and debugger statements dropped in production builds
 // ⚠️  Service workers ONLY run after: npm run build && npm run preview
 //     Never test PWA/SW in npm run dev — it will NOT work.
 
@@ -154,6 +155,12 @@ export default defineConfig({
   ],
 
   build: {
+    // Drop all console.* calls and debugger statements from the production
+    // bundle. Logs remain fully visible during `npm run dev`.
+    esbuild: {
+      drop: ['console', 'debugger'],
+    },
+
     rollupOptions: {
       output: {
         manualChunks: {

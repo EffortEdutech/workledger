@@ -55,7 +55,9 @@ export function OfflineIndicator() {
   }
 
   // ── Fully idle — hide ─────────────────────────────────────────────────
-  if (isOnline && syncStatus === 'idle' && pendingCount === 0) return null;
+  if (isOnline && syncStatus === 'idle' && pendingCount === 0) {
+    return null;
+  }
 
   // ── Offline ───────────────────────────────────────────────────────────
   if (!isOnline) {

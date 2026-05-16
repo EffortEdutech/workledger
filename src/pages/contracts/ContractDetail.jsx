@@ -30,10 +30,12 @@ import {
   DocumentTextIcon,
   ClockIcon,
   WrenchScrewdriverIcon,
-  DocumentDuplicateIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline';
+import { useToast } from '../../context/ToastContext';
 
 export function ContractDetail() {
+  const toast = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
   const { can } = useRole();
@@ -45,7 +47,9 @@ export function ContractDetail() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
 
-  useEffect(() => { loadContract(); }, [id]);
+  useEffect(() => {
+    loadContract(); 
+  }, [id]);
 
   const loadContract = async () => {
     try {
@@ -67,20 +71,24 @@ export function ContractDetail() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete contract "${contract.contract_number}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete contract "${contract.contract_number}"? This cannot be undone.`)) {
+      return;
+    }
     try {
       await contractService.deleteContract(id);
       navigate('/contracts');
     } catch (err) {
       console.error('❌ Error deleting contract:', err);
-      alert('Failed to delete contract.');
+      toast.error('Failed to delete contract.');
     }
   };
 
   const formatDate = (d) => {
-    if (!d) return 'N/A';
+    if (!d) {
+      return 'N/A';
+    }
     return new Date(d).toLocaleDateString('en-MY', {
-      year: 'numeric', month: 'long', day: 'numeric',
+      year: 'numeric', month: 'long', day: 'numeric'
     });
   };
 
@@ -137,11 +145,17 @@ export function ContractDetail() {
                 {contract.contract_number}
               </h1>
               <ContractTypeBadge category={contract.contract_category} />
+              {contract.contract_role === 'sub' && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs
+                                 font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  Subcontract
+                </span>
+              )}
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs
                               font-medium border
                               ${contract.status === 'active'
-                                ? 'bg-green-50 text-green-700 border-green-200'
-                                : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+      ? 'bg-green-50 text-green-700 border-green-200'
+      : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                 {contract.status}
               </span>
             </div>
@@ -193,6 +207,9 @@ export function ContractDetail() {
             <InfoRow label="Contract Type"  value={contract.contract_type || '—'} />
             <InfoRow label="Category"       value={contract.contract_category || '—'} />
             <InfoRow label="Status"         value={contract.status || '—'} />
+            {contract.contract_role === 'sub' && (
+              <SubcontractRow org={contract.performing_org} />
+            )}
 
             <InfoRow
               label="Valid From"
@@ -269,8 +286,8 @@ export function ContractDetail() {
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
                                     text-sm font-medium border
                                     ${jt.is_default
-                                      ? 'bg-primary-50 text-primary-700 border-primary-200'
-                                      : 'bg-gray-50 text-gray-700 border-gray-200'}`}
+                        ? 'bg-primary-50 text-primary-700 border-primary-200'
+                        : 'bg-gray-50 text-gray-700 border-gray-200'}`}
                       >
                         {tmpl.template_name || '(Unknown template)'}
                         {jt.is_default && (
@@ -332,7 +349,8 @@ export function ContractDetail() {
   );
 }
 
-// ── Small helper ──────────────────────────────────────────────
+
+// ── Small helpers ─────────────────────────────────────────────────────────
 function InfoRow({ label, value, icon }) {
   return (
     <div>
@@ -340,6 +358,25 @@ function InfoRow({ label, value, icon }) {
       <p className="mt-1 text-sm text-gray-900 flex items-center gap-1.5">
         {icon && <span className="text-gray-400">{icon}</span>}
         {value}
+      </p>
+    </div>
+  );
+}
+
+function SubcontractRow({ org }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Role</p>
+      <p className="mt-1 text-sm text-gray-900 flex items-center gap-1.5">
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full
+                         text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+          Subcontract
+        </span>
+        {org && org.name && (
+          <span className="text-gray-500 text-xs">
+            performed by <span className="font-medium text-gray-700">{org.name}</span>
+          </span>
+        )}
       </p>
     </div>
   );

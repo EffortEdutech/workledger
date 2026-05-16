@@ -26,8 +26,10 @@ import { projectService } from '../../services/api/projectService';
 import { organizationService } from '../../services/api/organizationService';
 import { useOrganization } from '../../context/OrganizationContext';
 import { useRole } from '../../hooks/useRole';
+import { useToast } from '../../context/ToastContext';
 
 export function ProjectListPage() {
+  const toast = useToast();
   const { currentOrg } = useOrganization();
   const { can } = useRole();
 
@@ -51,7 +53,7 @@ export function ProjectListPage() {
 
       const [projectsData, orgsData] = await Promise.all([
         projectService.getUserProjects(orgId),
-        organizationService.getUserOrganizations(),
+        organizationService.getUserOrganizations()
       ]);
 
       setProjects(projectsData      || []);
@@ -78,7 +80,7 @@ export function ProjectListPage() {
       console.log('✅ Project deleted successfully');
     } catch (err) {
       console.error('❌ Error deleting project:', err);
-      alert('Failed to delete project. Please try again.');
+      toast.error('Failed to delete project. Please try again.');
     }
   };
 

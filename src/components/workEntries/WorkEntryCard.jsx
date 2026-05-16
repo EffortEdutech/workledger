@@ -25,30 +25,43 @@ export default function WorkEntryCard({
   onView,
   isOwnEntry = true,
   showSourceBadge = false,
-  isSubcontractorView = false,
+  isSubcontractorView = false
 }) {
   const navigate          = useNavigate();
   const { can, role }     = useRole();
   const { user, profile } = useAuth();
 
-  if (!workEntry) return null;
+  if (!workEntry) {
+    return null;
+  }
 
   const { id, entry_date, shift, status, contract, template, data, rejection_reason, creator } = workEntry;
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return 'N/A';
-    try { return new Intl.DateTimeFormat('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(dateStr)); }
-    catch { return dateStr; }
+    if (!dateStr) {
+      return 'N/A';
+    }
+    try {
+      return new Intl.DateTimeFormat('en-MY', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(dateStr)); 
+    } catch {
+      return dateStr; 
+    }
   };
 
   const getPreviewFields = () => {
-    if (!data || typeof data !== 'object') return [];
+    if (!data || typeof data !== 'object') {
+      return [];
+    }
     const previews = [];
     const keys = Object.keys(data);
     const priority = ['asset', 'equipment', 'location', 'description', 'incident', 'work_done', 'findings', 'remarks'];
     for (const pattern of priority) {
       const key = keys.find(k => k.toLowerCase().includes(pattern));
-      if (key && data[key]) { previews.push({ key, value: data[key] }); if (previews.length >= 2) break; }
+      if (key && data[key]) {
+        previews.push({ key, value: data[key] }); if (previews.length >= 2) {
+          break;
+        } 
+      }
     }
     return previews;
   };
@@ -57,7 +70,11 @@ export default function WorkEntryCard({
 
   const handleView   = () => onView   ? onView(workEntry)   : navigate(`/work/${id}`);
   const handleEdit   = () => onEdit   ? onEdit(workEntry)   : navigate(`/work/${id}/edit`);
-  const handleDelete = () => { if (onDelete && window.confirm('Are you sure you want to delete this work entry?')) onDelete(workEntry); };
+  const handleDelete = () => {
+    if (onDelete && window.confirm('Are you sure you want to delete this work entry?')) {
+      onDelete(workEntry);
+    } 
+  };
 
   // Two levels of ownership:
   //   isManagerOrAbove → can act on any entry in own org (org_owner, org_admin, manager, bj_staff)

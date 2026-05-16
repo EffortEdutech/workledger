@@ -48,7 +48,7 @@ import LoadingSpinner from '../common/LoadingSpinner';
 export default function RouteGuard({
   permission,
   children,
-  redirectTo = '/',
+  redirectTo = '/'
 }) {
   const { can, loading } = useRole();
   const location = useLocation();

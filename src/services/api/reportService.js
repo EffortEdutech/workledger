@@ -127,14 +127,14 @@ class ReportService {
       html: fullHTML,
       format: 'html',
       layoutName: layout.layout_name,
-      entryCount: entries.length,
+      entryCount: entries.length
     };
   }
 
   /**
    * Generate PDF.
    */
-  async generatePDF(renderTrees, entries, layout, options) {
+  async generatePDF(renderTrees, entries, layout, _options) {
     console.log('📄 Generating PDF...');
 
     let pdf = await pdfAdapter.render(
@@ -165,14 +165,14 @@ class ReportService {
       pdf,
       format: 'pdf',
       layoutName: layout.layout_name,
-      entryCount: entries.length,
+      entryCount: entries.length
     };
   }
 
   /**
    * Legacy fallback — throws to force use of layoutId.
    */
-  async generateLegacy(entries, options) {
+  async generateLegacy(_entries, _options) {
     console.log('⚠️  Legacy PDF generation not available');
     throw new Error('Legacy generation not available. Please select a report layout.');
   }
@@ -240,7 +240,9 @@ class ReportService {
       .in('id', entryIds)
       .order('entry_date', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     // ── Second-pass: resolve all user names in one query ──────────────────
     // Collect unique UUIDs from created_by, approved_by, rejected_by.
@@ -267,7 +269,7 @@ class ReportService {
       // Who created the entry
       created_by_profile: profileMap[entry.created_by] || {
         id: entry.created_by,
-        full_name: 'Unknown',
+        full_name: 'Unknown'
       },
       // Who approved (null if not yet approved)
       approved_by_profile: entry.approved_by
@@ -276,7 +278,7 @@ class ReportService {
       // Who rejected (null if never rejected)
       rejected_by_profile: entry.rejected_by
         ? (profileMap[entry.rejected_by] || { id: entry.rejected_by, full_name: 'Unknown' })
-        : null,
+        : null
     }));
 
     console.log(`✅ Fetched ${entries.length} entries with relations`);
@@ -312,7 +314,9 @@ class ReportService {
     try {
       console.log('📊 Fetching rejection analytics for org:', orgId);
 
-      if (!orgId) throw new Error('Organization ID required for rejection analytics');
+      if (!orgId) {
+        throw new Error('Organization ID required for rejection analytics');
+      }
 
       // Calculate date range
       const toDate   = to   ? new Date(to)   : new Date();
@@ -342,7 +346,9 @@ class ReportService {
         .lte('rejected_at', toISO)
         .order('rejected_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       if (!rows || rows.length === 0) {
         console.log('✅ No rejections in period');
@@ -353,8 +359,8 @@ class ReportService {
             byTechnician: [],
             topReasons: [],
             repeatEntries: [],
-            weeklyTrend: [],
-          },
+            weeklyTrend: []
+          }
         };
       }
 
@@ -393,7 +399,7 @@ class ReportService {
       const summary = {
         total: rows.length,
         uniqueEntries: uniqueEntries.size,
-        repeatOffenders: repeatOffenderCount,
+        repeatOffenders: repeatOffenderCount
       };
 
       // ── 2. Rejections per technician ──────────────────────────────────────
@@ -436,7 +442,7 @@ class ReportService {
             entryDate: latestRow?.entry_date,
             technicianName: getName(latestRow?.entry_created_by),
             lastRejectedAt: latestRow?.rejected_at,
-            lastReason: latestRow?.rejection_reason,
+            lastReason: latestRow?.rejection_reason
           };
         })
         .sort((a, b) => b.timesRejected - a.timesRejected);
@@ -462,7 +468,7 @@ class ReportService {
         total: summary.total,
         technicians: byTechnician.length,
         reasons: topReasons.length,
-        repeats: repeatEntries.length,
+        repeats: repeatEntries.length
       });
 
       return {
@@ -474,8 +480,8 @@ class ReportService {
           repeatEntries,
           weeklyTrend,
           // Raw rows available for advanced consumers
-          period: { from: fromISO, to: toISO, days },
-        },
+          period: { from: fromISO, to: toISO, days }
+        }
       };
 
     } catch (error) {
@@ -502,11 +508,17 @@ class ReportService {
         .order('generated_at', { ascending: false })
         .limit(filters.limit || 50);
 
-      if (filters.contractId) query = query.eq('contract_id', filters.contractId);
-      if (filters.offset) query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1);
+      if (filters.contractId) {
+        query = query.eq('contract_id', filters.contractId);
+      }
+      if (filters.offset) {
+        query = query.range(filters.offset, filters.offset + (filters.limit || 50) - 1);
+      }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       if (!data || data.length === 0) {
         console.log('✅ No reports found');
@@ -526,7 +538,7 @@ class ReportService {
           : { data: [] },
         userIds.length > 0
           ? supabase.from('user_profiles').select('id, full_name').in('id', userIds)
-          : { data: [] },
+          : { data: [] }
       ]);
 
       const contractMap = {};
@@ -536,7 +548,7 @@ class ReportService {
           contract_number: c.contract_number,
           contract_name: c.contract_name,
           contract_category: c.contract_category,
-          client_name: c.project?.client_name || null,
+          client_name: c.project?.client_name || null
         };
       });
 
@@ -548,7 +560,7 @@ class ReportService {
       const enriched = data.map(r => ({
         ...r,
         contract: contractMap[r.contract_id] || null,
-        generated_by_profile: profileMap[r.generated_by] || null,
+        generated_by_profile: profileMap[r.generated_by] || null
       }));
 
       console.log(`✅ Fetched ${enriched.length} reports`);
@@ -576,10 +588,12 @@ class ReportService {
         period_start: periodStart,
         period_end:   periodEnd,
         generated_by: user?.id,
-        generated_at: new Date().toISOString(),
+        generated_at: new Date().toISOString()
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       console.log('✅ Report saved to history');
       return { success: true };
 
@@ -604,10 +618,14 @@ class ReportService {
         .from('generated_reports')
         .select('id, contract_id, generated_at, report_type');
 
-      if (filters.contractId) query = query.eq('contract_id', filters.contractId);
+      if (filters.contractId) {
+        query = query.eq('contract_id', filters.contractId);
+      }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -621,14 +639,20 @@ class ReportService {
         thisWeek: 0,
         today: 0,
         lastGenerated: null,
-        byType: {},
+        byType: {}
       };
 
       data.forEach(report => {
         const genAt = new Date(report.generated_at);
-        if (genAt >= startOfMonth) stats.thisMonth++;
-        if (genAt >= startOfWeek)  stats.thisWeek++;
-        if (genAt >= startOfDay)   stats.today++;
+        if (genAt >= startOfMonth) {
+          stats.thisMonth++;
+        }
+        if (genAt >= startOfWeek)  {
+          stats.thisWeek++;
+        }
+        if (genAt >= startOfDay)   {
+          stats.today++;
+        }
 
         if (!stats.lastGenerated || genAt > new Date(stats.lastGenerated)) {
           stats.lastGenerated = report.generated_at;

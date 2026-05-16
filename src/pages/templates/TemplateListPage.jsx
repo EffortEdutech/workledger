@@ -20,8 +20,10 @@ import { useNavigate } from 'react-router-dom';
 import { templateService, TEMPLATE_CATEGORIES, TEMPLATE_INDUSTRIES } from '../../services/api/templateService';
 import AppLayout from '../../components/layout/AppLayout';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { useToast } from '../../context/ToastContext';
 
 export default function TemplateListPage() {
+  const toast = useToast();
   const navigate = useNavigate();
 
   // Data
@@ -51,8 +53,12 @@ export default function TemplateListPage() {
       setError(null);
 
       const filters = {};
-      if (categoryFilter) filters.contract_category = categoryFilter;
-      if (industryFilter) filters.industry = industryFilter;
+      if (categoryFilter) {
+        filters.contract_category = categoryFilter;
+      }
+      if (industryFilter) {
+        filters.industry = industryFilter;
+      }
 
       const data = await templateService.getTemplates(filters);
       setTemplates(data);
@@ -88,7 +94,9 @@ export default function TemplateListPage() {
   // ============================================
 
   const filteredTemplates = templates.filter(t => {
-    if (!search) return true;
+    if (!search) {
+      return true;
+    }
     const q = search.toLowerCase();
     return (
       t.template_name?.toLowerCase().includes(q) ||
@@ -103,37 +111,41 @@ export default function TemplateListPage() {
   // ============================================
 
   const handleClone = async () => {
-    if (!cloneModal || !cloneName.trim()) return;
+    if (!cloneModal || !cloneName.trim()) {
+      return;
+    }
     try {
       setActionLoading(true);
       const result = await templateService.cloneTemplate(cloneModal.id, cloneName.trim());
       if (!result.success) {
-        alert(result.error);
+        toast.error(result.error);
         return;
       }
       setCloneModal(null);
       setCloneName('');
       await loadTemplates();
     } catch (err) {
-      alert('Failed to clone: ' + err.message);
+      toast.error('Failed to clone: ' + err.message);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!deleteModal) return;
+    if (!deleteModal) {
+      return;
+    }
     try {
       setActionLoading(true);
       const result = await templateService.deleteTemplate(deleteModal.id);
       if (!result.success) {
-        alert(result.error);
+        toast.error(result.error);
         return;
       }
       setDeleteModal(null);
       await loadTemplates();
     } catch (err) {
-      alert('Failed to delete: ' + err.message);
+      toast.error('Failed to delete: ' + err.message);
     } finally {
       setActionLoading(false);
     }
@@ -163,7 +175,9 @@ export default function TemplateListPage() {
     TEMPLATE_INDUSTRIES.find(i => i.value === val)?.label || val || '-';
 
   const formatDate = (d) => {
-    if (!d) return '-';
+    if (!d) {
+      return '-';
+    }
     return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
@@ -419,7 +433,9 @@ export default function TemplateListPage() {
             />
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => { setCloneModal(null); setCloneName(''); }}
+                onClick={() => {
+                  setCloneModal(null); setCloneName(''); 
+                }}
                 className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
                 Cancel

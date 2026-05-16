@@ -56,7 +56,9 @@ class SubcontractorService {
         .eq('main_contractor_org_id', mainOrgId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       if (!data || data.length === 0) {
         console.log('✅ No subcontractor relationships found');
         return [];
@@ -74,18 +76,22 @@ class SubcontractorService {
         supabase
           .from('projects')
           .select('id, project_name, project_code, status')
-          .in('id', projectIds),
+          .in('id', projectIds)
       ]);
 
       const orgMap     = {};
       const projectMap = {};
-      (orgsResult.data     || []).forEach(o => { orgMap[o.id]     = o; });
-      (projectsResult.data || []).forEach(p => { projectMap[p.id] = p; });
+      (orgsResult.data     || []).forEach(o => {
+        orgMap[o.id]     = o; 
+      });
+      (projectsResult.data || []).forEach(p => {
+        projectMap[p.id] = p; 
+      });
 
       const enriched = data.map(r => ({
         ...r,
         subcontractor_org: orgMap[r.subcontractor_org_id]         || null,
-        project:           projectMap[r.project_id]               || null,
+        project:           projectMap[r.project_id]               || null
       }));
 
       console.log('✅ Loaded relationships:', enriched.length);
@@ -111,7 +117,9 @@ class SubcontractorService {
         .eq('project_id', projectId)
         .eq('status', 'active');
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return data || [];
     } catch (error) {
       console.error('❌ Exception in getSubcontractorsByProject:', error);
@@ -134,7 +142,9 @@ class SubcontractorService {
         .eq('main_contractor_org_id', mainOrgId)
         .eq('status', 'active');
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return [...new Set((data || []).map(r => r.subcontractor_org_id))];
     } catch (error) {
       console.error('❌ Exception in getSubcontractorOrgIds:', error);
@@ -161,7 +171,9 @@ class SubcontractorService {
         .eq('project_id', projectId)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return data;
     } catch (error) {
       console.error('❌ Exception in checkExistingRelationship:', error);
@@ -179,7 +191,9 @@ class SubcontractorService {
    */
   async searchOrganizations(query, excludeId) {
     try {
-      if (!query || query.trim().length < 2) return [];
+      if (!query || query.trim().length < 2) {
+        return [];
+      }
 
       const { data, error } = await supabase
         .from('organizations')
@@ -190,7 +204,9 @@ class SubcontractorService {
         .order('name')
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return data || [];
     } catch (error) {
       console.error('❌ Exception in searchOrganizations:', error);
@@ -243,12 +259,14 @@ class SubcontractorService {
           status:                 'active',
           invited_by:             userId,
           invited_at:             new Date().toISOString(),
-          notes:                  notes || null,
+          notes:                  notes || null
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       console.log('✅ Subcontractor relationship created:', data.id);
       return { success: true, data };
@@ -276,7 +294,9 @@ class SubcontractorService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       console.log('✅ Relationship status updated:', newStatus);
       return { success: true, data };

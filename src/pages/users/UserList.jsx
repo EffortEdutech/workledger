@@ -44,7 +44,7 @@ import { getRoleMeta, ROLE_META } from '../../constants/permissions';
 import {
   UserPlusIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 
 // ─────────────────────────────────────────────────────────
@@ -116,13 +116,19 @@ function PlatformUsersTab({ currentOrg }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load(); 
+  }, [load]);
 
   const filtered = useMemo(() => {
     let list = [...users];
 
-    if (orgFilter === 'no_org')  list = list.filter(u => !u.hasOrg);
-    if (orgFilter === 'has_org') list = list.filter(u => u.hasOrg);
+    if (orgFilter === 'no_org')  {
+      list = list.filter(u => !u.hasOrg);
+    }
+    if (orgFilter === 'has_org') {
+      list = list.filter(u => u.hasOrg);
+    }
 
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -219,7 +225,7 @@ function PlatformUsersTab({ currentOrg }) {
           {[
             ['all',     'All',      users.length],
             ['no_org',  'No Org',   noOrgCount],
-            ['has_org', 'Has Org',  users.length - noOrgCount],
+            ['has_org', 'Has Org',  users.length - noOrgCount]
           ].map(([val, label, count]) => (
             <button
               key={val}
@@ -280,7 +286,7 @@ function PlatformUsersTab({ currentOrg }) {
                           </p>
                           <p className="text-xs text-gray-400">
                             Joined {new Date(user.created_at).toLocaleDateString('en-MY', {
-                              day: 'numeric', month: 'short', year: 'numeric',
+                              day: 'numeric', month: 'short', year: 'numeric'
                             })}
                           </p>
                         </div>
@@ -351,7 +357,9 @@ function PlatformUsersTab({ currentOrg }) {
                         </div>
                       ) : (
                         <button
-                          onClick={() => { setAddRoleFor(user.id); setSelectedRole('technician'); }}
+                          onClick={() => {
+                            setAddRoleFor(user.id); setSelectedRole('technician'); 
+                          }}
                           className="text-xs font-medium text-primary-600 hover:text-primary-700 px-2 py-1 rounded hover:bg-primary-50 transition-colors whitespace-nowrap"
                         >
                           + Add to {currentOrg.name}
@@ -402,7 +410,9 @@ export default function UserList() {
   };
 
   const loadMembers = useCallback(async () => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id) {
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -417,14 +427,22 @@ export default function UserList() {
   }, [currentOrg?.id]);
 
   useEffect(() => {
-    if (activeTab === 'org') loadMembers();
+    if (activeTab === 'org') {
+      loadMembers();
+    }
   }, [loadMembers, activeTab]);
 
   const filtered = useMemo(() => {
     let list = [...members];
-    if (statusFilter === 'active')   list = list.filter(m => m.is_active);
-    if (statusFilter === 'inactive') list = list.filter(m => !m.is_active);
-    if (roleFilter !== 'all') list = list.filter(m => m.role === roleFilter);
+    if (statusFilter === 'active')   {
+      list = list.filter(m => m.is_active);
+    }
+    if (statusFilter === 'inactive') {
+      list = list.filter(m => !m.is_active);
+    }
+    if (roleFilter !== 'all') {
+      list = list.filter(m => m.role === roleFilter);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(m =>
@@ -448,7 +466,9 @@ export default function UserList() {
         ? userService.deactivateMember.bind(userService)
         : userService.reactivateMember.bind(userService);
       const result = await fn(currentOrg.id, member.id);
-      if (!result.success) { showToast(result.error, 'error'); return; }
+      if (!result.success) {
+        showToast(result.error, 'error'); return; 
+      }
       setMembers(prev => prev.map(m => m.id === member.id ? { ...m, is_active: !m.is_active } : m));
       showToast(member.is_active ? 'Member deactivated' : 'Member reactivated');
     } catch {
@@ -613,7 +633,9 @@ export default function UserList() {
                       </select>
                       {hasActiveFilters && (
                         <button
-                          onClick={() => { setSearch(''); setRoleFilter('all'); setStatusFilter('active'); }}
+                          onClick={() => {
+                            setSearch(''); setRoleFilter('all'); setStatusFilter('active'); 
+                          }}
                           className="text-xs text-primary-600 hover:text-primary-700 font-medium"
                         >
                           Clear filters

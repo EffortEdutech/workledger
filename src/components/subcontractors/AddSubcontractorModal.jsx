@@ -27,8 +27,8 @@ function StepDot({ step, current }) {
       <div className={`
         w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors
         ${done    ? 'bg-green-500 text-white'
-          : active ? 'bg-primary-600 text-white'
-          :          'bg-gray-200 text-gray-500'}
+      : active ? 'bg-primary-600 text-white'
+        :          'bg-gray-200 text-gray-500'}
       `}>
         {done ? '✓' : step}
       </div>
@@ -59,7 +59,9 @@ export function AddSubcontractorModal({ mainOrgId, mainOrgName, onSuccess, onClo
   // ── Load current org's projects ─────────────────────────────────────
   useEffect(() => {
     const loadProjects = async () => {
-      if (!mainOrgId) return;
+      if (!mainOrgId) {
+        return;
+      }
       setLoadingProjects(true);
       try {
         const data = await projectService.getUserProjects(mainOrgId);
@@ -101,14 +103,18 @@ export function AddSubcontractorModal({ mainOrgId, mainOrgName, onSuccess, onClo
 
   // ── Proceed to confirmation ──────────────────────────────────────────
   const handleProceed = () => {
-    if (!step1Valid) return;
+    if (!step1Valid) {
+      return;
+    }
     setSaveError('');
     setStep(2);
   };
 
   // ── Save ─────────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!selectedOrg || !selectedProject) return;
+    if (!selectedOrg || !selectedProject) {
+      return;
+    }
     setSaving(true);
     setSaveError('');
     try {
@@ -116,7 +122,7 @@ export function AddSubcontractorModal({ mainOrgId, mainOrgName, onSuccess, onClo
         mainOrgId,
         selectedOrg.id,
         selectedProject.id,
-        notes,
+        notes
       );
       if (result.success) {
         console.log('✅ Subcontractor linked:', selectedOrg.name);
@@ -196,7 +202,9 @@ export function AddSubcontractorModal({ mainOrgId, mainOrgName, onSuccess, onClo
                   {searchResults.map(org => (
                     <button
                       key={org.id}
-                      onClick={() => { setSelectedOrg(org); setSearchResults([]); setQuery(org.name); }}
+                      onClick={() => {
+                        setSelectedOrg(org); setSearchResults([]); setQuery(org.name); 
+                      }}
                       className="w-full px-4 py-3 text-left hover:bg-gray-50 text-sm transition-colors flex items-center gap-3 border-b border-gray-100 last:border-0"
                     >
                       <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold text-xs flex-shrink-0">
@@ -225,7 +233,9 @@ export function AddSubcontractorModal({ mainOrgId, mainOrgName, onSuccess, onClo
                   </div>
                   <span className="text-sm font-medium text-primary-800 flex-1">{selectedOrg.name}</span>
                   <button
-                    onClick={() => { setSelectedOrg(null); setQuery(''); }}
+                    onClick={() => {
+                      setSelectedOrg(null); setQuery(''); 
+                    }}
                     className="text-primary-400 hover:text-primary-600 text-xs"
                   >
                     ✕ change

@@ -28,7 +28,7 @@ export class ErrorBoundary extends React.Component {
     this.state = {
       hasError: false,
       error: null,
-      errorInfo: null,
+      errorInfo: null
     };
   }
 
@@ -45,7 +45,7 @@ export class ErrorBoundary extends React.Component {
     // Update state with error details
     this.setState({
       error,
-      errorInfo,
+      errorInfo
     });
 
     // TODO: Send error to error reporting service (e.g., Sentry)
@@ -56,7 +56,7 @@ export class ErrorBoundary extends React.Component {
     this.setState({
       hasError: false,
       error: null,
-      errorInfo: null,
+      errorInfo: null
     });
   };
 

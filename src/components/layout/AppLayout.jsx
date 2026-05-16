@@ -57,7 +57,9 @@ export function AppLayout({ children }) {
 
   const handleLogout = async () => {
     const result = await logout();
-    if (result.success) navigate(ROUTES.LOGIN);
+    if (result.success) {
+      navigate(ROUTES.LOGIN);
+    }
   };
 
   return (

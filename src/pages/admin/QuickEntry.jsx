@@ -31,6 +31,7 @@ import { contractService } from '../../services/api/contractService';
 import { templateService } from '../../services/api/templateService';
 import { workEntryService } from '../../services/api/workEntryService';
 import { organizationService } from '../../services/api/organizationService';
+import { useToast } from '../../context/ToastContext';
 
 // ── Yesterday's date as YYYY-MM-DD ────────────────────────
 const yesterday = () => {
@@ -40,6 +41,7 @@ const yesterday = () => {
 };
 
 export default function QuickEntry() {
+  const toast = useToast();
   const navigate = useNavigate();
   const { orgId, currentOrg, allOrgs } = useOrganization();
   const { user } = useAuth();
@@ -70,14 +72,18 @@ export default function QuickEntry() {
 
   // ── Load contracts when org changes ──────────────────────
   const loadContracts = useCallback(async (oId) => {
-    if (!oId) return;
+    if (!oId) {
+      return;
+    }
     try {
       setLoadingContracts(true);
       const data = await contractService.getUserContracts(oId);
       setContracts(data || []);
       // Pre-select first active contract
       const active = (data || []).find(c => c.status === 'active');
-      if (active) setContractId(active.id);
+      if (active) {
+        setContractId(active.id);
+      }
     } catch (err) {
       console.error('❌ Error loading contracts:', err);
     } finally {
@@ -92,7 +98,9 @@ export default function QuickEntry() {
       const data = await templateService.getTemplates();
       setTemplates(data || []);
       // Pre-select first template if only one
-      if (data?.length === 1) setTemplateId(data[0].id);
+      if (data?.length === 1) {
+        setTemplateId(data[0].id);
+      }
     } catch (err) {
       console.error('❌ Error loading templates:', err);
     } finally {
@@ -107,19 +115,31 @@ export default function QuickEntry() {
 
   // Sync with global org switcher
   useEffect(() => {
-    if (orgId) setSelectedOrgId(orgId);
+    if (orgId) {
+      setSelectedOrgId(orgId);
+    }
   }, [orgId]);
 
   // ── Parse WhatsApp message ────────────────────────────────
   const handleParse = () => {
-    if (!waText.trim()) return;
+    if (!waText.trim()) {
+      return;
+    }
     const result = parseWhatsAppMessage(waText);
     setParsed(result);
     // Pre-fill fields from parse result
-    if (result.entry_date) setEntryDate(result.entry_date);
-    if (result.location)   setLocation(result.location);
-    if (result.job_description) setDescription(result.job_description);
-    if (result.equipment_type)  setEquipmentType(result.equipment_type);
+    if (result.entry_date) {
+      setEntryDate(result.entry_date);
+    }
+    if (result.location)   {
+      setLocation(result.location);
+    }
+    if (result.job_description) {
+      setDescription(result.job_description);
+    }
+    if (result.equipment_type)  {
+      setEquipmentType(result.equipment_type);
+    }
   };
 
   const handleClearWA = () => {
@@ -142,9 +162,15 @@ export default function QuickEntry() {
 
   // ── Save ──────────────────────────────────────────────────
   const handleSave = async (status = 'draft') => {
-    if (!contractId) { alert('Please select a contract.'); return; }
-    if (!templateId) { alert('Please select a template.'); return; }
-    if (!entryDate)  { alert('Please set an entry date.'); return; }
+    if (!contractId) {
+      toast.warning('Please select a contract.'); return; 
+    }
+    if (!templateId) {
+      toast.warning('Please select a template.'); return; 
+    }
+    if (!entryDate)  {
+      toast.warning('Please set an entry date.'); return; 
+    }
 
     setSaving(true);
     try {
@@ -158,18 +184,18 @@ export default function QuickEntry() {
         template_id:  templateId,
         entry_date:   entryDate,
         data,
-        status,
+        status
       });
 
       if (result.success) {
         console.log('✅ Quick entry saved:', result.data?.id);
         setSaved({ id: result.data?.id, status });
       } else {
-        alert(`Failed to save: ${result.error}`);
+        toast.error(`Failed to save: ${result.error}`);
       }
     } catch (err) {
       console.error('❌ Save error:', err);
-      alert('Failed to save entry. Please try again.');
+      toast.error('Failed to save entry. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -207,7 +233,9 @@ export default function QuickEntry() {
           </p>
           <div className="flex gap-3 justify-center">
             <button
-              onClick={() => { setSaved(null); setWaText(''); setParsed(null); setDescription(''); setLocation(''); setEquipmentType(''); setRemarks(''); setEntryDate(yesterday()); }}
+              onClick={() => {
+                setSaved(null); setWaText(''); setParsed(null); setDescription(''); setLocation(''); setEquipmentType(''); setRemarks(''); setEntryDate(yesterday()); 
+              }}
               className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
             >
               + Add Another Entry
@@ -273,12 +301,12 @@ export default function QuickEntry() {
                 {parsed && (
                   <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                     parsed.confidence === 'high'   ? 'bg-green-100 text-green-700' :
-                    parsed.confidence === 'medium' ? 'bg-amber-100 text-amber-700' :
-                                                     'bg-red-100 text-red-700'
+                      parsed.confidence === 'medium' ? 'bg-amber-100 text-amber-700' :
+                        'bg-red-100 text-red-700'
                   }`}>
                     {parsed.confidence === 'high' ? '✅ High confidence' :
-                     parsed.confidence === 'medium' ? '⚠️ Medium confidence' :
-                     '❌ Low confidence'} parse
+                      parsed.confidence === 'medium' ? '⚠️ Medium confidence' :
+                        '❌ Low confidence'} parse
                   </span>
                 )}
               </div>
@@ -308,7 +336,9 @@ export default function QuickEntry() {
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">Client Organization</label>
                   <select
                     value={selectedOrgId}
-                    onChange={e => { setSelectedOrgId(e.target.value); setContractId(''); }}
+                    onChange={e => {
+                      setSelectedOrgId(e.target.value); setContractId(''); 
+                    }}
                     className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white"
                   >
                     <option value="">— Select org —</option>

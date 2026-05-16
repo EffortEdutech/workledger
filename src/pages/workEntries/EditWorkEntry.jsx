@@ -93,7 +93,7 @@ export default function EditWorkEntry() {
 
       // Step 1: Save the field data
       const updateResult = await workEntryService.updateWorkEntry(id, {
-        data: formData,
+        data: formData
       });
 
       if (!updateResult.success) {

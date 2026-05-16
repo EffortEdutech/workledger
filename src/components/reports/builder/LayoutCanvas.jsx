@@ -58,14 +58,18 @@ export default function LayoutCanvas({
    * Move section up or down
    */
   const handleMoveUp = (index) => {
-    if (index === 0) return; // Already at top
+    if (index === 0) {
+      return;
+    } // Already at top
     if (onSectionMove) {
       onSectionMove(index, index - 1);
     }
   };
 
   const handleMoveDown = (index) => {
-    if (index === sections.length - 1) return; // Already at bottom
+    if (index === sections.length - 1) {
+      return;
+    } // Already at bottom
     if (onSectionMove) {
       onSectionMove(index, index + 1);
     }
@@ -75,7 +79,9 @@ export default function LayoutCanvas({
    * Remove section
    */
   const handleRemove = (index) => {
-    if (!confirm('Remove this section?')) return;
+    if (!confirm('Remove this section?')) {
+      return;
+    }
     
     // Call the parent's remove handler with the index
     if (onSectionRemove) {
@@ -168,9 +174,9 @@ function SectionCard({
         bg-white rounded-lg border-2 p-4 cursor-pointer
         transition-all
         ${isSelected 
-          ? 'border-blue-500 shadow-lg ring-2 ring-blue-200' 
-          : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
-        }
+      ? 'border-blue-500 shadow-lg ring-2 ring-blue-200' 
+      : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+    }
       `}
     >
       <div className="flex items-center justify-between">

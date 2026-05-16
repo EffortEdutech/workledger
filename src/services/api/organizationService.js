@@ -21,13 +21,13 @@ export class OrganizationService {
    * @param {Object} data.settings - Organization settings (optional)
    * @returns {Promise<Object>} Result object { success, data, error }
    */
-  async createOrganization({ name, settings = {} }) {
+  async createOrganization({ name, org_type = 'client', settings = {} }) {
     try {
-      console.log('🏢 Creating organization:', name);
+      console.log('🏢 Creating organization:', name, '| type:', org_type);
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+
       if (userError || !user) {
         return {
           success: false,
@@ -47,6 +47,7 @@ export class OrganizationService {
         .insert({
           name,
           slug,
+          org_type,
           settings: {
             branding: {
               logo_url: null,
@@ -260,7 +261,7 @@ export class OrganizationService {
       // For now, we'll need the user to already exist
 
       // Find user by email
-      const { data: profiles, error: profileError } = await supabase
+      await supabase
         .from('user_profiles')
         .select('id')
         .eq('id', email) // This won't work - need to query by email
@@ -397,6 +398,3 @@ export class OrganizationService {
 
 // Export singleton instance
 export const organizationService = new OrganizationService();
-
-// Export default
-export default organizationService;

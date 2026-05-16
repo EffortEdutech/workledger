@@ -120,7 +120,9 @@ export default function SectionEditorPanel({
           <button
             onClick={() => {
               const key = prompt('Content key:');
-              if (key) updateNestedField('content', key, '');
+              if (key) {
+                updateNestedField('content', key, '');
+              }
             }}
             className="text-xs text-blue-600 hover:text-blue-700"
           >
@@ -144,7 +146,9 @@ export default function SectionEditorPanel({
           <button
             onClick={() => {
               const key = prompt('Option key:');
-              if (key) updateNestedField('options', key, '');
+              if (key) {
+                updateNestedField('options', key, '');
+              }
             }}
             className="text-xs text-blue-600 hover:text-blue-700"
           >
@@ -175,7 +179,9 @@ export default function SectionEditorPanel({
           <button
             onClick={() => {
               const key = prompt('Rule key:');
-              if (key) updateNestedField('binding_rules', key, '');
+              if (key) {
+                updateNestedField('binding_rules', key, '');
+              }
             }}
             className="text-xs text-blue-600 hover:text-blue-700"
           >
@@ -274,7 +280,9 @@ function CommonOptions({ blockType, options, onUpdate }) {
 
   const opts = commonOptions[blockType];
 
-  if (!opts) return null;
+  if (!opts) {
+    return null;
+  }
 
   return (
     <div className="mt-3 pt-3 border-t border-gray-200">

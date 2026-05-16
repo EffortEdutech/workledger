@@ -110,7 +110,9 @@ export default function ReportGenerator({ contractId, approvedOnly = false, onRe
       // Load contract via service — correctly joins contract_templates junction table
       // (direct template:templates FK was removed in Session 14 schema migration)
       const contractData = await contractService.getContract(contractId);
-      if (!contractData) throw new Error('Contract not found or access denied');
+      if (!contractData) {
+        throw new Error('Contract not found or access denied');
+      }
 
       // Flatten the default template onto contract.template for backwards compatibility
       // with any downstream code that reads contract.template.template_name etc.
@@ -146,7 +148,9 @@ export default function ReportGenerator({ contractId, approvedOnly = false, onRe
         .order('entry_date', { ascending: false })
         .limit(50);
       
-      if (entriesError) throw entriesError;
+      if (entriesError) {
+        throw entriesError;
+      }
 
       // Resolve approver names from user_profiles in one second-pass query.
       // We NEVER join auth.users directly — user_profiles is the correct source.
@@ -164,7 +168,9 @@ export default function ReportGenerator({ contractId, approvedOnly = false, onRe
           .in('id', approverIds);
 
         const profileMap = {};
-        (profiles || []).forEach(p => { profileMap[p.id] = p; });
+        (profiles || []).forEach(p => {
+          profileMap[p.id] = p; 
+        });
 
         allEntries.forEach(entry => {
           entry._approved_by_name = entry.approved_by
@@ -247,10 +253,18 @@ export default function ReportGenerator({ contractId, approvedOnly = false, onRe
    */
   const guessFieldType = (key, value) => {
     const lowerKey = key.toLowerCase();
-    if (lowerKey.includes('photo') || lowerKey.includes('image')) return 'photo';
-    if (lowerKey.includes('signature')) return 'signature';
-    if (typeof value === 'boolean') return 'checkbox';
-    if (typeof value === 'number') return 'number';
+    if (lowerKey.includes('photo') || lowerKey.includes('image')) {
+      return 'photo';
+    }
+    if (lowerKey.includes('signature')) {
+      return 'signature';
+    }
+    if (typeof value === 'boolean') {
+      return 'checkbox';
+    }
+    if (typeof value === 'number') {
+      return 'number';
+    }
     return 'text';
   };
 
@@ -377,7 +391,9 @@ export default function ReportGenerator({ contractId, approvedOnly = false, onRe
    * Format field value for display
    */
   const formatFieldDisplay = (value, type) => {
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     
     if (type === 'photo' || type === 'signature') {
       return `📎 ${Array.isArray(value) ? value.length : 1} ${Array.isArray(value) && value.length !== 1 ? 'files' : 'file'}`;
@@ -669,9 +685,9 @@ export default function ReportGenerator({ contractId, approvedOnly = false, onRe
                         )}
                         <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           entry.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          entry.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
-                          entry.status === 'rejected'  ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
+                            entry.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
+                              entry.status === 'rejected'  ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
                         }`}>
                           {entry.status}
                         </span>
@@ -687,8 +703,8 @@ export default function ReportGenerator({ contractId, approvedOnly = false, onRe
                           ✅ Approved by {entry._approved_by_name}
                           {entry.approved_at
                             ? ` — ${new Date(entry.approved_at).toLocaleDateString('en-GB', {
-                                day: '2-digit', month: 'short', year: 'numeric'
-                              })}`
+                              day: '2-digit', month: 'short', year: 'numeric'
+                            })}`
                             : ''
                           }
                         </p>

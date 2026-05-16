@@ -46,7 +46,9 @@ export class ProjectService {
     }
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    if (!user) {
+      return [];
+    }
 
     const { data: memberships } = await supabase
       .from('org_members')
@@ -55,7 +57,9 @@ export class ProjectService {
       .eq('is_active', true);
 
     const ownOrgIds = (memberships || []).map(m => m.organization_id);
-    if (ownOrgIds.length === 0) return [];
+    if (ownOrgIds.length === 0) {
+      return [];
+    }
 
     // ── Subcontractor access: find main contractor org IDs ────
     // If FEST ENT is subcontractor to MTSB, we need MTSB's org_id
@@ -108,7 +112,9 @@ export class ProjectService {
       console.log('📊 Getting projects count...', orgId ? `(org: ${orgId})` : '(all user orgs)');
 
       const orgIds = await this._resolveOrgIds(orgId);
-      if (orgIds.length === 0) return 0;
+      if (orgIds.length === 0) {
+        return 0;
+      }
 
       const { count, error } = await supabase
         .from('projects')
@@ -138,7 +144,9 @@ export class ProjectService {
       console.log('📊 Getting projects...', orgId ? `(org: ${orgId})` : '(all user orgs)');
 
       const orgIds = await this._resolveOrgIds(orgId);
-      if (orgIds.length === 0) return [];
+      if (orgIds.length === 0) {
+        return [];
+      }
 
       const { data, error } = await supabase
         .from('projects')
@@ -172,7 +180,9 @@ export class ProjectService {
       console.log('📊 Getting project:', id);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      if (!user) {
+        return null;
+      }
 
       const { data: project, error } = await supabase
         .from('projects')
@@ -227,7 +237,9 @@ export class ProjectService {
       console.log('📊 Creating project in org:', organizationId);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { success: false, error: 'Not authenticated' };
+      if (!user) {
+        return { success: false, error: 'Not authenticated' };
+      }
 
       const projectData = {
         organization_id: organizationId,
@@ -241,13 +253,13 @@ export class ProjectService {
         description: data.description || null,
         created_by: user.id,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       const { data: project, error } = await supabase
         .from('projects')
         .insert(projectData)
-        .select(`*, organizations(id, name, slug)`)
+        .select('*, organizations(id, name, slug)')
         .single();
 
       if (error) {
@@ -278,7 +290,7 @@ export class ProjectService {
 
       const updateData = {
         ...data,
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       // Remove fields that shouldn't be updated
@@ -291,7 +303,7 @@ export class ProjectService {
         .from('projects')
         .update(updateData)
         .eq('id', id)
-        .select(`*, organizations(id, name, slug)`)
+        .select('*, organizations(id, name, slug)')
         .single();
 
       if (error) {
@@ -323,7 +335,7 @@ export class ProjectService {
         .from('projects')
         .update({
           deleted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq('id', id);
 

@@ -31,7 +31,7 @@ class HTMLAdapter {
   /**
    * Render page setup with A4 dimensions and CSS
    */
-  renderPageSetup(pageConfig, metadata) {
+  renderPageSetup(pageConfig, _metadata) {
     const dimensions = this.getPageDimensions(pageConfig.size, pageConfig.orientation);
     
     return `
@@ -151,7 +151,9 @@ class HTMLAdapter {
     const textFields = Object.entries(content).filter(([key]) => !key.startsWith('_'));
     const text = textFields[0]?.[1] || '';
     
-    if (!text) return '';
+    if (!text) {
+      return '';
+    }
     
     return `
 <div class="text-section">
@@ -161,8 +163,7 @@ class HTMLAdapter {
     `;
   }
   
-  renderTable(block) {
-    const { content, options } = block;
+  renderTable(_block) {
     // Table rendering TBD
     return '';
   }
@@ -171,7 +172,9 @@ class HTMLAdapter {
     const { content, options } = block;
     const items = content.items || [];
     
-    if (items.length === 0) return '';
+    if (items.length === 0) {
+      return '';
+    }
     
     return `
 <div style="margin: 16px 0;">
@@ -204,7 +207,9 @@ class HTMLAdapter {
     const columns = options.columns || 2;
     const singleColumn = columns === 1;
     
-    if (photos.length === 0) return '';
+    if (photos.length === 0) {
+      return '';
+    }
     
     return `
 <div style="margin: 20px 0;">
@@ -228,7 +233,9 @@ class HTMLAdapter {
     const { content, options } = block;
     const signatures = content.signatures || [];
     
-    if (signatures.length === 0) return '';
+    if (signatures.length === 0) {
+      return '';
+    }
     
     return `
 <div style="margin: 24px 0;">
@@ -237,9 +244,9 @@ class HTMLAdapter {
     ${signatures.map(sig => `
       <div class="signature-item">
         ${sig.url 
-          ? `<img src="${sig.url}" alt="${sig.name || 'Signature'}" />`
-          : `<div class="placeholder">No signature</div>`
-        }
+    ? `<img src="${sig.url}" alt="${sig.name || 'Signature'}" />`
+    : '<div class="placeholder">No signature</div>'
+}
         <div class="signature-label">${this.escapeHtml(sig.name || 'Signature')}</div>
         ${sig.date ? `<div class="signature-label">${this.formatDate(sig.date)}</div>` : ''}
         ${sig.role ? `<div class="signature-label">${this.escapeHtml(sig.role)}</div>` : ''}
@@ -255,7 +262,9 @@ class HTMLAdapter {
     const metrics = content.metrics || [];
     const columns = options.columns || 3;
     
-    if (metrics.length === 0) return '';
+    if (metrics.length === 0) {
+      return '';
+    }
     
     return `
 <div style="margin: 16px 0;">
@@ -286,24 +295,36 @@ class HTMLAdapter {
   }
   
   formatValue(value) {
-    if (value === null || value === undefined) return '-';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (Array.isArray(value)) return value.join(', ');
+    if (value === null || value === undefined) {
+      return '-';
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
     if (typeof value === 'object') {
-      if (value instanceof Date) return this.formatDate(value);
+      if (value instanceof Date) {
+        return this.formatDate(value);
+      }
       return JSON.stringify(value);
     }
     return this.escapeHtml(String(value));
   }
   
   formatDate(dateString) {
-    if (!dateString) return '-';
+    if (!dateString) {
+      return '-';
+    }
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
   
   formatDateTime(dateString) {
-    if (!dateString) return '-';
+    if (!dateString) {
+      return '-';
+    }
     const date = new Date(dateString);
     return date.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }

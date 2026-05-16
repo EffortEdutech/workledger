@@ -24,19 +24,23 @@ import { Link, useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/layout/AppLayout';
 import { useOffline } from '../../hooks/useOffline';
 import { db } from '../../services/offline/db';
+import { useToast } from '../../context/ToastContext';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(str) {
-  if (!str) return '—';
+  if (!str) {
+    return '—';
+  }
   return new Date(str + 'T00:00:00').toLocaleDateString('en-MY', {
-    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
   });
 }
 
 // ── Entry card ────────────────────────────────────────────────────────────────
 
 function LocalEntryCard({ entry, contractName, templateName, photoCount, onDelete, onNavigateEdit }) {
+  const toast = useToast();
   const [expanded, setExpanded] = useState(false);
   const [deleting,  setDeleting]  = useState(false);
 
@@ -44,7 +48,9 @@ function LocalEntryCard({ entry, contractName, templateName, photoCount, onDelet
     if (!window.confirm(
       `Delete this draft entry (${formatDate(entry.entry_date)})?\n\n` +
       'It has never been synced and cannot be recovered.'
-    )) return;
+    )) {
+      return;
+    }
 
     try {
       setDeleting(true);
@@ -59,7 +65,7 @@ function LocalEntryCard({ entry, contractName, templateName, photoCount, onDelet
       onDelete(entry.localId);
     } catch (err) {
       console.error('❌ Delete failed:', err);
-      alert('Failed to delete. Please try again.');
+      toast.error('Failed to delete. Please try again.');
     } finally {
       setDeleting(false);
     }
@@ -182,14 +188,18 @@ export default function OfflineWorkEntryPage() {
       localEntries.sort((a, b) => (b.entry_date || '').localeCompare(a.entry_date || ''));
       setEntries(localEntries);
 
-      if (!localEntries.length) { setLoading(false); return; }
+      if (!localEntries.length) {
+        setLoading(false); return; 
+      }
 
       // Load contracts for display names
       const contractIds = [...new Set(localEntries.map(e => e.contract_id).filter(Boolean))];
       const contractMap = {};
       for (const cid of contractIds) {
         const c = await db.contracts.get(cid);
-        if (c) contractMap[cid] = c;
+        if (c) {
+          contractMap[cid] = c;
+        }
       }
       setContracts(contractMap);
 
@@ -221,14 +231,20 @@ export default function OfflineWorkEntryPage() {
     }
   }, []);
 
-  useEffect(() => { loadLocalData(); }, [loadLocalData]);
+  useEffect(() => {
+    loadLocalData(); 
+  }, [loadLocalData]);
 
   // Reload when pendingCount changes (sync pushed entries → they get remoteId → disappear here)
-  useEffect(() => { loadLocalData(); }, [pendingCount, loadLocalData]);
+  useEffect(() => {
+    loadLocalData(); 
+  }, [pendingCount, loadLocalData]);
 
   const handleEntryDeleted = (localId) => {
     setEntries(prev => prev.filter(e => e.localId !== localId));
-    setPhotoCounts(prev => { const n = { ...prev }; delete n[localId]; return n; });
+    setPhotoCounts(prev => {
+      const n = { ...prev }; delete n[localId]; return n; 
+    });
   };
 
   const handleNavigateEdit = (localId) => {

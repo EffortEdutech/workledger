@@ -41,8 +41,8 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 const fmt = (isoDate) =>
   isoDate
     ? new Date(isoDate).toLocaleDateString('en-GB', {
-        day: '2-digit', month: 'short', year: 'numeric',
-      })
+      day: '2-digit', month: 'short', year: 'numeric'
+    })
     : '—';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ const PERIOD_OPTIONS = [
   { label: '7 days',  days: 7  },
   { label: '30 days', days: 30 },
   { label: '90 days', days: 90 },
-  { label: 'Custom',  days: 0  },
+  { label: 'Custom',  days: 0  }
 ];
 
 export default function RejectionAnalytics() {
@@ -163,7 +163,9 @@ export default function RejectionAnalytics() {
 
   // ── Fetch ─────────────────────────────────────────────────────────────────
   const loadAnalytics = useCallback(async () => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -177,7 +179,9 @@ export default function RejectionAnalytics() {
 
       const result = await reportService.getRejectionAnalytics(currentOrg.id, options);
 
-      if (!result.success) throw new Error(result.error || 'Failed to load analytics');
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load analytics');
+      }
 
       setAnalytics(result.data);
       console.log('✅ Analytics loaded:', result.data.summary);

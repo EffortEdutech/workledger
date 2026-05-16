@@ -143,7 +143,7 @@ export function generateLayoutFromTemplate(template) {
  */
 export function suggestLayoutName(template) {
   // Remove common suffixes
-  let name = template.template_name
+  const name = template.template_name
     .replace(/template/i, '')
     .replace(/report/i, '')
     .trim();
@@ -157,8 +157,6 @@ export function suggestLayoutName(template) {
  */
 export function suggestLayoutDescription(template) {
   const sectionCount = template.fields_schema?.sections?.length || 0;
-  const category = template.contract_category || 'maintenance';
-  
   return `Auto-generated layout for ${template.template_name}. Contains ${sectionCount} sections with proper field bindings.`;
 }
 

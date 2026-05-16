@@ -40,7 +40,9 @@ class ContractLayoutService {
         .eq('contract_id', contractId)
         .order('assigned_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       // Flatten structure
       const layouts = data.map(item => ({
@@ -86,7 +88,9 @@ class ContractLayoutService {
         .eq('id', contractId)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       console.log('✅ Default layout:', data.default_layout?.layout_name);
       return data.default_layout;
@@ -185,7 +189,9 @@ class ContractLayoutService {
         .eq('contract_id', contractId)
         .eq('layout_id', layoutId);
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       console.log('✅ Layout removed successfully');
       return {
@@ -226,7 +232,9 @@ class ContractLayoutService {
         .update({ default_layout_id: layoutId })
         .eq('id', contractId);
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       console.log('✅ Default layout set successfully');
       return {
@@ -265,7 +273,9 @@ class ContractLayoutService {
         .eq('id', layoutId)
         .single();
       
-      if (!contract || !layout) return false;
+      if (!contract || !layout) {
+        return false;
+      }
       
       // Check if contract category is in compatible types
       const isCompatible = layout.compatible_template_types?.includes(contract.contract_category);
@@ -296,7 +306,9 @@ class ContractLayoutService {
         .eq('id', contractId)
         .single();
       
-      if (!contract) throw new Error('Contract not found');
+      if (!contract) {
+        throw new Error('Contract not found');
+      }
       
       // Get already assigned layout IDs
       const assigned = await this.getAssignedLayouts(contractId);
@@ -310,7 +322,9 @@ class ContractLayoutService {
         .or(`organization_id.is.null,organization_id.eq.${contract.organization_id}`)
         .contains('compatible_template_types', [contract.contract_category]);
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       // Filter out assigned layouts
       const available = data.filter(layout => !assignedIds.includes(layout.id));

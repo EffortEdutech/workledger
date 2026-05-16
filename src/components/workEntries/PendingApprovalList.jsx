@@ -28,7 +28,7 @@ import {
   UserIcon,
   ClockIcon,
   ChevronRightIcon,
-  DocumentTextIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,10 +36,12 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) {
+    return '—';
+  }
   try {
     return new Intl.DateTimeFormat('en-MY', {
-      day: 'numeric', month: 'long', year: 'numeric',
+      day: 'numeric', month: 'long', year: 'numeric'
     }).format(new Date(dateStr));
   } catch {
     return dateStr;
@@ -47,13 +49,23 @@ function formatDate(dateStr) {
 }
 
 function timeAgo(ts) {
-  if (!ts) return '—';
+  if (!ts) {
+    return '—';
+  }
   try {
     const diff = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-    if (diff < 60)            return 'just now';
-    if (diff < 3600)          return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400)         return `${Math.floor(diff / 3600)}h ago`;
-    if (diff < 86400 * 7)     return `${Math.floor(diff / 86400)}d ago`;
+    if (diff < 60)            {
+      return 'just now';
+    }
+    if (diff < 3600)          {
+      return `${Math.floor(diff / 60)}m ago`;
+    }
+    if (diff < 86400)         {
+      return `${Math.floor(diff / 3600)}h ago`;
+    }
+    if (diff < 86400 * 7)     {
+      return `${Math.floor(diff / 86400)}d ago`;
+    }
     return formatDate(ts);
   } catch {
     return '—';
@@ -64,7 +76,9 @@ function timeAgo(ts) {
 // We show a short UUID as the technician identifier in the list.
 // Full name is visible on the WorkEntryDetail page after clicking the card.
 function shortId(uuid) {
-  if (!uuid) return 'Unknown';
+  if (!uuid) {
+    return 'Unknown';
+  }
   return uuid.substring(0, 8).toUpperCase();
 }
 

@@ -120,7 +120,9 @@ class LayoutService {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       console.log(`✅ Found ${data.length} layouts`);
       return data;
@@ -156,8 +158,12 @@ class LayoutService {
         ({ data, error } = await query);
       }
 
-      if (error) throw error;
-      if (!data) throw new Error('Layout not found');
+      if (error) {
+        throw error;
+      }
+      if (!data) {
+        throw new Error('Layout not found');
+      }
 
       console.log('✅ Layout found:', data.layout_name);
       return data;
@@ -206,7 +212,9 @@ class LayoutService {
       console.log('📝 Creating layout:', layoutData.layout_name);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
 
       this.validateLayoutSchema(layoutData.layout_schema);
 
@@ -244,7 +252,9 @@ class LayoutService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       console.log('✅ Layout created:', data.id);
       return data;
@@ -268,9 +278,9 @@ class LayoutService {
 
       const { 
         id: _, 
-        created_at, 
-        created_by, 
-        is_default, // Remove if present
+        created_at: _created_at, 
+        created_by: _created_by, 
+        is_default: _is_default, // Remove if present
         ...allowedUpdates 
       } = updates;
 
@@ -283,7 +293,9 @@ class LayoutService {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       console.log('✅ Layout updated:', data.layout_name);
       return data;
@@ -314,7 +326,9 @@ class LayoutService {
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       console.log('✅ Layout deleted (soft)');
       return true;
@@ -359,7 +373,7 @@ class LayoutService {
       if (!contractError && contractCount > 0) {
         throw new Error(
           `Cannot delete layout: ${contractCount} contract(s) are using it as default layout. ` +
-          `Please update those contracts to use a different layout first.`
+          'Please update those contracts to use a different layout first.'
         );
       }
 

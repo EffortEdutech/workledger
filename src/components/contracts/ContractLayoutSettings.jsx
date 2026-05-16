@@ -10,8 +10,10 @@
 
 import { useState, useEffect } from 'react';
 import { contractLayoutService } from '../../services/api/contractLayoutService';
+import { useToast } from '../../context/ToastContext';
 
 export default function ContractLayoutSettings({ contractId }) {
+  const toast = useToast();
   const [assignedLayouts, setAssignedLayouts] = useState([]);
   const [availableLayouts, setAvailableLayouts] = useState([]);
   const [defaultLayoutId, setDefaultLayoutId] = useState(null);
@@ -41,7 +43,7 @@ export default function ContractLayoutSettings({ contractId }) {
       
     } catch (error) {
       console.error('Failed to load layouts:', error);
-      alert('Failed to load layouts');
+      toast.error('Failed to load layouts');
     } finally {
       setLoading(false);
     }
@@ -53,54 +55,58 @@ export default function ContractLayoutSettings({ contractId }) {
       const result = await contractLayoutService.assignLayout(contractId, layoutId);
       
       if (result.success) {
-        alert('✅ Layout assigned successfully!');
+        toast.success('Layout assigned successfully!');
         setShowAddModal(false);
         loadLayouts();
       } else {
-        alert(`❌ ${result.error}`);
+        toast.error(`${result.error}`);
       }
     } catch (error) {
-      alert('Failed to assign layout');
+      toast.error('Failed to assign layout');
     } finally {
       setProcessing(false);
     }
   };
 
   const handleRemoveLayout = async (layoutId, layoutName) => {
-    if (!confirm(`Remove "${layoutName}" from this contract?`)) return;
+    if (!confirm(`Remove "${layoutName}" from this contract?`)) {
+      return;
+    }
     
     try {
       setProcessing(true);
       const result = await contractLayoutService.removeLayout(contractId, layoutId);
       
       if (result.success) {
-        alert('✅ Layout removed successfully!');
+        toast.success('Layout removed successfully!');
         loadLayouts();
       } else {
-        alert(`❌ ${result.error}`);
+        toast.error(`${result.error}`);
       }
     } catch (error) {
-      alert('Failed to remove layout');
+      toast.error('Failed to remove layout');
     } finally {
       setProcessing(false);
     }
   };
 
   const handleSetDefault = async (layoutId, layoutName) => {
-    if (!confirm(`Set "${layoutName}" as default layout?`)) return;
+    if (!confirm(`Set "${layoutName}" as default layout?`)) {
+      return;
+    }
     
     try {
       setProcessing(true);
       const result = await contractLayoutService.setDefaultLayout(contractId, layoutId);
       
       if (result.success) {
-        alert('✅ Default layout updated!');
+        toast.success('Default layout updated!');
         loadLayouts();
       } else {
-        alert(`❌ ${result.error}`);
+        toast.error(`${result.error}`);
       }
     } catch (error) {
-      alert('Failed to set default layout');
+      toast.error('Failed to set default layout');
     } finally {
       setProcessing(false);
     }
@@ -163,9 +169,9 @@ export default function ContractLayoutSettings({ contractId }) {
                 className={`
                   flex items-center gap-4 p-4 rounded-lg border-2 transition-all
                   ${layout.id === defaultLayoutId
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                  }
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 bg-white hover:border-gray-300'
+              }
                 `}
               >
                 {/* Layout Info */}
@@ -214,8 +220,8 @@ export default function ContractLayoutSettings({ contractId }) {
                       layout.id === defaultLayoutId
                         ? 'Cannot remove default layout'
                         : assignedLayouts.length === 1
-                        ? 'Cannot remove last layout'
-                        : 'Remove layout'
+                          ? 'Cannot remove last layout'
+                          : 'Remove layout'
                     }
                   >
                     Remove

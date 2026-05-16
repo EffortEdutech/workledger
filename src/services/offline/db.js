@@ -38,7 +38,7 @@ db.version(1).stores({
   attachments: '++localId, remoteId, entry_local_id, entry_remote_id, field_id, attachment_type, sync_status, created_at',
 
   // Sync queue — every pending mutation
-  syncQueue: '++id, entity_type, entity_local_id, action, sync_status, retry_count, created_at',
+  syncQueue: '++id, entity_type, entity_local_id, action, sync_status, retry_count, created_at'
 });
 
 // ── Version 2 — add contractTemplates junction cache ─────────────────────────
@@ -62,7 +62,7 @@ db.version(1).stores({
 //   'template_id' — index for lookup by template UUID (Supabase UUID, not slug)
 //
 db.version(2).stores({
-  contractTemplates: '++localId, contract_id, template_id',
+  contractTemplates: '++localId, contract_id, template_id'
   // All v1 stores are automatically inherited unchanged
 });
 
@@ -70,7 +70,7 @@ export const SYNC_STATUS = {
   PENDING:  'pending',
   SYNCING:  'syncing',
   SYNCED:   'synced',
-  FAILED:   'failed',
+  FAILED:   'failed'
 };
 
 export default db;

@@ -19,12 +19,10 @@ import jsPDF from 'jspdf';
 import {
   formatDate,
   formatDateTime,
-  formatFieldValue,
   checkPageBreak,
   addPageNumbers,
   drawHorizontalLine,
-  drawBox,
-  wrapText
+  drawBox
 } from './pdfHelpers';
 import {
   renderTwoColumn,
@@ -404,7 +402,9 @@ class PDFService {
         }
 
         // Skip section entirely if ALL its fields were removed
-        if (selectedFields.length === 0) continue;
+        if (selectedFields.length === 0) {
+          continue;
+        }
 
         filteredSection = { ...section, fields: selectedFields };
       }
@@ -412,7 +412,9 @@ class PDFService {
       // Evaluate show_if condition
       if (sectionLayout.show_if) {
         const shouldShow = this.evaluateCondition(sectionLayout.show_if, data);
-        if (!shouldShow) continue;
+        if (!shouldShow) {
+          continue;
+        }
       }
 
       // Check page break (estimate section needs at least 30mm)
@@ -444,10 +446,14 @@ class PDFService {
         case 'signature_box': {
           // Check if signature field is selected
           const sigField = filteredSection.fields.find(f => f.field_type === 'signature');
-          if (!sigField) break; // field was deselected
+          if (!sigField) {
+            break;
+          } // field was deselected
           
           const sigFieldKey = `${section.section_id}.${sigField.field_id}`;
-          if (fieldSelections && fieldSelections[sigFieldKey] === false) break;
+          if (fieldSelections && fieldSelections[sigFieldKey] === false) {
+            break;
+          }
           
           let sigAttachment = attachments.find(a =>
             a.field_id === sigFieldKey &&
@@ -469,7 +475,9 @@ class PDFService {
             .filter(f => f.field_type === 'photo' || f.field_type === 'file')
             .map(f => `${section.section_id}.${f.field_id}`);
           
-          if (photoFieldKeys.length === 0) break; // all photo fields deselected
+          if (photoFieldKeys.length === 0) {
+            break;
+          } // all photo fields deselected
           
           const sectionPhotos = attachments.filter(a =>
             a.field_id?.startsWith(`${section.section_id}.`) &&
@@ -509,7 +517,6 @@ class PDFService {
   renderSimpleData(pdf, entry, yPos, options = {}) {
     const data = entry.data || {};
     const marginLeft = 20;
-    const maxY = 265;
     
     // Per-entry field selection
     const entrySelection = options.entrySelections?.[entry.id];
@@ -523,14 +530,20 @@ class PDFService {
     yPos += 5;
 
     Object.entries(data).forEach(([key, value]) => {
-      if (value === null || value === undefined || value === '') return;
+      if (value === null || value === undefined || value === '') {
+        return;
+      }
       
       // Skip if field is deselected in per-entry selections
-      if (fieldSelections && fieldSelections[key] === false) return;
+      if (fieldSelections && fieldSelections[key] === false) {
+        return;
+      }
       
       // Skip attachment-type fields in Entry Details (they render in attachments section)
       const lowerKey = key.toLowerCase();
-      if (lowerKey.includes('photo') || lowerKey.includes('signature') || lowerKey.includes('image')) return;
+      if (lowerKey.includes('photo') || lowerKey.includes('signature') || lowerKey.includes('image')) {
+        return;
+      }
 
       yPos = checkPageBreak(pdf, yPos, 10);
 
@@ -573,7 +586,9 @@ class PDFService {
    */
   async renderAttachments(pdf, entry, options, yPos) {
     const attachments = entry.attachments || [];
-    if (attachments.length === 0) return yPos;
+    if (attachments.length === 0) {
+      return yPos;
+    }
     
     // Per-entry field selection
     const entrySelection = options.entrySelections?.[entry.id];
@@ -585,14 +600,22 @@ class PDFService {
      * If fieldSelections exists, check if ANY photo/signature field key is selected.
      */
     const isFieldTypeSelected = (fieldType) => {
-      if (!fieldSelections) return true; // no per-field selection → include all
+      if (!fieldSelections) {
+        return true;
+      } // no per-field selection → include all
       
       // Check if any field of this type is still selected
       return Object.entries(fieldSelections).some(([key, selected]) => {
-        if (!selected) return false;
+        if (!selected) {
+          return false;
+        }
         const lowerKey = key.toLowerCase();
-        if (fieldType === 'photo') return lowerKey.includes('photo') || lowerKey.includes('image');
-        if (fieldType === 'signature') return lowerKey.includes('signature');
+        if (fieldType === 'photo') {
+          return lowerKey.includes('photo') || lowerKey.includes('image');
+        }
+        if (fieldType === 'signature') {
+          return lowerKey.includes('signature');
+        }
         return false;
       });
     };
@@ -614,7 +637,9 @@ class PDFService {
         const photosByField = {};
         enrichedPhotos.forEach(p => {
           const group = p.sectionTitle || 'Photo Documentation';
-          if (!photosByField[group]) photosByField[group] = [];
+          if (!photosByField[group]) {
+            photosByField[group] = [];
+          }
           photosByField[group].push(p);
         });
         
@@ -740,16 +765,22 @@ class PDFService {
    * @returns {string} Human-readable label or formatted fallback
    */
   resolveFieldLabel(template, fieldId) {
-    if (!template?.fields_schema?.sections || !fieldId) return null;
+    if (!template?.fields_schema?.sections || !fieldId) {
+      return null;
+    }
     
     const parts = fieldId.split('.');
-    if (parts.length < 2) return null;
+    if (parts.length < 2) {
+      return null;
+    }
     
     const sectionId = parts[0];
     const fId = parts.slice(1).join('.');
     
     const section = template.fields_schema.sections.find(s => s.section_id === sectionId);
-    if (!section) return null;
+    if (!section) {
+      return null;
+    }
     
     const field = section.fields?.find(f => f.field_id === fId);
     return field?.field_name || null;
@@ -760,7 +791,9 @@ class PDFService {
    * E.g., field_id "signoff.worker_signature" → "Worker Sign-Off"
    */
   resolveSectionName(template, fieldId) {
-    if (!template?.fields_schema?.sections || !fieldId) return null;
+    if (!template?.fields_schema?.sections || !fieldId) {
+      return null;
+    }
     const sectionId = fieldId.split('.')[0];
     const section = template.fields_schema.sections.find(s => s.section_id === sectionId);
     return section?.section_name || null;
@@ -772,7 +805,9 @@ class PDFService {
    * @returns {string} e.g., "05/02/2026 at 09:15 AM"
    */
   formatAttachmentTimestamp(isoDate) {
-    if (!isoDate) return '';
+    if (!isoDate) {
+      return '';
+    }
     try {
       const d = new Date(isoDate);
       const date = d.toLocaleDateString('en-GB'); // DD/MM/YYYY
@@ -846,8 +881,12 @@ class PDFService {
 
       // Build descriptive sub-caption: "Ahmad bin Hassan · 05/02/2026, 17:27"
       const subParts = [];
-      if (capturedBy) subParts.push(capturedBy);
-      if (capturedAt) subParts.push(capturedAt);
+      if (capturedBy) {
+        subParts.push(capturedBy);
+      }
+      if (capturedAt) {
+        subParts.push(capturedAt);
+      }
       const subCaption = subParts.join(' · ') || `Entry: ${entryDate}`;
 
       return {
@@ -934,7 +973,9 @@ class PDFService {
     const nameHints = ['name', 'full_name', 'signer', 'technician', 'verified_by', 'approved_by'];
     
     for (const field of section.fields) {
-      if (field.field_type === 'signature') continue; // skip the signature field itself
+      if (field.field_type === 'signature') {
+        continue;
+      } // skip the signature field itself
       
       const lowerFieldId = field.field_id.toLowerCase();
       const isNameField = nameHints.some(hint => lowerFieldId.includes(hint));
@@ -950,7 +991,9 @@ class PDFService {
 
     // Fallback: first non-signature text field in the section that has a value
     for (const field of section.fields) {
-      if (field.field_type === 'signature') continue;
+      if (field.field_type === 'signature') {
+        continue;
+      }
       if (field.field_type === 'text' || field.field_type === 'short_text') {
         const fieldPath = `${sectionId}.${field.field_id}`;
         const value = data[fieldPath];
@@ -978,8 +1021,12 @@ class PDFService {
         const fieldValue = this.getFieldValue(data, field);
         const expectedValue = value.replace(/['"]/g, '').trim();
 
-        if (expectedValue === 'true') return fieldValue === true;
-        if (expectedValue === 'false') return fieldValue === false;
+        if (expectedValue === 'true') {
+          return fieldValue === true;
+        }
+        if (expectedValue === 'false') {
+          return fieldValue === false;
+        }
         return String(fieldValue) === expectedValue;
       }
 
@@ -988,8 +1035,12 @@ class PDFService {
         const fieldValue = this.getFieldValue(data, field);
         const expectedValue = value.replace(/['"]/g, '').trim();
 
-        if (expectedValue === 'true') return fieldValue !== true;
-        if (expectedValue === 'false') return fieldValue !== false;
+        if (expectedValue === 'true') {
+          return fieldValue !== true;
+        }
+        if (expectedValue === 'false') {
+          return fieldValue !== false;
+        }
         return String(fieldValue) !== expectedValue;
       }
 

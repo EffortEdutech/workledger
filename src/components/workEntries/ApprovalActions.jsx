@@ -37,7 +37,7 @@ import { workEntryService } from '../../services/api/workEntryService';
 import {
   CheckCircleIcon,
   XCircleIcon,
-  XMarkIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -45,7 +45,9 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ConfirmModal({ isOpen, onClose, children }) {
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     // Backdrop
@@ -53,7 +55,9 @@ function ConfirmModal({ isOpen, onClose, children }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => {
         // Close on backdrop click
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
       }}
     >
       {/* Modal panel */}
@@ -82,7 +86,9 @@ export default function ApprovalActions({ entry, onApproved, onRejected }) {
   const [noteError, setNoteError]     = useState('');
 
   // ── Guard: only relevant when status is submitted ─────────────────────────
-  if (!entry || entry.status !== 'submitted') return null;
+  if (!entry || entry.status !== 'submitted') {
+    return null;
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Handlers
@@ -101,7 +107,9 @@ export default function ApprovalActions({ entry, onApproved, onRejected }) {
   };
 
   const closeModal = () => {
-    if (saving) return;   // don't close during save
+    if (saving) {
+      return;
+    }   // don't close during save
     setModalMode(null);
     setNoteText('');
     setNoteError('');
@@ -115,7 +123,9 @@ export default function ApprovalActions({ entry, onApproved, onRejected }) {
         throw new Error(result.error || 'Failed to approve entry');
       }
       closeModal();
-      if (onApproved) onApproved();
+      if (onApproved) {
+        onApproved();
+      }
     } catch (err) {
       console.error('❌ Approve failed:', err);
       setNoteError(err.message);
@@ -137,7 +147,9 @@ export default function ApprovalActions({ entry, onApproved, onRejected }) {
         throw new Error(result.error || 'Failed to reject entry');
       }
       closeModal();
-      if (onRejected) onRejected();
+      if (onRejected) {
+        onRejected();
+      }
     } catch (err) {
       console.error('❌ Reject failed:', err);
       setNoteError(err.message);
@@ -241,8 +253,8 @@ export default function ApprovalActions({ entry, onApproved, onRejected }) {
               <span className="font-medium text-gray-800">
                 {entry.entry_date
                   ? new Intl.DateTimeFormat('en-MY', {
-                      day: 'numeric', month: 'long', year: 'numeric',
-                    }).format(new Date(entry.entry_date))
+                    day: 'numeric', month: 'long', year: 'numeric'
+                  }).format(new Date(entry.entry_date))
                   : '—'}
               </span>
             </div>
@@ -268,7 +280,9 @@ export default function ApprovalActions({ entry, onApproved, onRejected }) {
               value={noteText}
               onChange={(e) => {
                 setNoteText(e.target.value);
-                if (noteError) setNoteError('');
+                if (noteError) {
+                  setNoteError('');
+                }
               }}
               disabled={saving}
               rows={3}
@@ -281,9 +295,9 @@ export default function ApprovalActions({ entry, onApproved, onRejected }) {
                 w-full px-3 py-2 rounded-lg border text-sm resize-none
                 focus:outline-none focus:ring-2 transition-colors
                 ${noteError
-                  ? 'border-red-300 focus:ring-red-300 bg-red-50'
-                  : 'border-gray-300 focus:ring-primary-300 bg-white'
-                }
+      ? 'border-red-300 focus:ring-red-300 bg-red-50'
+      : 'border-gray-300 focus:ring-primary-300 bg-white'
+    }
                 ${saving ? 'opacity-60 cursor-not-allowed' : ''}
               `}
             />
@@ -314,9 +328,9 @@ export default function ApprovalActions({ entry, onApproved, onRejected }) {
               transition-colors flex items-center gap-2
               disabled:opacity-50 disabled:cursor-not-allowed
               ${isApproveMode
-                ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-              }
+      ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+      : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+    }
               focus:outline-none focus:ring-2 focus:ring-offset-2
             `}
           >

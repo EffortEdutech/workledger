@@ -30,7 +30,7 @@ export const FIELD_TYPES = [
   { value: 'photo',      label: 'Photo',          icon: '📷', description: 'Photo capture/upload' },
   { value: 'signature',  label: 'Signature',      icon: '✍️', description: 'Signature capture pad' },
   { value: 'file',       label: 'File Upload',    icon: '📎', description: 'File attachment' },
-  { value: 'calculated', label: 'Calculated',     icon: '🧮', description: 'Auto-calculated from other fields' },
+  { value: 'calculated', label: 'Calculated',     icon: '🧮', description: 'Auto-calculated from other fields' }
 ];
 
 /**
@@ -45,7 +45,7 @@ export const TEMPLATE_CATEGORIES = [
   { value: 'emergency-on-call',    label: 'Emergency / On-Call' },
   { value: 'time-material',        label: 'Time & Material' },
   { value: 'construction-daily',   label: 'Construction Daily Diary' },
-  { value: 'custom',               label: 'Custom' },
+  { value: 'custom',               label: 'Custom' }
 ];
 
 /**
@@ -58,7 +58,7 @@ export const TEMPLATE_INDUSTRIES = [
   { value: 'it-services',          label: 'IT Services' },
   { value: 'property-management',  label: 'Property Management' },
   { value: 'industrial',           label: 'Industrial' },
-  { value: 'other',                label: 'Other' },
+  { value: 'other',                label: 'Other' }
 ];
 
 /**
@@ -67,7 +67,7 @@ export const TEMPLATE_INDUSTRIES = [
 export const SECTION_LAYOUTS = [
   { value: 'single_column', label: 'Single Column' },
   { value: 'two_column',    label: 'Two Columns' },
-  { value: 'checklist',     label: 'Checklist' },
+  { value: 'checklist',     label: 'Checklist' }
 ];
 
 /**
@@ -132,7 +132,9 @@ export class TemplateService {
         .is('deleted_at', null)
         .order('version', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return data || [];
     } catch (error) {
       console.error('❌ Exception in getTemplatesByCategory:', error);
@@ -186,7 +188,9 @@ export class TemplateService {
         .eq('id', contractId)
         .single();
 
-      if (contractError || !contract) return null;
+      if (contractError || !contract) {
+        return null;
+      }
       return await this.getTemplate(contract.template_id);
     } catch (error) {
       console.error('❌ Exception in getTemplateByContract:', error);
@@ -208,7 +212,9 @@ export class TemplateService {
       console.log('📝 Creating template:', templateData.template_name);
 
       const user = (await supabase.auth.getUser()).data.user;
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
 
       // Generate template_id if not provided
       const template_id = templateData.template_id || this.generateTemplateId(templateData);
@@ -237,7 +243,7 @@ export class TemplateService {
         is_locked: false,
         is_public: templateData.is_public !== undefined ? templateData.is_public : true,
         organization_id: templateData.organization_id || null,
-        created_by: user.id,
+        created_by: user.id
       };
 
       const { data, error } = await supabase
@@ -293,7 +299,7 @@ export class TemplateService {
       }
 
       // Don't allow updating certain fields
-      const { id: _id, created_at, created_by, deleted_at, ...safeUpdates } = updates;
+      const { id: _id, created_at: _created_at, created_by: _created_by, deleted_at: _deleted_at, ...safeUpdates } = updates;
 
       const { data, error } = await supabase
         .from('templates')
@@ -379,7 +385,7 @@ export class TemplateService {
         pdf_layout: JSON.parse(JSON.stringify(original.pdf_layout || {})),
         version: '1.0',
         is_public: original.is_public,
-        organization_id: original.organization_id,
+        organization_id: original.organization_id
       };
 
       return await this.createTemplate(cloneData);
@@ -417,7 +423,9 @@ export class TemplateService {
         `)
         .eq('template_id', templateId);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       // Unwrap nested contract objects and filter out soft-deleted
       const contracts = (data || [])
@@ -438,7 +446,9 @@ export class TemplateService {
   async toggleLock(id) {
     try {
       const template = await this.getTemplate(id);
-      if (!template) return { success: false, error: 'Template not found' };
+      if (!template) {
+        return { success: false, error: 'Template not found' };
+      }
 
       const { data, error } = await supabase
         .from('templates')
@@ -447,7 +457,9 @@ export class TemplateService {
         .select()
         .single();
 
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        return { success: false, error: error.message };
+      }
       return { success: true, data };
     } catch (error) {
       return { success: false, error: error.message };
@@ -503,7 +515,7 @@ export class TemplateService {
       prefill_from: '',
       show_if: null,
       auto_calculate: false,
-      formula: '',
+      formula: ''
     };
   }
 
@@ -522,7 +534,7 @@ export class TemplateService {
         sections: [this.createBlankSection(0)]
       },
       validation_rules: {},
-      pdf_layout: {},
+      pdf_layout: {}
     };
   }
 
@@ -591,7 +603,9 @@ export class TemplateService {
    * Get field count for a template
    */
   getFieldCount(template) {
-    if (!template?.fields_schema?.sections) return 0;
+    if (!template?.fields_schema?.sections) {
+      return 0;
+    }
     return template.fields_schema.sections.reduce((count, section) => {
       return count + (section.fields?.length || 0);
     }, 0);
@@ -608,7 +622,9 @@ export class TemplateService {
    * Extract all field IDs
    */
   getFieldIds(template) {
-    if (!template?.fields_schema?.sections) return [];
+    if (!template?.fields_schema?.sections) {
+      return [];
+    }
     const fieldIds = [];
     template.fields_schema.sections.forEach(section => {
       section.fields?.forEach(field => {

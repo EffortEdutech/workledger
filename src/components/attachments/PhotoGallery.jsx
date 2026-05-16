@@ -10,6 +10,7 @@
 
 import React, { useState } from 'react';
 import { attachmentService } from '../../services/api/attachmentService';
+import { useToast } from '../../context/ToastContext';
 
 /**
  * Photo Gallery Component
@@ -43,6 +44,7 @@ export default function PhotoGallery({
   columns = 3
 }) {
   // State
+  const toast = useToast();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [deleting, setDeleting] = useState(false);
@@ -80,7 +82,9 @@ export default function PhotoGallery({
    * Handle keyboard navigation
    */
   React.useEffect(() => {
-    if (!lightboxOpen) return;
+    if (!lightboxOpen) {
+      return;
+    }
 
     const handleKeyDown = (event) => {
       switch (event.key) {
@@ -106,7 +110,9 @@ export default function PhotoGallery({
    * Handle delete photo
    */
   const handleDelete = async () => {
-    if (readOnly || !onDelete) return;
+    if (readOnly || !onDelete) {
+      return;
+    }
 
     const photo = attachments[currentIndex];
 
@@ -140,7 +146,7 @@ export default function PhotoGallery({
 
     } catch (err) {
       console.error('❌ Error deleting photo:', err);
-      alert('Failed to delete photo');
+      toast.error('Failed to delete photo');
     } finally {
       setDeleting(false);
     }

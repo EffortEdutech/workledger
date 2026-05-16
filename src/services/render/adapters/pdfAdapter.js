@@ -13,8 +13,6 @@ import {
   renderTwoColumn,
   renderSingleColumn,
   renderChecklist,
-  renderTable,
-  renderMetricsCards,
   renderSignatureBox,
   renderPhotoGrid
 } from '../../pdf/pdfLayouts';
@@ -22,7 +20,6 @@ import {
   formatDate,
   formatDateTime,
   checkPageBreak,
-  addPageNumbers,
   drawHorizontalLine
 } from '../../pdf/pdfHelpers';
 
@@ -112,8 +109,12 @@ class PDFAdapter {
     pdf.setFontSize(9);
     pdf.setTextColor(100, 100, 100);
     const entryInfo = [];
-    if (metadata.entryDate) entryInfo.push(`Date: ${formatDate(metadata.entryDate)}`);
-    if (metadata.shift) entryInfo.push(`Shift: ${metadata.shift}`);
+    if (metadata.entryDate) {
+      entryInfo.push(`Date: ${formatDate(metadata.entryDate)}`);
+    }
+    if (metadata.shift) {
+      entryInfo.push(`Shift: ${metadata.shift}`);
+    }
     if (entryInfo.length > 0) {
       pdf.text(entryInfo.join(' | '), marginLeft, yPos);
       yPos += 5;
@@ -201,7 +202,7 @@ class PDFAdapter {
       section_id: block.blockId,
       section_name: this.formatLabel(block.blockId),
       fields: Object.entries(block.content)
-        .filter(([key, value]) => value !== null && value !== undefined)
+        .filter(([_key, value]) => value !== null && value !== undefined)
         .map(([key, value]) => ({
           field_id: key,
           field_name: this.formatLabel(key),
@@ -234,7 +235,9 @@ class PDFAdapter {
     
     const text = block.content.text || block.content.observations || '';
     
-    if (!text) return yPos;
+    if (!text) {
+      return yPos;
+    }
     
     // Check page break
     yPos = checkPageBreak(pdf, yPos, 30);
@@ -268,7 +271,9 @@ class PDFAdapter {
   async renderChecklistBlock(pdf, block, yPos) {
     const items = block.content.items || [];
     
-    if (items.length === 0) return yPos;
+    if (items.length === 0) {
+      return yPos;
+    }
     
     // Check page break
     yPos = checkPageBreak(pdf, yPos, 40);
@@ -297,10 +302,12 @@ class PDFAdapter {
   /**
    * Render photo grid using existing renderer
    */
-  async renderPhotoBlock(pdf, block, yPos, attachments) {
+  async renderPhotoBlock(pdf, block, yPos, _attachments) {
     const photos = block.content.photos || block.content || [];
     
-    if (photos.length === 0) return yPos;
+    if (photos.length === 0) {
+      return yPos;
+    }
     
     // Check page break
     yPos = checkPageBreak(pdf, yPos, 60);
@@ -318,7 +325,7 @@ class PDFAdapter {
   /**
    * Render signature box using existing renderer
    */
-  async renderSignatureBlock(pdf, block, yPos, attachments) {
+  async renderSignatureBlock(pdf, block, yPos, _attachments) {
     const signatures = block.content.signatures || block.content || [];
     
     if (signatures.length === 0) {
@@ -368,10 +375,18 @@ class PDFAdapter {
    * Guess field type from value
    */
   guessFieldType(value) {
-    if (typeof value === 'boolean') return 'checkbox';
-    if (typeof value === 'number') return 'number';
-    if (value instanceof Date) return 'date';
-    if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) return 'date';
+    if (typeof value === 'boolean') {
+      return 'checkbox';
+    }
+    if (typeof value === 'number') {
+      return 'number';
+    }
+    if (value instanceof Date) {
+      return 'date';
+    }
+    if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+      return 'date';
+    }
     return 'text';
   }
 }

@@ -155,52 +155,52 @@ export function Breadcrumb() {
     }
   };
 
-    /**
+  /**
      * Handle contract breadcrumbs
      */
-    const handleContractBreadcrumbs = async (crumbs, segments, params) => {
-      crumbs.push({ label: 'Contracts', path: '/contracts' });
+  const handleContractBreadcrumbs = async (crumbs, segments, params) => {
+    crumbs.push({ label: 'Contracts', path: '/contracts' });
 
-      if (segments[1] === 'new') {
-        crumbs.push({ label: 'Create New Contract', path: '/contracts/new', current: true });
-      } else if (segments[1] && params.id) {
-        // Fetch contract number (shorter than contract name)
-        try {
-          const { data: contract, error } = await supabase
-            .from('contracts')
-            .select('contract_number')
-            .eq('id', params.id)
-            .is('deleted_at', null)
-            .single();
+    if (segments[1] === 'new') {
+      crumbs.push({ label: 'Create New Contract', path: '/contracts/new', current: true });
+    } else if (segments[1] && params.id) {
+      // Fetch contract number (shorter than contract name)
+      try {
+        const { data: contract, error } = await supabase
+          .from('contracts')
+          .select('contract_number')
+          .eq('id', params.id)
+          .is('deleted_at', null)
+          .single();
           
-          if (contract && contract.contract_number) {
-            crumbs.push({ 
-              label: contract.contract_number, // Use contract number (e.g., SLA-EDU-2024-001)
-              path: `/contracts/${params.id}` 
-            });
+        if (contract && contract.contract_number) {
+          crumbs.push({ 
+            label: contract.contract_number, // Use contract number (e.g., SLA-EDU-2024-001)
+            path: `/contracts/${params.id}` 
+          });
             
-            if (segments[2] === 'edit') {
-              crumbs.push({ label: 'Edit', path: `/contracts/${params.id}/edit`, current: true });
-            } else {
-              // Contract detail is current page
-              crumbs[crumbs.length - 1].current = true;
-            }
+          if (segments[2] === 'edit') {
+            crumbs.push({ label: 'Edit', path: `/contracts/${params.id}/edit`, current: true });
           } else {
-            // Fallback if contract not found
-            crumbs.push({ label: 'Contract', path: `/contracts/${params.id}`, current: !segments[2] });
-            if (segments[2] === 'edit') {
-              crumbs.push({ label: 'Edit', path: `/contracts/${params.id}/edit`, current: true });
-            }
+            // Contract detail is current page
+            crumbs[crumbs.length - 1].current = true;
           }
-        } catch (error) {
-          console.error('Error fetching contract for breadcrumb:', error);
+        } else {
+          // Fallback if contract not found
           crumbs.push({ label: 'Contract', path: `/contracts/${params.id}`, current: !segments[2] });
           if (segments[2] === 'edit') {
             crumbs.push({ label: 'Edit', path: `/contracts/${params.id}/edit`, current: true });
           }
         }
+      } catch (error) {
+        console.error('Error fetching contract for breadcrumb:', error);
+        crumbs.push({ label: 'Contract', path: `/contracts/${params.id}`, current: !segments[2] });
+        if (segments[2] === 'edit') {
+          crumbs.push({ label: 'Edit', path: `/contracts/${params.id}/edit`, current: true });
+        }
       }
-    };
+    }
+  };
 
   /**
    * Handle work entries breadcrumbs
@@ -234,7 +234,7 @@ export function Breadcrumb() {
     if (segments[1] === 'new') {
       crumbs.push({ label: 'Create Template', path: '/templates/new', current: true });
     } else if (segments[1] && params.id) {
-        crumbs.push({ label: 'Edit', path: `/templates/${params.id}/edit`, current: true });
+      crumbs.push({ label: 'Edit', path: `/templates/${params.id}/edit`, current: true });
 
     } else {
       // list page is current

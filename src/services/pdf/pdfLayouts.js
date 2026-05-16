@@ -521,7 +521,9 @@ export async function renderSignatureBox(pdf, section, data, yPos, signatures = 
  * @returns {Promise<number>} New Y position
  */
 export async function renderPhotoGrid(pdf, photos, layout, yPos) {
-  if (!photos || photos.length === 0) return yPos;
+  if (!photos || photos.length === 0) {
+    return yPos;
+  }
   
   const marginLeft = 20;
   const marginRight = 20;

@@ -65,7 +65,7 @@ export default function NewWorkEntry() {
       status:          workEntryData.status,
       submitted_at:    workEntryData.submitted_at ?? null,
       sync_status:     'pending',
-      created_at:      new Date().toISOString(),
+      created_at:      new Date().toISOString()
     };
 
     const localId = await db.workEntries.add(localEntry);
@@ -76,7 +76,7 @@ export default function NewWorkEntry() {
       action:          'create',
       sync_status:     'pending',
       retry_count:     0,
-      created_at:      new Date().toISOString(),
+      created_at:      new Date().toISOString()
     });
 
     console.log(`✅ Saved to IndexedDB (localId: ${localId})`);
@@ -89,7 +89,7 @@ export default function NewWorkEntry() {
       if (result.success && result.data?.id) {
         await db.workEntries.update(localId, {
           remoteId:    result.data.id,
-          sync_status: 'synced',
+          sync_status: 'synced'
         });
         // Remove from sync queue — already pushed
         await db.syncQueue
@@ -160,7 +160,7 @@ export default function NewWorkEntry() {
       const submittedEntry = {
         ...workEntryData,
         status:       'submitted',
-        submitted_at: new Date().toISOString(),
+        submitted_at: new Date().toISOString()
       };
 
       // 1. Write to IndexedDB first

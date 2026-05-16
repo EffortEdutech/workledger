@@ -27,11 +27,13 @@ import {
   CalendarIcon,
   MapPinIcon,
   UserGroupIcon,
-  PhoneIcon,
+  PhoneIcon
 } from '@heroicons/react/24/outline';
 import { useRole } from '../../hooks/useRole';
+import { useToast } from '../../context/ToastContext';
 
 export function ProjectDetail() {
+  const toast = useToast();
   const { id }     = useParams();
   const navigate   = useNavigate();
 
@@ -40,7 +42,9 @@ export function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
 
-  useEffect(() => { loadProject(); }, [id]);
+  useEffect(() => {
+    loadProject(); 
+  }, [id]);
 
   const loadProject = async () => {
     try {
@@ -64,29 +68,35 @@ export function ProjectDetail() {
   const handleEdit = () => navigate(`/projects/${id}/edit`);
 
   const handleDelete = async () => {
-    if (!window.confirm(`Are you sure you want to delete "${project.project_name}"?`)) return;
+    if (!window.confirm(`Are you sure you want to delete "${project.project_name}"?`)) {
+      return;
+    }
     try {
       await projectService.deleteProject(id);
       console.log('✅ Project deleted');
       navigate('/projects');
     } catch (err) {
       console.error('❌ Error deleting project:', err);
-      alert('Failed to delete project. Please try again.');
+      toast.error('Failed to delete project. Please try again.');
     }
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) {
+      return 'N/A';
+    }
     return new Date(dateString).toLocaleDateString('en-MY', {
-      year: 'numeric', month: 'long', day: 'numeric',
+      year: 'numeric', month: 'long', day: 'numeric'
     });
   };
 
   const formatDateTime = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) {
+      return 'N/A';
+    }
     return new Date(dateString).toLocaleString('en-MY', {
       year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      hour: '2-digit', minute: '2-digit'
     });
   };
 
@@ -94,36 +104,40 @@ export function ProjectDetail() {
     active:    'bg-green-100 text-green-800 border-green-200',
     completed: 'bg-blue-100 text-blue-800 border-blue-200',
     on_hold:   'bg-yellow-100 text-yellow-800 border-yellow-200',
-    cancelled: 'bg-gray-100 text-gray-800 border-gray-200',
+    cancelled: 'bg-gray-100 text-gray-800 border-gray-200'
   };
   const statusLabels = {
-    active: 'Active', completed: 'Completed', on_hold: 'On Hold', cancelled: 'Cancelled',
+    active: 'Active', completed: 'Completed', on_hold: 'On Hold', cancelled: 'Cancelled'
   };
 
-  if (loading) return (
-    <AppLayout>
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <LoadingSpinner size="lg" />
-      </div>
-    </AppLayout>
-  );
-
-  if (error || !project) return (
-    <AppLayout>
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-red-900 mb-2">Error Loading Project</h3>
-          <p className="text-red-800 mb-4">{error || 'Project not found.'}</p>
-          <button
-            onClick={() => navigate('/projects')}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-          >
-            Back to Projects
-          </button>
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <LoadingSpinner size="lg" />
         </div>
-      </div>
-    </AppLayout>
-  );
+      </AppLayout>
+    );
+  }
+
+  if (error || !project) {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h3 className="text-lg font-medium text-red-900 mb-2">Error Loading Project</h3>
+            <p className="text-red-800 mb-4">{error || 'Project not found.'}</p>
+            <button
+              onClick={() => navigate('/projects')}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            >
+            Back to Projects
+            </button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

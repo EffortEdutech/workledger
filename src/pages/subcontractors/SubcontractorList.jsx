@@ -26,13 +26,14 @@ import { PermissionGuard } from '../../components/auth/PermissionGuard';
 import { subcontractorService } from '../../services/api/subcontractorService';
 import { useOrganization } from '../../context/OrganizationContext';
 import { useRole } from '../../hooks/useRole';
+import { useToast } from '../../context/ToastContext';
 
 // ── Status badge ────────────────────────────────────────────────────
 function StatusBadge({ status }) {
   const map = {
     active:     'bg-green-100 text-green-700',
     completed:  'bg-blue-100 text-blue-700',
-    terminated: 'bg-red-100 text-red-700',
+    terminated: 'bg-red-100 text-red-700'
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[status] ?? 'bg-gray-100 text-gray-600'}`}>
@@ -47,15 +48,17 @@ function OrgTypeBadge({ orgType }) {
     client:          'bg-gray-100 text-gray-600',
     main_contractor: 'bg-purple-100 text-purple-700',
     subcontractor:   'bg-orange-100 text-orange-700',
-    freelancer:      'bg-yellow-100 text-yellow-700',
+    freelancer:      'bg-yellow-100 text-yellow-700'
   };
   const labels = {
     client:          'Client',
     main_contractor: 'Main Contractor',
     subcontractor:   'Subcontractor',
-    freelancer:      'Freelancer',
+    freelancer:      'Freelancer'
   };
-  if (!orgType || orgType === 'client') return null;
+  if (!orgType || orgType === 'client') {
+    return null;
+  }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[orgType] ?? 'bg-gray-100 text-gray-600'}`}>
       {labels[orgType] ?? orgType}
@@ -64,6 +67,7 @@ function OrgTypeBadge({ orgType }) {
 }
 
 export default function SubcontractorList() {
+  const toast = useToast();
   const { currentOrg }       = useOrganization();
   const { can }              = useRole();
 
@@ -78,7 +82,9 @@ export default function SubcontractorList() {
 
   // ── Load relationships ──────────────────────────────────────────────
   const loadData = useCallback(async () => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id) {
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -93,7 +99,9 @@ export default function SubcontractorList() {
     }
   }, [currentOrg?.id]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData(); 
+  }, [loadData]);
 
   // ── Terminate / Reactivate ──────────────────────────────────────────
   const handleStatusChange = async (id, newStatus) => {
@@ -107,11 +115,11 @@ export default function SubcontractorList() {
         );
         console.log('✅ Status changed to:', newStatus);
       } else {
-        alert(`Failed to update status: ${result.error}`);
+        toast.error(`Failed to update status: ${result.error}`);
       }
     } catch (err) {
       console.error('❌ Error changing status:', err);
-      alert('Failed to update relationship status.');
+      toast.error('Failed to update relationship status.');
     } finally {
       setActionLoading(null);
     }
@@ -196,7 +204,7 @@ export default function SubcontractorList() {
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6 w-fit">
           {[
             { key: 'active', label: 'Active', count: activeCount },
-            { key: 'all',    label: 'All',    count: allCount    },
+            { key: 'all',    label: 'All',    count: allCount    }
           ].map(tab => (
             <button
               key={tab.key}
@@ -204,8 +212,8 @@ export default function SubcontractorList() {
               className={`
                 flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors
                 ${activeTab === tab.key
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'}
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'}
               `}
             >
               {tab.label}

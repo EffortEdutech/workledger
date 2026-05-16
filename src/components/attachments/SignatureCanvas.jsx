@@ -73,17 +73,23 @@ export default function SignatureCanvas({
    */
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      return;
+    }
 
     // Touch event handlers
     const handleTouchStart = (e) => {
-      if (disabled || signature) return;
+      if (disabled || signature) {
+        return;
+      }
       e.preventDefault(); // This now works because passive: false
       startDrawing(e);
     };
 
     const handleTouchMove = (e) => {
-      if (!isDrawing || disabled || signature) return;
+      if (!isDrawing || disabled || signature) {
+        return;
+      }
       e.preventDefault(); // This now works because passive: false
       draw(e);
     };
@@ -109,7 +115,9 @@ export default function SignatureCanvas({
    * Resize canvas to container width
    */
   const resizeCanvas = () => {
-    if (!canvasRef.current || !containerRef.current) return;
+    if (!canvasRef.current || !containerRef.current) {
+      return;
+    }
 
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -172,7 +180,9 @@ export default function SignatureCanvas({
    * Start drawing
    */
   const startDrawing = (event) => {
-    if (disabled || signature) return;
+    if (disabled || signature) {
+      return;
+    }
 
     setIsDrawing(true);
     setIsEmpty(false);
@@ -188,7 +198,9 @@ export default function SignatureCanvas({
    * Draw
    */
   const draw = (event) => {
-    if (!isDrawing || disabled || signature) return;
+    if (!isDrawing || disabled || signature) {
+      return;
+    }
 
     const coords = getCoordinates(event);
     const ctx = canvasRef.current.getContext('2d');
@@ -224,7 +236,9 @@ export default function SignatureCanvas({
    * Save signature
    */
   const handleSave = async () => {
-    if (isEmpty || disabled || signature) return;
+    if (isEmpty || disabled || signature) {
+      return;
+    }
 
     try {
       setUploading(true);
@@ -275,7 +289,9 @@ export default function SignatureCanvas({
    * Delete signature
    */
   const deleteSignature = async () => {
-    if (!signature) return;
+    if (!signature) {
+      return;
+    }
 
     try {
       setLoading(true);

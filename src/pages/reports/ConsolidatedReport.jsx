@@ -68,7 +68,7 @@ const STATUS_LABEL = {
   approved:  { label: 'Approved',  color: 'bg-green-100 text-green-800' },
   submitted: { label: 'Submitted', color: 'bg-blue-100 text-blue-800'  },
   rejected:  { label: 'Rejected',  color: 'bg-red-100 text-red-800'    },
-  draft:     { label: 'Draft',     color: 'bg-gray-100 text-gray-700'  },
+  draft:     { label: 'Draft',     color: 'bg-gray-100 text-gray-700'  }
 };
 
 // ─── Entry Supabase query (reused for both orgs) ──────────────────────────────
@@ -98,7 +98,9 @@ const fetchEntriesForOrg = async (orgId, dateFrom, dateTo) => {
     .lte('entry_date', dateTo)
     .order('entry_date', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    throw error;
+  }
   return data || [];
 };
 
@@ -190,7 +192,9 @@ export default function ConsolidatedReport() {
   // ── Init: load subcontractor relationships ─────────────────────────────────
   useEffect(() => {
     const init = async () => {
-      if (!currentOrg?.id) return;
+      if (!currentOrg?.id) {
+        return;
+      }
       try {
         const rels = await subcontractorService.getSubcontractorRelationships(currentOrg.id);
         const active = rels.filter(r => r.status === 'active');
@@ -206,7 +210,9 @@ export default function ConsolidatedReport() {
 
   // ── Load Entries ───────────────────────────────────────────────────────────
   const loadEntries = useCallback(async () => {
-    if (!currentOrg?.id) return;
+    if (!currentOrg?.id) {
+      return;
+    }
 
     try {
       setLoading(true);
@@ -223,7 +229,7 @@ export default function ConsolidatedReport() {
         fetchEntriesForOrg(currentOrg.id, dateFrom, dateTo),
         ...(includeSubcon
           ? subconOrgIds.map(orgId => fetchEntriesForOrg(orgId, dateFrom, dateTo))
-          : []),
+          : [])
       ];
 
       const results = await Promise.all(fetchPromises);
@@ -249,7 +255,9 @@ export default function ConsolidatedReport() {
           .from('user_profiles')
           .select('id, full_name')
           .in('id', allUserIds);
-        (profiles || []).forEach(p => { nameMap[p.id] = p.full_name; });
+        (profiles || []).forEach(p => {
+          nameMap[p.id] = p.full_name; 
+        });
       }
 
       setInternalEntries(internal);
@@ -279,12 +287,14 @@ export default function ConsolidatedReport() {
     rejected: countByStatus(allEntries, 'rejected'),
     draft:    countByStatus(allEntries, 'draft'),
     internal: internalEntries.length,
-    subcon:   subconEntries.length,
+    subcon:   subconEntries.length
   };
 
   // ── PDF Generation ─────────────────────────────────────────────────────────
   const handleGeneratePDF = async () => {
-    if (!dataLoaded || allEntries.length === 0) return;
+    if (!dataLoaded || allEntries.length === 0) {
+      return;
+    }
 
     try {
       setGenerating(true);
@@ -342,12 +352,12 @@ export default function ConsolidatedReport() {
           summary.rejected,
           summary.draft,
           summary.internal,
-          summary.subcon,
+          summary.subcon
         ]],
         styles: { fontSize: 9, cellPadding: 3 },
         headStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [240, 245, 255] },
-        theme: 'grid',
+        theme: 'grid'
       });
 
       yPos = pdf.lastAutoTable.finalY + 10;
@@ -376,13 +386,13 @@ export default function ConsolidatedReport() {
             (e.contract?.contract_name || '—').substring(0, 25),
             (e.template?.template_name || '—').substring(0, 20),
             (STATUS_LABEL[e.status]?.label || e.status),
-            (creatorNames[e.created_by] || '—').split(' ')[0], // first name only for space
+            (creatorNames[e.created_by] || '—').split(' ')[0] // first name only for space
           ]),
           styles: { fontSize: 8, cellPadding: 2.5 },
           headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold' },
           alternateRowStyles: { fillColor: [248, 250, 252] },
           theme: 'grid',
-          columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 25 }, 5: { cellWidth: 20 } },
+          columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 25 }, 5: { cellWidth: 20 } }
         });
         yPos = pdf.lastAutoTable.finalY + 10;
       }
@@ -423,13 +433,13 @@ export default function ConsolidatedReport() {
                 (e.contract?.contract_name || '—').substring(0, 25),
                 (e.template?.template_name || '—').substring(0, 20),
                 (STATUS_LABEL[e.status]?.label || e.status),
-                (creatorNames[e.created_by] || '—').split(' ')[0],
+                (creatorNames[e.created_by] || '—').split(' ')[0]
               ]),
               styles: { fontSize: 8, cellPadding: 2.5 },
               headStyles: { fillColor: [124, 45, 18], textColor: 255, fontStyle: 'bold' },
               alternateRowStyles: { fillColor: [255, 247, 237] },
               theme: 'grid',
-              columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 25 }, 5: { cellWidth: 20 } },
+              columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 25 }, 5: { cellWidth: 20 } }
             });
             yPos = pdf.lastAutoTable.finalY + 10;
           }
@@ -639,11 +649,13 @@ export default function ConsolidatedReport() {
             {[
               { label: 'Last 7 days',  from: daysAgo(7) },
               { label: 'Last 30 days', from: daysAgo(30) },
-              { label: 'Last 90 days', from: daysAgo(90) },
+              { label: 'Last 90 days', from: daysAgo(90) }
             ].map(({ label, from }) => (
               <button
                 key={label}
-                onClick={() => { setDateFrom(from); setDateTo(today()); }}
+                onClick={() => {
+                  setDateFrom(from); setDateTo(today()); 
+                }}
                 className="px-3 py-1 text-xs border border-gray-200 rounded-full text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
               >
                 {label}

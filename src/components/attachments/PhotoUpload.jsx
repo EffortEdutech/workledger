@@ -95,7 +95,9 @@ export default function PhotoUpload({
   const handleFileSelect = async (event) => {
     const files = Array.from(event.target.files);
     
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      return;
+    }
 
     // Check max photos limit
     if (photos.length + files.length > maxPhotos) {
@@ -178,8 +180,12 @@ export default function PhotoUpload({
       setUploading(false);
       
       // Reset file inputs
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      if (cameraInputRef.current) {
+        cameraInputRef.current.value = '';
+      }
     }
   };
 

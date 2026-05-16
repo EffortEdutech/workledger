@@ -22,7 +22,7 @@ export const PUBLIC_ROUTES = {
   LOGIN:           '/login',
   REGISTER:        '/register',
   FORGOT_PASSWORD: '/forgot-password',
-  RESET_PASSWORD:  '/reset-password',
+  RESET_PASSWORD:  '/reset-password'
 };
 
 /**
@@ -108,7 +108,7 @@ export const PROTECTED_ROUTES = {
 
   // ── Help ─────────────────────────────────────────────────
   HELP:  '/help',
-  ABOUT: '/about',
+  ABOUT: '/about'
 };
 
 /**
@@ -116,7 +116,7 @@ export const PROTECTED_ROUTES = {
  */
 export const ROUTES = {
   ...PUBLIC_ROUTES,
-  ...PROTECTED_ROUTES,
+  ...PROTECTED_ROUTES
 };
 
 /**
@@ -128,20 +128,20 @@ export const ROUTE_GROUPS = {
     { path: PROTECTED_ROUTES.WORK_ENTRIES, label: 'Work Entries', icon: '📋' },
     { path: PROTECTED_ROUTES.PROJECTS,     label: 'Projects',     icon: '🗂️' },
     { path: PROTECTED_ROUTES.CONTRACTS,    label: 'Contracts',    icon: '📄' },
-    { path: PROTECTED_ROUTES.REPORTS,      label: 'Reports',      icon: '📊' },
+    { path: PROTECTED_ROUTES.REPORTS,      label: 'Reports',      icon: '📊' }
   ],
   ADMIN: [
     { path: PROTECTED_ROUTES.ORGANIZATIONS,  label: 'Organizations',  icon: '🏢' },
     { path: PROTECTED_ROUTES.TEMPLATES,      label: 'Templates',      icon: '📝' },
     { path: PROTECTED_ROUTES.REPORT_LAYOUTS, label: 'Report Layouts', icon: '🎨', badge: 'New' },
     { path: PROTECTED_ROUTES.ADMIN_USERS,    label: 'Users',          icon: '👥' },
-    { path: PROTECTED_ROUTES.QUICK_ENTRY,    label: 'Quick Entry',    icon: '📱' },
+    { path: PROTECTED_ROUTES.QUICK_ENTRY,    label: 'Quick Entry',    icon: '📱' }
   ],
   USER: [
     { path: PROTECTED_ROUTES.PROFILE,     label: 'Profile',     icon: '👤' },
     { path: PROTECTED_ROUTES.SYNC_STATUS, label: 'Sync Status', icon: '🔄' },
-    { path: PROTECTED_ROUTES.HELP,        label: 'Help',        icon: '❓' },
-  ],
+    { path: PROTECTED_ROUTES.HELP,        label: 'Help',        icon: '❓' }
+  ]
 };
 
 /**
@@ -171,14 +171,16 @@ export const isProtectedRoute = (path) => !isPublicRoute(path);
 export const getBreadcrumbs = (path) => {
   const segments    = path.split('/').filter(Boolean);
   const breadcrumbs = [
-    { label: 'Dashboard', path: PROTECTED_ROUTES.DASHBOARD },
+    { label: 'Dashboard', path: PROTECTED_ROUTES.DASHBOARD }
   ];
 
   let currentPath = '';
   segments.forEach((segment) => {
     currentPath += `/${segment}`;
     // Skip UUID segments in breadcrumbs
-    if (/^[a-f0-9-]{36}$/i.test(segment)) return;
+    if (/^[a-f0-9-]{36}$/i.test(segment)) {
+      return;
+    }
     const label = segment
       .split('-')
       .map(w => w.charAt(0).toUpperCase() + w.slice(1))

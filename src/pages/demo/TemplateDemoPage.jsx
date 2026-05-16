@@ -16,8 +16,10 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import Button from '../../components/common/Button';
 import { templateService } from '../../services/api/templateService';
 import { contractService } from '../../services/api/contractService';
+import { useToast } from '../../context/ToastContext';
 
 export function TemplateDemoPage() {
+  const toast = useToast();
   const [templates, setTemplates] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
@@ -76,7 +78,7 @@ export function TemplateDemoPage() {
     console.log('📝 Form submitted:', data);
     setFormData(data);
     
-    alert('Form submitted successfully! Check console for data.');
+    toast.info('Form submitted successfully! Check console for data.');
   };
 
   // Handle form cancel

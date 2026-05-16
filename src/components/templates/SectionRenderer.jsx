@@ -33,7 +33,9 @@ export function SectionRenderer({
    * Check if field should be displayed based on show_if condition
    */
   const shouldShowField = (field) => {
-    if (!field.show_if) return true;
+    if (!field.show_if) {
+      return true;
+    }
 
     const { field: conditionField, equals } = field.show_if;
 

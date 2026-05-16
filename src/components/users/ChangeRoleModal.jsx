@@ -38,7 +38,9 @@ export default function ChangeRoleModal({ member, orgId, onSuccess, onClose }) {
   // ── Handlers ─────────────────────────────────────────────
 
   const handleProceedToConfirm = () => {
-    if (!hasChanged) return;
+    if (!hasChanged) {
+      return;
+    }
     setError(null);
     setStep('confirm');
   };

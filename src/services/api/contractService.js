@@ -26,7 +26,6 @@
  */
 
 import { supabase } from '../supabase/client';
-import { projectService } from './projectService';
 
 export class ContractService {
 
@@ -53,7 +52,9 @@ export class ContractService {
    */
   async _resolveProjectIds(orgId = null) {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    if (!user) {
+      return [];
+    }
 
     // ── Super admin check ─────────────────────────────────────
     const { data: profile } = await supabase
@@ -86,7 +87,9 @@ export class ContractService {
         .eq('is_active', true);
 
       userOrgIds = (memberships || []).map(m => m.organization_id);
-      if (userOrgIds.length === 0) return [];
+      if (userOrgIds.length === 0) {
+        return [];
+      }
 
       projectQuery = projectQuery.in('organization_id', userOrgIds);
     }
@@ -134,7 +137,9 @@ export class ContractService {
       console.log('📊 Getting contracts count...', orgId ? `(org: ${orgId})` : '(all user orgs)');
 
       const projectIds = await this._resolveProjectIds(orgId);
-      if (projectIds.length === 0) return 0;
+      if (projectIds.length === 0) {
+        return 0;
+      }
 
       const { count, error } = await supabase
         .from('contracts')
@@ -185,7 +190,9 @@ export class ContractService {
 
       // ── Resolve project IDs (includes subcon projects) ──────────────
       const projectIds = await this._resolveProjectIds(orgId);
-      if (projectIds.length === 0) return [];
+      if (projectIds.length === 0) {
+        return [];
+      }
 
       // ── Resolve user's own org IDs ────────────────────────────────
       const { data: { user } } = await supabase.auth.getUser();
@@ -208,7 +215,9 @@ export class ContractService {
             .eq('is_active', true);
           userOrgIds = (memberships || []).map(m => m.organization_id);
         }
-        if (!userOrgIds || userOrgIds.length === 0) return [];
+        if (!userOrgIds || userOrgIds.length === 0) {
+          return [];
+        }
       }
 
       // ── Shared SELECT shape ────────────────────────────────────────
@@ -237,7 +246,9 @@ export class ContractService {
         .in('project_id', projectIds)
         .is('deleted_at', null);
 
-      if (userOrgIds) queryA = queryA.in('organization_id', userOrgIds);
+      if (userOrgIds) {
+        queryA = queryA.in('organization_id', userOrgIds);
+      }
 
       // ── Query B: Contracts the user PERFORMS (subcontractor role) ──
       let queryB = supabase
@@ -246,7 +257,9 @@ export class ContractService {
         .in('project_id', projectIds)
         .is('deleted_at', null);
 
-      if (userOrgIds) queryB = queryB.in('performing_org_id', userOrgIds);
+      if (userOrgIds) {
+        queryB = queryB.in('performing_org_id', userOrgIds);
+      }
 
       const [resultA, resultB] = await Promise.all([queryA, queryB]);
 
@@ -380,24 +393,29 @@ export class ContractService {
       console.log('📊 Creating contract for project:', projectId);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { success: false, error: 'Not authenticated' };
+      if (!user) {
+        return { success: false, error: 'Not authenticated' };
+      }
 
       const contractData = {
-        project_id: projectId,
-        contract_number: data.contract_number,
-        contract_name: data.contract_name,
-        contract_category: data.contract_category,
-        contract_type: data.contract_type || null,
-        status: data.status || 'active',
-        valid_from: data.valid_from || null,
-        valid_until: data.valid_until || null,
-        contract_value: data.contract_value || null,
+        project_id:          projectId,
+        contract_number:     data.contract_number,
+        contract_name:       data.contract_name,
+        contract_category:   data.contract_category,
+        contract_type:       data.contract_type       || null,
+        status:              data.status              || 'active',
+        valid_from:          data.valid_from          || null,
+        valid_until:         data.valid_until         || null,
+        contract_value:      data.contract_value      || null,
         reporting_frequency: data.reporting_frequency || 'monthly',
-        maintenance_cycle: data.maintenance_cycle || null,
-        description: data.description || null,
-        created_by: user.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        maintenance_cycle:   data.maintenance_cycle   || null,
+        description:         data.description         || null,
+        // Subcontract support: who physically performs the work
+        contract_role:       data.contract_role       || 'main',
+        performing_org_id:   data.performing_org_id   || null,
+        created_by:          user.id,
+        created_at:          new Date().toISOString(),
+        updated_at:          new Date().toISOString()
       };
 
       const { data: contract, error } = await supabase
@@ -437,7 +455,7 @@ export class ContractService {
 
       const updateData = {
         ...data,
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       delete updateData.id;
@@ -484,7 +502,7 @@ export class ContractService {
         .from('contracts')
         .update({
           deleted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq('id', id);
 
@@ -563,7 +581,9 @@ export class ContractService {
       console.log('📝 Adding template to contract:', { contractId, templateId, label });
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { success: false, error: 'Not authenticated' };
+      if (!user) {
+        return { success: false, error: 'Not authenticated' };
+      }
 
       const existing = await this.getContractTemplates(contractId);
       const shouldBeDefault = isDefault || existing.length === 0;
@@ -584,7 +604,7 @@ export class ContractService {
           label:        label || null,
           is_default:   shouldBeDefault,
           sort_order:   existing.length,
-          assigned_by:  user.id,
+          assigned_by:  user.id
         })
         .select(`
           id, contract_id, template_id, label, sort_order, is_default, assigned_at,
@@ -679,14 +699,18 @@ export class ContractService {
         .update({ is_default: false })
         .eq('contract_id', contractId);
 
-      if (clearError) return { success: false, error: clearError.message };
+      if (clearError) {
+        return { success: false, error: clearError.message };
+      }
 
       const { error } = await supabase
         .from('contract_templates')
         .update({ is_default: true })
         .eq('id', contractTemplateId);
 
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        return { success: false, error: error.message };
+      }
 
       console.log('✅ Default template set');
       return { success: true };
@@ -710,7 +734,9 @@ export class ContractService {
         .update({ label: label || null })
         .eq('id', contractTemplateId);
 
-      if (error) return { success: false, error: error.message };
+      if (error) {
+        return { success: false, error: error.message };
+      }
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

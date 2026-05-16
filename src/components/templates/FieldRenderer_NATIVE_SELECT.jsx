@@ -46,7 +46,9 @@ export function FieldRenderer({
 
   // Get default value
   const getDefaultValue = () => {
-    if (value !== undefined && value !== null) return value;
+    if (value !== undefined && value !== null) {
+      return value;
+    }
     
     // Handle default_value
     if (field.default_value) {

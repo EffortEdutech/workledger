@@ -23,39 +23,58 @@ import { useOrganization } from '../../context/OrganizationContext';
 import AppLayout from '../../components/layout/AppLayout';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import ReportPreview from '../../components/reports/ReportPreview';
+import { useToast } from '../../context/ToastContext';
 
 // ============================================
 // HELPER: Format date for display
 // ============================================
 function formatDate(dateStr) {
-  if (!dateStr) return '-';
+  if (!dateStr) {
+    return '-';
+  }
   try {
     return new Date(dateStr).toLocaleDateString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric'
     });
-  } catch { return dateStr; }
+  } catch {
+    return dateStr; 
+  }
 }
 
 function formatDateTime(dateStr) {
-  if (!dateStr) return '-';
+  if (!dateStr) {
+    return '-';
+  }
   try {
     return new Date(dateStr).toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
-  } catch { return dateStr; }
+  } catch {
+    return dateStr; 
+  }
 }
 
 function timeAgo(dateStr) {
-  if (!dateStr) return '';
+  if (!dateStr) {
+    return '';
+  }
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) {
+    return 'just now';
+  }
+  if (mins < 60) {
+    return `${mins}m ago`;
+  }
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) {
+    return `${days}d ago`;
+  }
   return formatDate(dateStr);
 }
 
@@ -93,6 +112,7 @@ const STATUS_STYLES = {
 // MAIN COMPONENT
 // ============================================
 export default function ReportHistory() {
+  const toast = useToast();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
 
@@ -176,8 +196,12 @@ export default function ReportHistory() {
       
       // Build filters object
       const filters = { contractId };
-      if (showFilter !== 'all') filters.status = showFilter;
-      if (typeFilter !== 'all') filters.reportType = typeFilter;
+      if (showFilter !== 'all') {
+        filters.status = showFilter;
+      }
+      if (typeFilter !== 'all') {
+        filters.reportType = typeFilter;
+      }
 
       // reportService.getReportHistory returns array directly, not {success, data}
       const reports = await reportService.getReportHistory(filters);
@@ -220,7 +244,9 @@ export default function ReportHistory() {
   };
 
   const handleGenerateMonthly = async () => {
-    if (!selectedContractId || !selectedMonth) return;
+    if (!selectedContractId || !selectedMonth) {
+      return;
+    }
 
     const [yearStr, monthStr] = selectedMonth.split('-');
     const year = parseInt(yearStr);
@@ -233,7 +259,7 @@ export default function ReportHistory() {
       const result = await reportService.generateMonthlyReport(selectedContractId, year, month);
 
       if (!result.success) {
-        alert(result.error || 'Failed to generate monthly report');
+        toast.error(result.error || 'Failed to generate monthly report');
         return;
       }
 
@@ -247,14 +273,16 @@ export default function ReportHistory() {
 
     } catch (error) {
       console.error('❌ Monthly report error:', error);
-      alert('Failed to generate monthly report: ' + error.message);
+      toast.error('Failed to generate monthly report: ' + error.message);
     } finally {
       setGenerating(false);
     }
   };
 
   const handleGenerateWeekly = async () => {
-    if (!selectedContractId || !selectedWeekDate) return;
+    if (!selectedContractId || !selectedWeekDate) {
+      return;
+    }
 
     const { start, end } = getWeekBounds(selectedWeekDate);
 
@@ -265,7 +293,7 @@ export default function ReportHistory() {
       const result = await reportService.generateWeeklyReport(selectedContractId, start, end);
 
       if (!result.success) {
-        alert(result.error || 'Failed to generate weekly report');
+        toast.error(result.error || 'Failed to generate weekly report');
         return;
       }
 
@@ -277,7 +305,7 @@ export default function ReportHistory() {
 
     } catch (error) {
       console.error('❌ Weekly report error:', error);
-      alert('Failed to generate weekly report: ' + error.message);
+      toast.error('Failed to generate weekly report: ' + error.message);
     } finally {
       setGenerating(false);
     }
@@ -288,13 +316,13 @@ export default function ReportHistory() {
     try {
       const result = await reportService.regenerateReport(report);
       if (!result.success) {
-        alert(result.error || 'Failed to regenerate report');
+        toast.error(result.error || 'Failed to regenerate report');
         return;
       }
       setPreviewBlob(result.blob);
       setPreviewFilename(result.filename);
     } catch (error) {
-      alert('Failed to view report: ' + error.message);
+      toast.error('Failed to view report: ' + error.message);
     } finally {
       setGenerating(false);
     }
@@ -305,12 +333,12 @@ export default function ReportHistory() {
     try {
       const result = await reportService.regenerateReport(report);
       if (!result.success) {
-        alert(result.error || 'Failed to export report');
+        toast.error(result.error || 'Failed to export report');
         return;
       }
       reportService.downloadPDF(result.blob, result.filename);
     } catch (error) {
-      alert('Failed to export report: ' + error.message);
+      toast.error('Failed to export report: ' + error.message);
     } finally {
       setGenerating(false);
     }
@@ -321,12 +349,12 @@ export default function ReportHistory() {
     try {
       const result = await reportService.regenerateReport(report);
       if (!result.success) {
-        alert(result.error || 'Failed to print report');
+        toast.error(result.error || 'Failed to print report');
         return;
       }
       reportService.openPDFInNewTab(result.blob);
     } catch (error) {
-      alert('Failed to print report: ' + error.message);
+      toast.error('Failed to print report: ' + error.message);
     } finally {
       setGenerating(false);
     }
@@ -334,7 +362,9 @@ export default function ReportHistory() {
 
   const handleArchiveReport = async (report) => {
     const action = report.status === 'archived' ? 'restore' : 'archive';
-    if (!confirm(`${action === 'archive' ? 'Archive' : 'Restore'} "${report.report_title}"?`)) return;
+    if (!confirm(`${action === 'archive' ? 'Archive' : 'Restore'} "${report.report_title}"?`)) {
+      return;
+    }
 
     const result = action === 'archive'
       ? await reportService.archiveReport(report.id)
@@ -344,19 +374,21 @@ export default function ReportHistory() {
       await loadReports(selectedContractId);
       await loadStats(selectedContractId);
     } else {
-      alert(`Failed to ${action} report`);
+      toast.error(`Failed to ${action} report`);
     }
   };
 
   const handleDeleteReport = async (report) => {
-    if (!confirm(`Permanently delete "${report.report_title}"? This cannot be undone.`)) return;
+    if (!confirm(`Permanently delete "${report.report_title}"? This cannot be undone.`)) {
+      return;
+    }
 
     const result = await reportService.deleteReport(report.id);
     if (result.success) {
       await loadReports(selectedContractId);
       await loadStats(selectedContractId);
     } else {
-      alert('Failed to delete report');
+      toast.error('Failed to delete report');
     }
   };
 
@@ -830,7 +862,9 @@ export default function ReportHistory() {
         <ReportPreview
           blob={previewBlob}
           filename={previewFilename}
-          onClose={() => { setPreviewBlob(null); setPreviewFilename(''); }}
+          onClose={() => {
+            setPreviewBlob(null); setPreviewFilename(''); 
+          }}
           onDownload={() => {
             reportService.downloadPDF(previewBlob, previewFilename);
           }}

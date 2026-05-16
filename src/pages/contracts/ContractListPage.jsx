@@ -26,8 +26,10 @@ import { contractService } from '../../services/api/contractService';
 import { projectService } from '../../services/api/projectService';
 import { useOrganization } from '../../context/OrganizationContext';
 import { useRole } from '../../hooks/useRole';
+import { useToast } from '../../context/ToastContext';
 
 export function ContractListPage() {
+  const toast = useToast();
   const { currentOrg } = useOrganization();
   const { can } = useRole();
 
@@ -51,7 +53,7 @@ export function ContractListPage() {
 
       const [contractsData, projectsData] = await Promise.all([
         contractService.getUserContracts(orgId),
-        projectService.getUserProjects(orgId),
+        projectService.getUserProjects(orgId)
       ]);
 
       setContracts(contractsData || []);
@@ -78,7 +80,7 @@ export function ContractListPage() {
       console.log('✅ Contract deleted successfully');
     } catch (err) {
       console.error('❌ Error deleting contract:', err);
-      alert('Failed to delete contract. Please try again.');
+      toast.error('Failed to delete contract. Please try again.');
     }
   };
 

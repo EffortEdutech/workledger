@@ -128,8 +128,8 @@ export default function LayoutSelector({ templateType, onSelect, defaultLayoutId
               className={`
                 relative p-4 border-2 rounded-lg text-left transition-all
                 ${isSelected
-                  ? 'border-primary-500 bg-primary-50 shadow-md ring-2 ring-primary-200'
-                  : 'border-gray-200 hover:border-gray-300 hover:shadow-sm bg-white'}
+              ? 'border-primary-500 bg-primary-50 shadow-md ring-2 ring-primary-200'
+              : 'border-gray-200 hover:border-gray-300 hover:shadow-sm bg-white'}
               `}
             >
               {/* Preview thumbnail */}

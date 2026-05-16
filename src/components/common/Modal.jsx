@@ -48,11 +48,13 @@ export function Modal({
   size = 'md',
   closeOnEscape = true,
   closeOnOverlay = true,
-  showCloseButton = true,
+  showCloseButton = true
 }) {
   // Handle Escape key
   useEffect(() => {
-    if (!isOpen || !closeOnEscape) return;
+    if (!isOpen || !closeOnEscape) {
+      return;
+    }
 
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
@@ -78,7 +80,9 @@ export function Modal({
   }, [isOpen]);
 
   // Don't render if not open
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   // Size styles
   const sizeStyles = {
@@ -86,7 +90,7 @@ export function Modal({
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
-    full: 'max-w-full mx-4',
+    full: 'max-w-full mx-4'
   };
 
   // Handle overlay click

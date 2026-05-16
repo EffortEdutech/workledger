@@ -57,7 +57,9 @@ class UserService {
         .eq('organization_id', orgId)
         .order('joined_at', { ascending: true });
 
-      if (membersError) throw membersError;
+      if (membersError) {
+        throw membersError;
+      }
       if (!members || members.length === 0) {
         console.log('✅ Loaded members: 0');
         return [];
@@ -74,11 +76,13 @@ class UserService {
       }
 
       const profileMap = {};
-      (profiles || []).forEach(p => { profileMap[p.id] = p; });
+      (profiles || []).forEach(p => {
+        profileMap[p.id] = p; 
+      });
 
       const merged = members.map(m => ({
         ...m,
-        user: profileMap[m.user_id] || null,
+        user: profileMap[m.user_id] || null
       }));
 
       // Exclude platform staff — they use the org switcher, not org_members
@@ -131,7 +135,9 @@ class UserService {
         .select('id, full_name, phone_number, global_role, avatar_url, created_at')
         .order('created_at', { ascending: false });
 
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        throw profilesError;
+      }
       if (!profiles || profiles.length === 0) {
         return { success: true, data: [] };
       }
@@ -152,11 +158,13 @@ class UserService {
       // ── Step 3: Build userId → orgs map ──────────────────────────────────
       const orgMap = {};
       (memberships || []).forEach(m => {
-        if (!orgMap[m.user_id]) orgMap[m.user_id] = [];
+        if (!orgMap[m.user_id]) {
+          orgMap[m.user_id] = [];
+        }
         orgMap[m.user_id].push({
           orgId:   m.organization_id,
           orgName: m.organizations?.name ?? 'Unknown org',
-          role:    m.role,
+          role:    m.role
         });
       });
 
@@ -164,7 +172,7 @@ class UserService {
       const data = profiles.map(p => ({
         ...p,
         orgs:   orgMap[p.id] ?? [],
-        hasOrg: (orgMap[p.id] ?? []).length > 0,
+        hasOrg: (orgMap[p.id] ?? []).length > 0
       }));
 
       console.log(`✅ Loaded platform users: ${data.length} (${data.filter(u => !u.hasOrg).length} without org)`);
@@ -186,7 +194,9 @@ class UserService {
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', orgId)
         .eq('is_active', true);
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return count || 0;
     } catch (error) {
       console.error('❌ Exception in getActiveMemberCount:', error);
@@ -202,7 +212,9 @@ class UserService {
         .eq('organization_id', orgId)
         .eq('role', 'org_owner')
         .eq('is_active', true);
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return count || 0;
     } catch (error) {
       console.error('❌ Exception in getOwnerCount:', error);
@@ -238,7 +250,7 @@ class UserService {
         if (ownerCount <= 1) {
           return {
             success: false,
-            error: 'Cannot change role — this is the last Owner. Assign another Owner first.',
+            error: 'Cannot change role — this is the last Owner. Assign another Owner first.'
           };
         }
       }
@@ -249,7 +261,9 @@ class UserService {
         .eq('id', memberId)
         .eq('organization_id', orgId);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       console.log('✅ Role updated to:', newRole);
       return { success: true };
     } catch (error) {
@@ -278,7 +292,7 @@ class UserService {
         if (ownerCount <= 1) {
           return {
             success: false,
-            error: 'Cannot deactivate the last Owner. Assign another Owner first.',
+            error: 'Cannot deactivate the last Owner. Assign another Owner first.'
           };
         }
       }
@@ -289,7 +303,9 @@ class UserService {
         .eq('id', memberId)
         .eq('organization_id', orgId);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       console.log('✅ Member deactivated');
       return { success: true };
     } catch (error) {
@@ -306,7 +322,9 @@ class UserService {
         .update({ is_active: true, updated_at: new Date().toISOString() })
         .eq('id', memberId)
         .eq('organization_id', orgId);
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return { success: true };
     } catch (error) {
       console.error('❌ Exception in reactivateMember:', error);
@@ -354,7 +372,9 @@ class UserService {
         .eq('organization_id', orgId)
         .eq('user_id', userId)
         .maybeSingle();
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return { isMember: !!data, member: data || null };
     } catch (error) {
       console.error('❌ Exception in checkExistingMembership:', error);
@@ -381,7 +401,9 @@ class UserService {
           .from('org_members')
           .update({ is_active: true, role, updated_at: new Date().toISOString() })
           .eq('id', member.id);
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
         return { success: true, reactivated: true };
       }
 
@@ -394,10 +416,12 @@ class UserService {
           is_active:       true,
           joined_at:       new Date().toISOString(),
           created_at:      new Date().toISOString(),
-          updated_at:      new Date().toISOString(),
+          updated_at:      new Date().toISOString()
         });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       console.log('✅ User added to org');
       return { success: true };
     } catch (error) {

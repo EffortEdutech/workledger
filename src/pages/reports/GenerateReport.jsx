@@ -307,7 +307,7 @@ export default function GenerateReport() {
                   entryIds,
                   options,
                   periodStart: null,
-                  periodEnd:   null,
+                  periodEnd:   null
                 });
                 console.log('✅ Report saved to history');
               } catch (err) {

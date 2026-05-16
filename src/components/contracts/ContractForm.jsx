@@ -32,7 +32,7 @@ const CONTRACT_CATEGORY_OPTIONS = [
   { value: 'emergency-on-call',         label: 'Emergency / 24-7 Callout' },
   { value: 'time-and-material',         label: 'Time & Material (T&M)' },
   { value: 'construction-daily-diary',  label: 'Construction Daily Diary' },
-  { value: 'custom',                    label: 'Custom' },
+  { value: 'custom',                    label: 'Custom' }
 ];
 
 const REPORTING_FREQUENCY_OPTIONS = [
@@ -44,7 +44,7 @@ const REPORTING_FREQUENCY_OPTIONS = [
   { value: 'quarterly', label: 'Quarterly (Every 3 Months)' },
   { value: 'annually',  label: 'Annually' },
   { value: 'adhoc',     label: 'Ad-Hoc / As Required' },
-  { value: 'per-visit', label: 'Per Visit / Per Incident' },
+  { value: 'per-visit', label: 'Per Visit / Per Incident' }
 ];
 
 const MAINTENANCE_CYCLE_OPTIONS = [
@@ -57,7 +57,7 @@ const MAINTENANCE_CYCLE_OPTIONS = [
   { value: 'quarterly',  label: 'Quarterly (Every 3 Months)' },
   { value: 'biannually', label: 'Bi-Annually (Every 6 Months)' },
   { value: 'annually',   label: 'Annually' },
-  { value: 'as-needed',  label: 'As Needed / Ad-Hoc' },
+  { value: 'as-needed',  label: 'As Needed / Ad-Hoc' }
 ];
 
 const STATUS_OPTIONS = [
@@ -65,7 +65,7 @@ const STATUS_OPTIONS = [
   { value: 'draft',     label: 'Draft' },
   { value: 'suspended', label: 'Suspended' },
   { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'cancelled', label: 'Cancelled' }
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -73,13 +73,14 @@ const STATUS_OPTIONS = [
 // ─────────────────────────────────────────────────────────────
 
 export default function ContractForm({
-  initialData  = null,
-  projects     = [],
-  templates    = [],   // all available templates passed from parent
-  mode         = 'create',
+  initialData        = null,
+  projects           = [],
+  templates          = [],            // all available templates passed from parent
+  subcontractorOrgs  = [],            // orgs this main contractor can assign work to
+  mode               = 'create',
   onSubmit,
   onCancel,
-  isSubmitting = false,
+  isSubmitting       = false
 }) {
   const navigate = useNavigate();
 
@@ -96,7 +97,13 @@ export default function ContractForm({
     reporting_frequency: '',
     maintenance_cycle:   '',
     description:         '',
+    // Subcontract fields
+    contract_role:       'main',
+    performing_org_id:   ''
   });
+
+  // Whether the "assign to subcontractor" toggle is on
+  const [isSubcontract, setIsSubcontract] = useState(false);
 
   // IDs of templates the user has selected for this contract
   const [selectedTemplateIds, setSelectedTemplateIds] = useState([]);
@@ -105,6 +112,8 @@ export default function ContractForm({
   // Pre-fill in edit mode
   useEffect(() => {
     if (mode === 'edit' && initialData) {
+      const isSub = initialData.contract_role === 'sub';
+      setIsSubcontract(isSub);
       setFormData({
         project_id:          initialData.project_id          || '',
         contract_number:     initialData.contract_number     || '',
@@ -118,6 +127,8 @@ export default function ContractForm({
         reporting_frequency: initialData.reporting_frequency || '',
         maintenance_cycle:   initialData.maintenance_cycle   || '',
         description:         initialData.description         || '',
+        contract_role:       initialData.contract_role       || 'main',
+        performing_org_id:   initialData.performing_org_id   || ''
       });
 
       // Pre-check templates already assigned to this contract.
@@ -139,30 +150,56 @@ export default function ContractForm({
     );
     // Clear template error if user picks one
     if (errors.template_ids) {
-      setErrors(prev => { const e = { ...prev }; delete e.template_ids; return e; });
+      setErrors(prev => {
+        const e = { ...prev }; delete e.template_ids; return e; 
+      });
     }
   };
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => { const e = { ...prev }; delete e[field]; return e; });
+      setErrors(prev => {
+        const e = { ...prev }; delete e[field]; return e; 
+      });
     }
   };
 
   const validate = () => {
     const e = {};
-    if (!formData.project_id)              e.project_id          = 'Project is required';
-    if (!formData.contract_number?.trim()) e.contract_number     = 'Contract number is required';
-    if (!formData.contract_name?.trim())   e.contract_name       = 'Contract name is required';
-    if (!formData.contract_category)       e.contract_category   = 'Category is required';
-    if (!formData.status)                  e.status              = 'Status is required';
-    if (!formData.valid_from)              e.valid_from          = 'Start date is required';
-    if (!formData.valid_until)             e.valid_until         = 'End date is required';
-    if (formData.valid_from && formData.valid_until && formData.valid_until < formData.valid_from)
-                                           e.valid_until         = 'End date must be after start date';
-    if (!formData.reporting_frequency)     e.reporting_frequency = 'Reporting frequency is required';
-    if (selectedTemplateIds.length === 0)  e.template_ids        = 'At least one template must be assigned';
+    if (!formData.project_id)              {
+      e.project_id          = 'Project is required';
+    }
+    if (!formData.contract_number?.trim()) {
+      e.contract_number     = 'Contract number is required';
+    }
+    if (!formData.contract_name?.trim())   {
+      e.contract_name       = 'Contract name is required';
+    }
+    if (!formData.contract_category)       {
+      e.contract_category   = 'Category is required';
+    }
+    if (!formData.status)                  {
+      e.status              = 'Status is required';
+    }
+    if (!formData.valid_from)              {
+      e.valid_from          = 'Start date is required';
+    }
+    if (!formData.valid_until)             {
+      e.valid_until         = 'End date is required';
+    }
+    if (formData.valid_from && formData.valid_until && formData.valid_until < formData.valid_from) {
+      e.valid_until         = 'End date must be after start date';
+    }
+    if (!formData.reporting_frequency)     {
+      e.reporting_frequency = 'Reporting frequency is required';
+    }
+    if (selectedTemplateIds.length === 0)  {
+      e.template_ids        = 'At least one template must be assigned';
+    }
+    if (isSubcontract && !formData.performing_org_id) {
+      e.performing_org_id   = 'Please select a subcontractor to perform this work';
+    }
     return e;
   };
 
@@ -189,8 +226,11 @@ export default function ContractForm({
       reporting_frequency: formData.reporting_frequency  || null,
       maintenance_cycle:   formData.maintenance_cycle    || null,
       description:         formData.description?.trim()  || null,
+      // Subcontract fields
+      contract_role:       isSubcontract ? 'sub' : 'main',
+      performing_org_id:   isSubcontract && formData.performing_org_id ? formData.performing_org_id : null,
       // template IDs — parent (New/EditContract) handles junction table writes
-      template_ids:        selectedTemplateIds,
+      template_ids:        selectedTemplateIds
     };
 
     onSubmit(formData.project_id, payload);
@@ -200,8 +240,8 @@ export default function ContractForm({
   const fc = (name) =>
     `mt-1 block w-full rounded-md shadow-sm text-sm
      ${errors[name]
-       ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-       : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500'}`;
+    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+    : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500'}`;
 
   const lc = 'block text-sm font-medium text-gray-700';
 
@@ -335,8 +375,8 @@ export default function ContractForm({
                   className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer
                               transition-colors select-none
                               ${checked
-                                ? 'bg-primary-50 border-primary-400'
-                                : 'bg-white border-gray-200 hover:border-gray-300'}`}
+                  ? 'bg-primary-50 border-primary-400'
+                  : 'bg-white border-gray-200 hover:border-gray-300'}`}
                 >
                   <input
                     type="checkbox"
@@ -379,7 +419,64 @@ export default function ContractForm({
         )}
       </div>
 
-      {/* ── Section 2: Duration & Value ───────────────────── */}
+      {/* ── Section 3: Subcontract Assignment (main contractors only) ── */}
+      {subcontractorOrgs.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Subcontract Assignment</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Optionally delegate this contract&apos;s work to one of your linked subcontractors.
+          </p>
+
+          <label className="flex items-center gap-3 cursor-pointer select-none mb-4">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded text-primary-600 focus:ring-primary-500 border-gray-300"
+              checked={isSubcontract}
+              onChange={e => {
+                setIsSubcontract(e.target.checked);
+                if (!e.target.checked) {
+                  handleChange('performing_org_id', '');
+                }
+                if (errors.performing_org_id) {
+                  setErrors(prev => {
+                    const err = { ...prev }; delete err.performing_org_id; return err; 
+                  });
+                }
+              }}
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Assign work to a subcontractor
+            </span>
+          </label>
+
+          {isSubcontract && (
+            <div>
+              <label htmlFor="performing_org_id" className={lc}>
+                Performing Organisation <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="performing_org_id"
+                value={formData.performing_org_id}
+                onChange={e => handleChange('performing_org_id', e.target.value)}
+                className={fc('performing_org_id')}
+              >
+                <option value="">— Select Subcontractor —</option>
+                {subcontractorOrgs.map(org => (
+                  <option key={org.id} value={org.id}>{org.name}</option>
+                ))}
+              </select>
+              {errors.performing_org_id && (
+                <p className="mt-1 text-xs text-red-600">{errors.performing_org_id}</p>
+              )}
+              <p className="mt-2 text-xs text-gray-500">
+                The selected organisation will see this contract and can submit work entries against it.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Section 4: Duration & Value ───────────────────── */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Duration & Value</h2>
 
@@ -409,7 +506,7 @@ export default function ContractForm({
         </div>
       </div>
 
-      {/* ── Section 3: Reporting Configuration ────────────── */}
+      {/* ── Section 5: Reporting Configuration ────────────── */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Reporting Configuration</h2>
 
@@ -474,3 +571,5 @@ export default function ContractForm({
     </form>
   );
 }
+
+   

@@ -49,7 +49,9 @@ export function OfflineProvider({ children }) {
 
   // ── Trigger full sync cycle ───────────────────────────────────────────
   const triggerSync = useCallback(async () => {
-    if (isSyncing.current || !navigator.onLine) return;
+    if (isSyncing.current || !navigator.onLine) {
+      return;
+    }
 
     isSyncing.current = true;
     setSyncStatus('syncing');
@@ -92,7 +94,9 @@ export function OfflineProvider({ children }) {
 
   // Auto-sync on mount
   useEffect(() => {
-    if (navigator.onLine) triggerSync();
+    if (navigator.onLine) {
+      triggerSync();
+    }
   }, []); // eslint-disable-line
 
   // ── Periodic retry — SESSION 19 FIX ──────────────────────────────────
@@ -131,7 +135,7 @@ export function OfflineProvider({ children }) {
     syncStatus,
     pendingCount,
     triggerSync,
-    refreshPendingCount,
+    refreshPendingCount
   };
 
   return (
@@ -143,7 +147,9 @@ export function OfflineProvider({ children }) {
 
 export function useOfflineContext() {
   const ctx = useContext(OfflineContext);
-  if (!ctx) throw new Error('useOfflineContext must be used inside <OfflineProvider>');
+  if (!ctx) {
+    throw new Error('useOfflineContext must be used inside <OfflineProvider>');
+  }
   return ctx;
 }
 

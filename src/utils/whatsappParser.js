@@ -27,15 +27,11 @@
  */
 
 // ── Malay day & month maps ─────────────────────────────────────────────────
-const MALAY_DAYS = {
-  isnin: 1, selasa: 2, rabu: 3, khamis: 4,
-  jumaat: 5, sabtu: 6, ahad: 0, minggu: 0,
-};
 
 const MALAY_MONTHS = {
   jan: 0, feb: 1, mac: 2, mar: 2, apr: 3,
   mei: 4, may: 4, jun: 5, jul: 6, ogo: 7, aug: 7,
-  sep: 8, okt: 9, oct: 9, nov: 10, dis: 11, dec: 11,
+  sep: 8, okt: 9, oct: 9, nov: 10, dis: 11, dec: 11
 };
 
 // ── Common job keywords → field mapping ───────────────────────────────────
@@ -55,14 +51,14 @@ const JOB_KEYWORDS = {
   'water heater': 'water_heater',
   'water tank': 'water_tank',
   'paip':       'plumbing',
-  'pipe':       'plumbing',
+  'pipe':       'plumbing'
 };
 
 const PROBLEM_KEYWORDS = [
   'bocor', 'leak', 'rosak', 'breakdown', 'tak sejuk', 'tak dingin',
   'gas habis', 'gas leak', 'no cooling', 'noisy', 'bising',
   'trip', 'overload', 'voltage', 'electrical', 'wiring',
-  'tersumbat', 'blocked', 'clogged', 'compressor', 'fan',
+  'tersumbat', 'blocked', 'clogged', 'compressor', 'fan'
 ];
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -109,17 +105,26 @@ export function parseWhatsAppMessage(rawText) {
   const descLines = lines.filter(l => {
     const lo = l.toLowerCase();
     // Skip lines that look like pure date lines
-    if (_looksLikeDate(lo)) return false;
+    if (_looksLikeDate(lo)) {
+      return false;
+    }
     return true;
   });
   const job_description = descLines.join(' ').replace(/\s+/g, ' ').trim();
 
   // ── 6. Overall confidence ─────────────────────────────────────────────
   let confidence = 'high';
-  if (!entry_date)      { confidence = 'low';    warnings.push('Could not detect a date — please set manually.'); }
-  else if (dateCon === 'medium') { confidence = 'medium'; }
-  if (!location)        warnings.push('No location/unit found — please fill in manually.');
-  if (!equipment_type)  warnings.push('Equipment type not detected — please select manually.');
+  if (!entry_date)      {
+    confidence = 'low';    warnings.push('Could not detect a date — please set manually.'); 
+  } else if (dateCon === 'medium') {
+    confidence = 'medium'; 
+  }
+  if (!location)        {
+    warnings.push('No location/unit found — please fill in manually.');
+  }
+  if (!equipment_type)  {
+    warnings.push('Equipment type not detected — please select manually.');
+  }
 
   return {
     entry_date,
@@ -129,7 +134,7 @@ export function parseWhatsAppMessage(rawText) {
     problems_detected,
     raw_lines: lines,
     confidence,
-    warnings,
+    warnings
   };
 }
 
@@ -148,7 +153,7 @@ export function toWorkEntryData(parsed, overrides = {}) {
     job_description:  parsed.job_description || '',
     problems_detected: parsed.problems_detected.join(', '),
     source:           'whatsapp',
-    ...overrides,
+    ...overrides
   };
 }
 
@@ -160,7 +165,7 @@ function _emptyResult(warning) {
   return {
     entry_date: null, location: null, equipment_type: null,
     job_description: '', problems_detected: [],
-    raw_lines: [], confidence: 'low', warnings: [warning],
+    raw_lines: [], confidence: 'low', warnings: [warning]
   };
 }
 
@@ -188,20 +193,28 @@ function _extractDate(lines, warnings) {
       const day   = parseInt(fullDateMatch[1]);
       const month = MALAY_MONTHS[fullDateMatch[2]];
       let year    = parseInt(fullDateMatch[3]);
-      if (year < 100) year += 2000;
+      if (year < 100) {
+        year += 2000;
+      }
       const d = _safeDate(year, month, day);
-      if (d) return { date: d, confidence: 'high' };
+      if (d) {
+        return { date: d, confidence: 'high' };
+      }
     }
 
     // ── Pattern: "20/2/26" or "20-02-2026" ────────────────────────────
-    const numericMatch = lo.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    const numericMatch = lo.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
     if (numericMatch) {
       const day   = parseInt(numericMatch[1]);
       const month = parseInt(numericMatch[2]) - 1;
       let year    = parseInt(numericMatch[3]);
-      if (year < 100) year += 2000;
+      if (year < 100) {
+        year += 2000;
+      }
       const d = _safeDate(year, month, day);
-      if (d) return { date: d, confidence: 'high' };
+      if (d) {
+        return { date: d, confidence: 'high' };
+      }
     }
 
     // ── Pattern: "20 Feb" (no year — assume current) ──────────────────
@@ -224,9 +237,13 @@ function _extractDate(lines, warnings) {
 function _safeDate(year, month, day) {
   try {
     const d = new Date(year, month, day);
-    if (isNaN(d.getTime())) return null;
+    if (isNaN(d.getTime())) {
+      return null;
+    }
     // Verify no overflow (e.g. Feb 30)
-    if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day) return null;
+    if (d.getFullYear() !== year || d.getMonth() !== month || d.getDate() !== day) {
+      return null;
+    }
     return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   } catch {
     return null;
@@ -237,7 +254,7 @@ function _safeDate(year, month, day) {
 function _looksLikeDate(lo) {
   return (
     /^(isnin|selasa|rabu|khamis|jumaat|sabtu|ahad|minggu)/.test(lo) ||
-    /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(lo) ||
+    /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/.test(lo) ||
     /^tarikh/.test(lo)
   );
 }
@@ -250,7 +267,9 @@ function _extractLocation(lines) {
   for (const line of lines) {
     const lo = line.toLowerCase();
     // Skip pure date lines
-    if (_looksLikeDate(lo)) continue;
+    if (_looksLikeDate(lo)) {
+      continue;
+    }
 
     // "Unit 12A ..." or "No 5, Jalan ..."
     if (/\b(unit|no\.?|lot|blok|block|rumah)\b/i.test(line)) {
@@ -265,7 +284,9 @@ function _extractLocation(lines) {
 
   // Fallback: return second non-date line if it looks like a place
   const nonDateLines = lines.filter(l => !_looksLikeDate(l.toLowerCase()));
-  if (nonDateLines.length > 0) return nonDateLines[0].trim();
+  if (nonDateLines.length > 0) {
+    return nonDateLines[0].trim();
+  }
 
   return null;
 }
@@ -273,7 +294,9 @@ function _extractLocation(lines) {
 /** Detect equipment type from the full message text */
 function _extractEquipment(full) {
   for (const [keyword, type] of Object.entries(JOB_KEYWORDS)) {
-    if (full.includes(keyword)) return type;
+    if (full.includes(keyword)) {
+      return type;
+    }
   }
   return null;
 }

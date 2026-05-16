@@ -45,12 +45,14 @@ export function PermissionGuard({
   permissions,
   requireAll = true,
   fallback = null,
-  children,
+  children
 }) {
   const { can, loading } = useRole();
 
   // While role is loading, show nothing (avoids flash of unauthorized content)
-  if (loading) return null;
+  if (loading) {
+    return null;
+  }
 
   // Normalize to array
   const permList = permission

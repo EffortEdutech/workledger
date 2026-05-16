@@ -27,7 +27,7 @@ export function ProjectCard({
   project,
   onDelete,
   canEdit   = false,   // ← NEW: hide Edit  button by default
-  canDelete = false,   // ← NEW: hide Delete button by default
+  canDelete = false   // ← NEW: hide Delete button by default
 }) {
   const navigate = useNavigate();
 
@@ -36,22 +36,24 @@ export function ProjectCard({
     active:    'bg-green-100 text-green-800 border-green-200',
     completed: 'bg-blue-100  text-blue-800  border-blue-200',
     on_hold:   'bg-yellow-100 text-yellow-800 border-yellow-200',
-    cancelled: 'bg-gray-100  text-gray-800  border-gray-200',
+    cancelled: 'bg-gray-100  text-gray-800  border-gray-200'
   };
 
   const statusLabels = {
     active:    'Active',
     completed: 'Completed',
     on_hold:   'On Hold',
-    cancelled: 'Cancelled',
+    cancelled: 'Cancelled'
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) {
+      return 'N/A';
+    }
     return new Date(dateString).toLocaleDateString('en-MY', {
       year:  'numeric',
       month: 'short',
-      day:   'numeric',
+      day:   'numeric'
     });
   };
 

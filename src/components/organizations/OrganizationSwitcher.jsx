@@ -20,7 +20,7 @@ const TIER_BADGE = {
   enterprise:   'bg-purple-100 text-purple-700',
   professional: 'bg-blue-100 text-blue-700',
   basic:        'bg-green-100 text-green-700',
-  free:         'bg-gray-100 text-gray-500',
+  free:         'bg-gray-100 text-gray-500'
 };
 
 export default function OrganizationSwitcher() {
@@ -40,8 +40,12 @@ export default function OrganizationSwitcher() {
   }, []);
 
   // ── Only render for Bina Jaya staff ──
-  if (!isBinaJayaStaff) return null;
-  if (loading) return <SwitcherSkeleton />;
+  if (!isBinaJayaStaff) {
+    return null;
+  }
+  if (loading) {
+    return <SwitcherSkeleton />;
+  }
 
   const handleSelect = (orgId) => {
     switchOrganization(orgId);

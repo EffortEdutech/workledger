@@ -74,8 +74,12 @@ function extractAllFields(workEntry) {
   }
   
   // Add top-level fields
-  if (workEntry.entry_date) extracted.entry_date = workEntry.entry_date;
-  if (workEntry.shift) extracted.shift = workEntry.shift;
+  if (workEntry.entry_date) {
+    extracted.entry_date = workEntry.entry_date;
+  }
+  if (workEntry.shift) {
+    extracted.shift = workEntry.shift;
+  }
   if (workEntry.created_by_profile?.full_name) {
     extracted.technician_name = workEntry.created_by_profile.full_name;
   }
@@ -110,7 +114,9 @@ function extractFromTemplateSection(workEntry, bindingRules) {
     // Match keys that belong to this section
     if (fullKey.startsWith(prefix)) {
       // Skip arrays (photos handled separately)
-      if (Array.isArray(value)) continue;
+      if (Array.isArray(value)) {
+        continue;
+      }
       
       // Get short field name: "section_1_dates.entry_date" → "entry_date"
       const fieldName = fullKey.slice(prefix.length);
@@ -174,7 +180,9 @@ function extractFromPath(workEntry, path) {
  * Extract metrics data
  */
 function extractMetrics(workEntry, metricsConfig) {
-  if (!Array.isArray(metricsConfig)) return [];
+  if (!Array.isArray(metricsConfig)) {
+    return [];
+  }
   
   const entryData = workEntry.entry_data || workEntry.data || {};
   
@@ -306,7 +314,9 @@ export function formatFieldValue(value, fieldType) {
  * Format month value
  */
 function formatMonth(monthValue) {
-  if (!monthValue) return '-';
+  if (!monthValue) {
+    return '-';
+  }
   
   if (monthValue.includes('-')) {
     const [year, month] = monthValue.split('-');
@@ -321,11 +331,15 @@ function formatMonth(monthValue) {
  * Get field label from template
  */
 export function getFieldLabel(template, sectionId, fieldId) {
-  if (!template || !template.fields_schema) return fieldId;
+  if (!template || !template.fields_schema) {
+    return fieldId;
+  }
   
   const schema = template.fields_schema;
   const section = schema.sections?.find(s => s.section_id === sectionId);
-  if (!section) return fieldId;
+  if (!section) {
+    return fieldId;
+  }
   
   const field = section.fields?.find(f => f.field_id === fieldId);
   return field?.field_name || fieldId;

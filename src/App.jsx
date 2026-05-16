@@ -39,7 +39,7 @@ function App() {
       offlineSync: import.meta.env.VITE_ENABLE_OFFLINE_SYNC === 'true',
       slaTracking: import.meta.env.VITE_ENABLE_SLA_TRACKING === 'true',
       photoUploads: import.meta.env.VITE_ENABLE_PHOTO_UPLOADS === 'true',
-      pdfGeneration: import.meta.env.VITE_ENABLE_PDF_GENERATION === 'true',
+      pdfGeneration: import.meta.env.VITE_ENABLE_PDF_GENERATION === 'true'
     };
     console.log('🎛️ Feature Flags:', features);
 

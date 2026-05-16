@@ -37,7 +37,7 @@ export default function WorkEntryForm({
   mode = 'create',
   onSave,
   onSubmit,
-  onCancel,
+  onCancel
 }) {
   const { currentOrg } = useOrganization();
   const { isOnline }   = useOffline();
@@ -63,7 +63,7 @@ export default function WorkEntryForm({
     { value: 'morning',   label: 'Morning'    },
     { value: 'afternoon', label: 'Afternoon'  },
     { value: 'evening',   label: 'Evening'    },
-    { value: 'night',     label: 'Night'      },
+    { value: 'night',     label: 'Night'      }
   ];
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -95,10 +95,14 @@ export default function WorkEntryForm({
     }
   }, [currentOrg?.id, isOnline]);
 
-  useEffect(() => { loadContracts(); }, [loadContracts]);
+  useEffect(() => {
+    loadContracts(); 
+  }, [loadContracts]);
 
   useEffect(() => {
-    if (mode === 'edit' && initialData) loadExistingData();
+    if (mode === 'edit' && initialData) {
+      loadExistingData();
+    }
   }, [mode, initialData]); // eslint-disable-line
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -106,11 +110,15 @@ export default function WorkEntryForm({
   // ─────────────────────────────────────────────────────────────────────────
   const loadExistingData = async () => {
     try {
-      if (!initialData?.contract_id) return;
+      if (!initialData?.contract_id) {
+        return;
+      }
       const contract = isOnline
         ? await contractService.getContract(initialData.contract_id)
         : await offlineDataService.getContractById(initialData.contract_id);
-      if (!contract) return;
+      if (!contract) {
+        return;
+      }
 
       setSelectedContract(contract);
       const junctionRows = await resolveJunctionRows(contract);
@@ -144,7 +152,9 @@ export default function WorkEntryForm({
       setTemplate(null); setContractTemplates([]); setSelectedTemplateId(null); setFormData({});
 
       const contract = contracts.find(c => c.id === contractId);
-      if (!contract) { setError('Contract not found'); return; }
+      if (!contract) {
+        setError('Contract not found'); return; 
+      }
       setSelectedContract(contract);
 
       const junctionRows = await resolveJunctionRows(contract);
@@ -171,7 +181,9 @@ export default function WorkEntryForm({
   };
 
   const handleTemplateChange = async (templateId) => {
-    if (!templateId || templateId === selectedTemplateId) return;
+    if (!templateId || templateId === selectedTemplateId) {
+      return;
+    }
     try {
       setLoadingTemplate(true);
       setTemplate(null); setFormData({});
@@ -192,7 +204,9 @@ export default function WorkEntryForm({
     if (!isOnline) {
       // PRIMARY: db.contractTemplates junction table (Dexie v2)
       const rows = await offlineDataService.getContractJunctionRows(contract.id);
-      if (rows.length > 0) return rows;
+      if (rows.length > 0) {
+        return rows;
+      }
 
       // FALLBACK A: category-based
       if (contract.contract_category) {
@@ -202,7 +216,7 @@ export default function WorkEntryForm({
             template_id: t.template_id,
             is_default: i === 0,
             label: t.template_name,
-            templates: t,
+            templates: t
           }));
         }
       }
@@ -213,12 +227,14 @@ export default function WorkEntryForm({
         template_id: t.template_id,
         is_default: i === 0,
         label: t.template_name,
-        templates: t,
+        templates: t
       }));
     }
 
     // Online: use pre-loaded junction rows
-    if (contract.contract_templates?.length > 0) return contract.contract_templates;
+    if (contract.contract_templates?.length > 0) {
+      return contract.contract_templates;
+    }
 
     // Online fallback: query junction table
     const rows = await contractService.getContractTemplates(contract.id);
@@ -268,8 +284,12 @@ export default function WorkEntryForm({
     try {
       setSaving(true);
       setError(null);
-      if (!selectedContract) { setError('Please select a contract'); return; }
-      if (!template)         { setError('Template not loaded'); return; }
+      if (!selectedContract) {
+        setError('Please select a contract'); return; 
+      }
+      if (!template)         {
+        setError('Template not loaded'); return; 
+      }
 
       await onSave?.({
         contract_id:     selectedContract.id,
@@ -278,7 +298,7 @@ export default function WorkEntryForm({
         shift:           shift || null,
         data:            data || formData,
         status:          'draft',
-        organization_id: currentOrg?.id,
+        organization_id: currentOrg?.id
       });
     } catch (err) {
       console.error('❌ Error saving draft:', err);
@@ -301,8 +321,12 @@ export default function WorkEntryForm({
     try {
       setSubmitting(true);
       setError(null);
-      if (!selectedContract) { setError('Please select a contract'); return; }
-      if (!template)         { setError('Template not loaded'); return; }
+      if (!selectedContract) {
+        setError('Please select a contract'); return; 
+      }
+      if (!template)         {
+        setError('Template not loaded'); return; 
+      }
 
       await onSubmit?.({
         contract_id:     selectedContract.id,
@@ -312,7 +336,7 @@ export default function WorkEntryForm({
         data:            data || formData,
         status:          'submitted',
         submitted_at:    new Date().toISOString(),
-        organization_id: currentOrg?.id,
+        organization_id: currentOrg?.id
       });
     } catch (err) {
       console.error('❌ Error submitting entry:', err);

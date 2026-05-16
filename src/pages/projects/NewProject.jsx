@@ -14,8 +14,10 @@ import ProjectForm from '../../components/projects/ProjectForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { projectService } from '../../services/api/projectService';
 import { organizationService } from '../../services/api/organizationService';
+import { useToast } from '../../context/ToastContext';
 
 export function NewProject() {
+  const toast = useToast();
   const navigate = useNavigate();
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +56,7 @@ export function NewProject() {
       }
     } catch (error) {
       console.error('❌ Error creating project:', error);
-      alert('Failed to create project. Please try again.');
+      toast.error('Failed to create project. Please try again.');
     } finally {
       setSubmitting(false);
     }

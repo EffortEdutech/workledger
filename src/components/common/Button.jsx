@@ -91,14 +91,14 @@ export function Button({
       hover:bg-gray-100
       focus:ring-gray-500
       disabled:hover:bg-transparent
-    `,
+    `
   };
 
   // Size styles
   const sizeStyles = {
     sm: 'px-3 py-1.5 text-sm',
     md: 'px-4 py-2 text-base',
-    lg: 'px-6 py-3 text-lg',
+    lg: 'px-6 py-3 text-lg'
   };
 
   // Full width

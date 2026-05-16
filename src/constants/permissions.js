@@ -38,7 +38,7 @@
 
 export const PLATFORM_ROLES = {
   SUPER_ADMIN:      'super_admin',
-  BINA_JAYA_STAFF:  'bina_jaya_staff',
+  BINA_JAYA_STAFF:  'bina_jaya_staff'
 };
 
 export const ORG_ROLES = {
@@ -48,7 +48,7 @@ export const ORG_ROLES = {
   TECHNICIAN:     'technician',
   SUBCONTRACTOR:  'subcontractor',
   WORKER:         'worker',    // legacy alias for technician
-  CLIENT:         'client',    // legacy viewer
+  CLIENT:         'client'    // legacy viewer
 };
 
 // All roles that are "field workers" (can only see their own entries)
@@ -73,30 +73,30 @@ export const PERMISSIONS = {
   // Who can see all entries in the org (not just their own)
   VIEW_ALL_WORK_ENTRIES: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
   // Who can see their own entries
   VIEW_OWN_WORK_ENTRIES: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   // Who can create new entries
   CREATE_WORK_ENTRY: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   // Who can edit ANY entry in the org
   EDIT_ANY_WORK_ENTRY: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
   // Who can edit their own entries (everyone who can create)
   EDIT_OWN_WORK_ENTRY: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   // Who can delete entries
   // Technicians/workers/subcontractors can delete their OWN draft entries only.
@@ -106,114 +106,114 @@ export const PERMISSIONS = {
   DELETE_WORK_ENTRY: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   // Who can submit entries for approval
   SUBMIT_WORK_ENTRY: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   // Who can approve/reject submissions
   APPROVE_WORK_ENTRY: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
 
   // ── PROJECTS ──────────────────────────────────────────
   VIEW_PROJECTS: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   MANAGE_PROJECTS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   CREATE_PROJECT: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   EDIT_PROJECT: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   DELETE_PROJECT: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
 
   // ── CONTRACTS ─────────────────────────────────────────
   VIEW_CONTRACTS: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   MANAGE_CONTRACTS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   CREATE_CONTRACT: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   EDIT_CONTRACT: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   DELETE_CONTRACT: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
 
   // ── TEMPLATES ─────────────────────────────────────────
   VIEW_TEMPLATES: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
   MANAGE_TEMPLATES: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
 
   // ── REPORTS ───────────────────────────────────────────
   VIEW_REPORTS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
   GENERATE_REPORTS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
 
   // ── LAYOUTS ───────────────────────────────────────────
   VIEW_LAYOUTS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
   MANAGE_LAYOUTS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
 
   // ── USER & ORG MANAGEMENT ─────────────────────────────
   VIEW_ORG_MEMBERS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
   MANAGE_ORG_USERS: [
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
     // Note: bina_jaya_staff intentionally excluded from USER management
     // BJ staff manage platform, not client's user roster
   ],
   INVITE_USERS: [
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   CHANGE_USER_ROLES: [
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   MANAGE_ORG_SETTINGS: [
-    'org_owner',
+    'org_owner'
   ],
 
   // ── NAVIGATION ITEMS (used by Sidebar / BottomNav) ────
@@ -221,58 +221,58 @@ export const PERMISSIONS = {
   NAV_DASHBOARD: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   NAV_WORK_ENTRIES: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   NAV_PROJECTS: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   NAV_CONTRACTS: [
     'bina_jaya_staff',
     'org_owner', 'org_admin', 'manager',
-    'technician', 'worker', 'subcontractor',
+    'technician', 'worker', 'subcontractor'
   ],
   NAV_TEMPLATES: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
   NAV_REPORTS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin', 'manager',
+    'org_owner', 'org_admin', 'manager'
   ],
   NAV_LAYOUTS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   NAV_USERS: [
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   NAV_ORGANIZATIONS: [
     'bina_jaya_staff',
-    'org_owner', 'org_admin',
+    'org_owner', 'org_admin'
   ],
   // ── SUBCONTRACTORS (Session 15) ────────────────────────────────────
   // Who can SEE the Subcontractors nav item
   NAV_SUBCONTRACTORS: [
-  'bina_jaya_staff',
-  'org_owner', 'org_admin', 'manager',
+    'bina_jaya_staff',
+    'org_owner', 'org_admin', 'manager'
   ],
   // Who can MANAGE (add/terminate) subcontractor relationships
   MANAGE_SUBCONTRACTORS: [
-  'bina_jaya_staff',
-  'org_owner', 'org_admin',
+    'bina_jaya_staff',
+    'org_owner', 'org_admin'
   ],
   // Who can VIEW subcontractor work entries (cross-org)
   VIEW_SUBCONTRACTOR_WORK: [
-  'bina_jaya_staff',
-  'org_owner', 'org_admin', 'manager',
-  ],
+    'bina_jaya_staff',
+    'org_owner', 'org_admin', 'manager'
+  ]
 };
 
 // ─────────────────────────────────────────────────────────
@@ -285,56 +285,56 @@ export const ROLE_META = {
     label:       'Super Admin',
     description: 'Bina Jaya owner — full platform access',
     color:       'red',
-    badge:       'bg-red-100 text-red-700',
+    badge:       'bg-red-100 text-red-700'
   },
   bina_jaya_staff: {
     label:       'BJ Staff',
     description: 'Bina Jaya employee — view and manage client data',
     color:       'amber',
-    badge:       'bg-amber-100 text-amber-700',
+    badge:       'bg-amber-100 text-amber-700'
   },
   org_owner: {
     label:       'Owner',
     description: 'Company owner — full control of their organization',
     color:       'purple',
-    badge:       'bg-purple-100 text-purple-700',
+    badge:       'bg-purple-100 text-purple-700'
   },
   org_admin: {
     label:       'Admin',
     description: 'Organization admin — manage users and contracts',
     color:       'blue',
-    badge:       'bg-blue-100 text-blue-700',
+    badge:       'bg-blue-100 text-blue-700'
   },
   manager: {
     label:       'Manager',
     description: 'Supervisor — view all work, approve entries, generate reports',
     color:       'green',
-    badge:       'bg-green-100 text-green-700',
+    badge:       'bg-green-100 text-green-700'
   },
   technician: {
     label:       'Technician',
     description: 'Field worker — create and view own work entries',
     color:       'gray',
-    badge:       'bg-gray-100 text-gray-700',
+    badge:       'bg-gray-100 text-gray-700'
   },
   worker: {
     label:       'Worker',
     description: 'Field worker — create and view own work entries',
     color:       'gray',
-    badge:       'bg-gray-100 text-gray-700',
+    badge:       'bg-gray-100 text-gray-700'
   },
   subcontractor: {
     label:       'Subcontractor',
     description: 'External worker — own entries only, no reports',
     color:       'orange',
-    badge:       'bg-orange-100 text-orange-700',
+    badge:       'bg-orange-100 text-orange-700'
   },
   client: {
     label:       'Client',
     description: 'External viewer — read-only access',
     color:       'gray',
-    badge:       'bg-gray-100 text-gray-500',
-  },
+    badge:       'bg-gray-100 text-gray-500'
+  }
 };
 
 /**
@@ -349,7 +349,7 @@ export const ASSIGNABLE_ORG_ROLES = [
   'technician',
   'worker',
   'subcontractor',
-  'client',
+  'client'
 ];
 
 /**
@@ -361,6 +361,6 @@ export function getRoleMeta(role) {
     label:       role || 'Unknown',
     description: '',
     color:       'gray',
-    badge:       'bg-gray-100 text-gray-500',
+    badge:       'bg-gray-100 text-gray-500'
   };
 }

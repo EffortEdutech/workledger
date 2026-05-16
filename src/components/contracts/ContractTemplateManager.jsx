@@ -25,7 +25,7 @@ import {
   CheckIcon,
   XMarkIcon,
   DocumentTextIcon,
-  ExclamationTriangleIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { contractService } from '../../services/api/contractService';
@@ -46,12 +46,14 @@ export default function ContractTemplateManager({ contractId, readOnly = false }
 
   // ── Load data ──────────────────────────────────────────────
   const load = useCallback(async () => {
-    if (!contractId) return;
+    if (!contractId) {
+      return;
+    }
     try {
       setLoading(true);
       const [assigned, templates] = await Promise.all([
         contractService.getContractTemplates(contractId),
-        templateService.getTemplates(),
+        templateService.getTemplates()
       ]);
       setAssignments(assigned);
       setAllTemplates(templates);
@@ -64,7 +66,9 @@ export default function ContractTemplateManager({ contractId, readOnly = false }
     }
   }, [contractId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load(); 
+  }, [load]);
 
   // ── Derived ────────────────────────────────────────────────
   const assignedIds = new Set(assignments.map(a => a.template_id));
@@ -73,7 +77,9 @@ export default function ContractTemplateManager({ contractId, readOnly = false }
 
   // ── Add template ───────────────────────────────────────────
   const handleAdd = async () => {
-    if (!selectedNewId) return;
+    if (!selectedNewId) {
+      return;
+    }
     setError(null);
     const result = await contractService.addContractTemplate(
       contractId,
@@ -92,10 +98,14 @@ export default function ContractTemplateManager({ contractId, readOnly = false }
 
   // ── Remove ─────────────────────────────────────────────────
   const handleRemove = async (assignmentId) => {
-    if (!window.confirm('Remove this template from the contract?')) return;
+    if (!window.confirm('Remove this template from the contract?')) {
+      return;
+    }
     setError(null);
     const result = await contractService.removeContractTemplate(assignmentId, contractId);
-    if (!result.success) { setError(result.error); return; }
+    if (!result.success) {
+      setError(result.error); return; 
+    }
     load();
   };
 
@@ -103,7 +113,9 @@ export default function ContractTemplateManager({ contractId, readOnly = false }
   const handleSetDefault = async (assignmentId) => {
     setError(null);
     const result = await contractService.setDefaultContractTemplate(contractId, assignmentId);
-    if (!result.success) { setError(result.error); return; }
+    if (!result.success) {
+      setError(result.error); return; 
+    }
     load();
   };
 
@@ -116,14 +128,18 @@ export default function ContractTemplateManager({ contractId, readOnly = false }
   };
 
   const cancelEdit = (id) => {
-    setEditState(prev => { const s = { ...prev }; delete s[id]; return s; });
+    setEditState(prev => {
+      const s = { ...prev }; delete s[id]; return s; 
+    });
   };
 
   const saveLabel = async (assignmentId) => {
     const label = editState[assignmentId]?.label ?? '';
     setError(null);
     const result = await contractService.updateContractTemplateLabel(assignmentId, label.trim() || null);
-    if (!result.success) { setError(result.error); return; }
+    if (!result.success) {
+      setError(result.error); return; 
+    }
     cancelEdit(assignmentId);
     load();
   };
@@ -206,7 +222,13 @@ export default function ContractTemplateManager({ contractId, readOnly = false }
                           ...prev,
                           [a.id]: { ...prev[a.id], label: e.target.value }
                         }))}
-                        onKeyDown={e => { if (e.key === 'Enter') saveLabel(a.id); if (e.key === 'Escape') cancelEdit(a.id); }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            saveLabel(a.id);
+                          } if (e.key === 'Escape') {
+                            cancelEdit(a.id);
+                          } 
+                        }}
                         className="flex-1 text-sm border border-gray-300 rounded px-2 py-1 focus:ring-primary-500 focus:border-primary-500"
                         placeholder={tmpl?.template_name}
                       />
@@ -319,7 +341,11 @@ export default function ContractTemplateManager({ contractId, readOnly = false }
                   type="text"
                   value={newLabel}
                   onChange={e => setNewLabel(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      handleAdd();
+                    } 
+                  }}
                   placeholder="e.g. HVAC Checklist, Lift Inspection, Pump Service"
                   className="block w-full text-sm border-gray-300 rounded-md shadow-sm
                              focus:ring-primary-500 focus:border-primary-500"
@@ -342,7 +368,9 @@ export default function ContractTemplateManager({ contractId, readOnly = false }
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setAdding(false); setSelectedNewId(''); setNewLabel(''); }}
+                  onClick={() => {
+                    setAdding(false); setSelectedNewId(''); setNewLabel(''); 
+                  }}
                   className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border
                              border-gray-300 rounded-md hover:bg-gray-50"
                 >

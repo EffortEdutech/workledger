@@ -34,7 +34,7 @@ export function ContractList({
   canCreate  = false,
   canEdit    = false,
   canDelete  = false,
-  currentOrgId = null,   // ← SESSION 15: used to derive per-card edit perms
+  currentOrgId = null   // ← SESSION 15: used to derive per-card edit perms
 }) {
   const navigate = useNavigate();
 
@@ -50,7 +50,7 @@ export function ContractList({
   // ── Options ───────────────────────────────────────────────
   const categoryOptions = [
     { value: 'all', label: 'All Categories' },
-    ...getContractTypeOptions(),
+    ...getContractTypeOptions()
   ];
 
   const statusOptions = [
@@ -58,7 +58,7 @@ export function ContractList({
     { value: 'draft',     label: 'Draft' },
     { value: 'active',    label: 'Active' },
     { value: 'suspended', label: 'Suspended' },
-    { value: 'completed', label: 'Completed' },
+    { value: 'completed', label: 'Completed' }
   ];
 
   const sortOptions = [
@@ -66,7 +66,7 @@ export function ContractList({
     { value: 'contract_number', label: 'Contract Number' },
     { value: 'contract_name', label: 'Contract Name' },
     { value: 'valid_from',    label: 'Valid From Date' },
-    { value: 'status',        label: 'Status' },
+    { value: 'status',        label: 'Status' }
   ];
 
   // ── Filter + sort ─────────────────────────────────────────
@@ -97,14 +97,22 @@ export function ContractList({
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
-      if (!aValue) return sortOrder === 'asc' ? 1 : -1;
-      if (!bValue) return sortOrder === 'asc' ? -1 : 1;
+      if (!aValue) {
+        return sortOrder === 'asc' ? 1 : -1;
+      }
+      if (!bValue) {
+        return sortOrder === 'asc' ? -1 : 1;
+      }
       if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+      if (aValue < bValue) {
+        return sortOrder === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortOrder === 'asc' ? 1 : -1;
+      }
       return 0;
     });
 

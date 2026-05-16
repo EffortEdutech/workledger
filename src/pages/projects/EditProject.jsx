@@ -14,8 +14,10 @@ import ProjectForm from '../../components/projects/ProjectForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { projectService } from '../../services/api/projectService';
 import { organizationService } from '../../services/api/organizationService';
+import { useToast } from '../../context/ToastContext';
 
 export function EditProject() {
+  const toast = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
   
@@ -73,7 +75,7 @@ export function EditProject() {
       }
     } catch (error) {
       console.error('❌ Error updating project:', error);
-      alert('Failed to update project. Please try again.');
+      toast.error('Failed to update project. Please try again.');
     } finally {
       setSubmitting(false);
     }

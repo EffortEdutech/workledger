@@ -31,6 +31,7 @@ import { useOrganization }      from '../../context/OrganizationContext';
 import { useRole }              from '../../hooks/useRole';
 import { useOffline }           from '../../hooks/useOffline';
 import { PlusIcon }             from '@heroicons/react/24/outline';
+import { useToast } from '../../context/ToastContext';
 
 // ── Source Tab ────────────────────────────────────────────────────────────────
 function SourceTab({ label, active, onClick, badge = null }) {
@@ -41,8 +42,8 @@ function SourceTab({ label, active, onClick, badge = null }) {
         relative flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium
         border-b-2 whitespace-nowrap transition-colors flex-shrink-0
         ${active
-          ? 'border-primary-600 text-primary-700'
-          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+      ? 'border-primary-600 text-primary-700'
+      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
       `}
     >
       {label}
@@ -90,6 +91,7 @@ function OfflineRedirectView({ pendingCount }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function WorkEntryListPage() {
+  const toast = useToast();
   const navigate        = useNavigate();
   const { currentOrg }  = useOrganization();
   const { can }         = useRole();
@@ -105,7 +107,7 @@ export default function WorkEntryListPage() {
   const [approvalPendingCount, setApprovalPendingCount] = useState(0);
 
   const [filters, setFilters] = useState({
-    contractId: '', status: '', startDate: '', endDate: '', sortOrder: 'desc',
+    contractId: '', status: '', startDate: '', endDate: '', sortOrder: 'desc'
   });
 
   const canCreate  = can('CREATE_WORK_ENTRY');
@@ -115,25 +117,37 @@ export default function WorkEntryListPage() {
   const shouldLoad = isOnline;
 
   const loadApprovalCount = useCallback(async () => {
-    if (!currentOrg?.id || !canApprove || !isOnline) return;
+    if (!currentOrg?.id || !canApprove || !isOnline) {
+      return;
+    }
     try {
       const result = await workEntryService.getPendingApprovals(currentOrg.id, true);
-      if (result.success) setApprovalPendingCount(result.count || 0);
+      if (result.success) {
+        setApprovalPendingCount(result.count || 0);
+      }
     } catch { /* non-fatal */ }
   }, [currentOrg?.id, canApprove, isOnline]);
 
   const loadSubcontractorOrgIds = useCallback(async () => {
-    if (!currentOrg?.id || !isOnline) return;
+    if (!currentOrg?.id || !isOnline) {
+      return;
+    }
     try {
       const ids = await subcontractorService.getSubcontractorOrgIds(currentOrg.id);
       setSubcontractorOrgIds(ids);
       setHasSubcontractors(ids.length > 0);
-      if (ids.length === 0) setSourceTab('all');
-    } catch (err) { console.error('❌ loadSubcontractorOrgIds:', err); }
+      if (ids.length === 0) {
+        setSourceTab('all');
+      }
+    } catch (err) {
+      console.error('❌ loadSubcontractorOrgIds:', err); 
+    }
   }, [currentOrg?.id, isOnline]);
 
   const loadWorkEntries = useCallback(async () => {
-    if (!isOnline) return;
+    if (!isOnline) {
+      return;
+    }
     try {
       const orgId  = currentOrg?.id ?? null;
       const result = await workEntryService.getUserWorkEntries(filters, orgId);
@@ -149,7 +163,9 @@ export default function WorkEntryListPage() {
   }, [currentOrg?.id, filters, isOnline]);
 
   const loadData = useCallback(async () => {
-    if (!isOnline) { setLoading(false); return; }
+    if (!isOnline) {
+      setLoading(false); return; 
+    }
     try {
       setLoading(true);
       setError(null);
@@ -158,7 +174,7 @@ export default function WorkEntryListPage() {
         contractService.getUserContracts(orgId).then(d => setContracts(d || [])),
         loadSubcontractorOrgIds(),
         loadWorkEntries(),
-        loadApprovalCount(),
+        loadApprovalCount()
       ]);
     } catch (err) {
       console.error('❌ loadData:', err);
@@ -168,15 +184,21 @@ export default function WorkEntryListPage() {
     }
   }, [currentOrg?.id, isOnline, loadSubcontractorOrgIds, loadWorkEntries, loadApprovalCount]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData(); 
+  }, [loadData]);
 
   useEffect(() => {
-    if (!loading && isOnline) loadWorkEntries();
+    if (!loading && isOnline) {
+      loadWorkEntries();
+    }
   }, [filters]); // eslint-disable-line
 
   // Reload when something syncs (pendingCount drops → entry now on server)
   useEffect(() => {
-    if (!loading && isOnline) loadWorkEntries();
+    if (!loading && isOnline) {
+      loadWorkEntries();
+    }
   }, [pendingCount]); // eslint-disable-line
 
   const handleDelete = async (entry) => {
@@ -185,14 +207,20 @@ export default function WorkEntryListPage() {
       if (result.success) {
         setWorkEntries(prev => prev.filter(e => e.id !== entry.id));
       } else {
-        alert(`Failed to delete: ${result.error}`);
+        toast.error(`Failed to delete: ${result.error}`);
       }
-    } catch { alert('Failed to delete work entry'); }
+    } catch {
+      toast.error('Failed to delete work entry'); 
+    }
   };
 
   const displayedEntries = (() => {
-    if (sourceTab === 'internal')      return workEntries.filter(e => e.organization_id === currentOrg?.id);
-    if (sourceTab === 'subcontractor') return workEntries.filter(e => subcontractorOrgIds.includes(e.organization_id));
+    if (sourceTab === 'internal')      {
+      return workEntries.filter(e => e.organization_id === currentOrg?.id);
+    }
+    if (sourceTab === 'subcontractor') {
+      return workEntries.filter(e => subcontractorOrgIds.includes(e.organization_id));
+    }
     return workEntries;
   })();
 

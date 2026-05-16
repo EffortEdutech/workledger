@@ -29,7 +29,7 @@ export default function WorkEntryList({
   currentOrgId = null,         // used to derive per-card delete permission
   subcontractorOrgIds = [],    // used to show source badge
   showSourceBadge = false,     // show "Subcontractor" badge in All tab
-  isSubcontractorView = false, // true = read-only Subcontractor tab
+  isSubcontractorView = false // true = read-only Subcontractor tab
 }) {
 
   // ── Loading ───────────────────────────────────────────────────────

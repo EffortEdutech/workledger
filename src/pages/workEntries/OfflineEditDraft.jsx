@@ -26,10 +26,12 @@ import { DynamicForm } from '../../components/templates/DynamicForm';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { db } from '../../services/offline/db';
 import { offlineDataService } from '../../services/offline/offlineDataService';
+import { useToast } from '../../context/ToastContext';
 
 // ── Offline photo component ───────────────────────────────────────────────────
 
 function OfflinePhotoCapture({ localId, fieldId, fieldName }) {
+  const toast = useToast();
   const [photos,    setPhotos]    = useState([]);
   const [capturing, setCapturing] = useState(false);
   const fileInputRef = useRef(null);
@@ -52,7 +54,9 @@ function OfflinePhotoCapture({ localId, fieldId, fieldName }) {
 
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files);
-    if (!files.length) return;
+    if (!files.length) {
+      return;
+    }
 
     setCapturing(true);
     try {
@@ -70,17 +74,19 @@ function OfflinePhotoCapture({ localId, fieldId, fieldName }) {
           file_size:       file.size,
           data:            base64,
           sync_status:     'pending',
-          created_at:      new Date().toISOString(),
+          created_at:      new Date().toISOString()
         });
         setPhotos(prev => [...prev, { localId: attachmentId, field_id: fieldId, data: base64, file_name: file.name }]);
       }
     } catch (err) {
       console.error('❌ Photo capture failed:', err);
-      alert('Failed to capture photo. Please try again.');
+      toast.error('Failed to capture photo. Please try again.');
     } finally {
       setCapturing(false);
       // Reset file input so same file can be re-selected
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -245,7 +251,7 @@ export default function OfflineEditDraft() {
       await db.workEntries.update(localIdInt, {
         data:       formData,
         updated_at: new Date().toISOString(),
-        sync_status: 'pending', // ensure it stays pending for sync
+        sync_status: 'pending' // ensure it stays pending for sync
       });
 
       console.log(`✅ Local draft updated (localId: ${localIdInt})`);
@@ -270,7 +276,7 @@ export default function OfflineEditDraft() {
         if (field.field_type === 'photo') {
           photoFields.push({
             fieldId:   `${section.section_id}.${field.field_id}`,
-            fieldName: field.field_name,
+            fieldName: field.field_name
           });
         }
       }
@@ -354,7 +360,7 @@ export default function OfflineEditDraft() {
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Date</p>
               <p className="text-sm font-medium text-gray-900">
                 {new Date(entry.entry_date + 'T00:00:00').toLocaleDateString('en-MY', {
-                  weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+                  weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
                 })}
               </p>
             </div>

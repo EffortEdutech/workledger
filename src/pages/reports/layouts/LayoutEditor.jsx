@@ -20,8 +20,10 @@ import LayoutCanvas from '../../../components/reports/builder/LayoutCanvas';
 import SectionEditorPanel from '../../../components/reports/builder/SectionEditorPanel';
 import TemplateSelector from '../../../components/reports/builder/TemplateSelector';
 import { generateLayoutFromTemplate } from '../../../services/api/layoutGenerator';
+import { useToast } from '../../../context/ToastContext';
 
 export default function LayoutEditor() {
+  const toast = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditMode = !!id;
@@ -152,11 +154,11 @@ export default function LayoutEditor() {
         console.log('✅ Layout saved successfully:', result.layout_name);
         navigate('/reports/layouts');
       } else {
-        alert('Failed to save layout');
+        toast.error('Failed to save layout');
       }
     } catch (error) {
       console.error('Save error:', error);
-      alert('Error: ' + error.message);
+      toast.error('Error: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -321,9 +323,9 @@ export default function LayoutEditor() {
                 className={`
                   px-4 py-2 text-sm font-medium border-b-2 transition-colors
                   ${activeTab === tab
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                  }
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+              }
                 `}
               >
                 {tab === 'form' && '📝 Basic Info'}
@@ -587,9 +589,9 @@ export default function LayoutEditor() {
                   className={`
                     mx-auto bg-white shadow-lg
                     ${pageSize === 'A4' 
-                      ? (pageOrientation === 'portrait' ? 'w-[210mm]' : 'w-[297mm]')
-                      : (pageOrientation === 'portrait' ? 'w-[216mm]' : 'w-[279mm]')
-                    }
+                  ? (pageOrientation === 'portrait' ? 'w-[210mm]' : 'w-[297mm]')
+                  : (pageOrientation === 'portrait' ? 'w-[216mm]' : 'w-[279mm]')
+                }
                   `}
                   style={{ 
                     minHeight: pageSize === 'A4' 
@@ -648,7 +650,7 @@ export default function LayoutEditor() {
                       const parsed = JSON.parse(jsonText);
                       setSections(parsed.sections);
                       setJsonError('');
-                      alert('✓ JSON loaded successfully');
+                      toast.success('JSON loaded successfully');
                     } catch (err) {
                       setJsonError('Invalid JSON: ' + err.message);
                     }
