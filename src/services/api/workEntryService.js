@@ -27,6 +27,7 @@
  * @updated February 20, 2026 - Session 10: orgId param for org switching
  * @updated March 4, 2026     - Session 18: offline-first IndexedDB integration
  * @updated April 5, 2026     - Session 19: getUser → getSession (offline fix)
+ * @updated May 16, 2026      - Session 20: getPendingApprovals includes subcontractor orgs
  */
 
 import { supabase } from '../supabase/client';
@@ -677,6 +678,12 @@ class WorkEntryService {
    *   countOnly = false (default) → full entry list for ApprovalsPage
    *   countOnly = true            → count only for Sidebar badge (cheap query)
    *
+   * SESSION 20 FIX: Cross-org approvals.
+   * Also includes submitted entries from active subcontractor orgs so that a main
+   * contractor (e.g. MTSB) can approve work submitted by subcontractor field workers.
+   * The org scope is resolved once via subcontractor_relationships before branching
+   * into the countOnly vs full-query paths.
+   *
    * @param {string}  orgId     - Organization ID from OrganizationContext
    * @param {boolean} countOnly - If true, returns count only
    * @returns {Promise<{success: boolean, data?: Array, count?: number, error?: string}>}
@@ -689,13 +696,33 @@ class WorkEntryService {
 
       console.log('⏳ Fetching pending approvals for org:', orgId, countOnly ? '(count only)' : '');
 
+      // SESSION 20 FIX: Cross-org approvals.
+      // Main contractors must be able to approve entries submitted by subcontractor
+      // orgs under contracts they awarded. Fetch all active subcontractor org IDs
+      // first — same pattern as getUserWorkEntries (Session 15).
+      const { data: subconRels } = await supabase
+        .from('subcontractor_relationships')
+        .select('subcontractor_org_id')
+        .eq('main_contractor_org_id', orgId)
+        .eq('status', 'active');
+
+      const subconOrgIds = (subconRels || []).map((r) => r.subcontractor_org_id);
+      const orgScope = subconOrgIds.length > 0 ? [orgId, ...subconOrgIds] : null;
+
+      if (subconOrgIds.length > 0) {
+        console.log(`🔗 Approvals scope: own org + ${subconOrgIds.length} subcontractor org(s)`);
+      }
+
       if (countOnly) {
-        const { count, error } = await supabase
+        let query = supabase
           .from('work_entries')
           .select('id', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
           .eq('status', 'submitted')
           .is('deleted_at', null);
+
+        query = orgScope ? query.in('organization_id', orgScope) : query.eq('organization_id', orgId);
+
+        const { count, error } = await query;
 
         if (error) {
           throw error;
@@ -704,7 +731,7 @@ class WorkEntryService {
         console.log(`✅ Pending approvals count: ${count || 0}`);
         return { success: true, count: count || 0 };
       } else {
-        const { data, error } = await supabase
+        let query = supabase
           .from('work_entries')
           .select(`
             id,
@@ -726,10 +753,13 @@ class WorkEntryService {
               template_name
             )
           `)
-          .eq('organization_id', orgId)
           .eq('status', 'submitted')
           .is('deleted_at', null)
           .order('submitted_at', { ascending: true });
+
+        query = orgScope ? query.in('organization_id', orgScope) : query.eq('organization_id', orgId);
+
+        const { data, error } = await query;
 
         if (error) {
           throw error;
@@ -764,6 +794,10 @@ class WorkEntryService {
         throw new Error('Not authenticated');
       }
 
+      // SESSION 20: Resolve approver name for email notification
+      const { data: profile } = await supabase
+        .from('user_profiles').select('full_name').eq('id', user.id).single().catch(() => ({ data: null }));
+
       const now = new Date().toISOString();
 
       const { data, error } = await supabase
@@ -777,7 +811,7 @@ class WorkEntryService {
         })
         .eq('id', entryId)
         .eq('status', 'submitted')
-        .select('id, status, organization_id, contract_id, entry_date, created_by')
+        .select('id, status, organization_id, contract_id, entry_date, created_by, contract:contracts(contract_number)')
         .single();
 
       if (error) {
@@ -808,6 +842,10 @@ class WorkEntryService {
       }
 
       console.log('✅ Work entry approved:', entryId);
+
+      // SESSION 20: Fire-and-forget email to the technician
+      this._notifyTechnician('approved', data, profile?.full_name || user.email).catch(() => {});
+
       return { success: true, data };
     } catch (error) {
       console.error('❌ approveWorkEntry failed:', error);
@@ -839,6 +877,10 @@ class WorkEntryService {
       if (!user) {
         throw new Error('Not authenticated');
       }
+
+      // SESSION 20: Resolve approver name for email notification
+      const { data: profile } = await supabase
+        .from('user_profiles').select('full_name').eq('id', user.id).single().catch(() => ({ data: null }));
 
       const now = new Date().toISOString();
 
@@ -912,6 +954,10 @@ class WorkEntryService {
       }
 
       console.log('✅ Work entry rejected:', entryId);
+
+      // SESSION 20: Fire-and-forget email to the technician
+      this._notifyTechnician('rejected', data, profile?.full_name || user.email, reason.trim()).catch(() => {});
+
       return { success: true, data };
     } catch (error) {
       console.error('❌ rejectWorkEntry failed:', error);
@@ -1047,6 +1093,54 @@ class WorkEntryService {
   // ─────────────────────────────────────────────────────────────────────────
   // END OF SESSION 18 ADDITIONS
   // ─────────────────────────────────────────────────────────────────────────
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // EMAIL NOTIFICATIONS — Session 20
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Fire-and-forget email to the technician who submitted the entry.
+   * Calls Supabase Edge Function `notify-approval` (non-blocking).
+   */
+  async _notifyTechnician(type, entry, approverName, reason) {
+    try {
+      const { data: techProfile } = await supabase
+        .from('user_profiles')
+        .select('full_name, email')
+        .eq('id', entry.created_by)
+        .single();
+
+      if (!techProfile?.email) {
+        console.warn('⚠️ notify-approval: no email for technician', entry.created_by);
+        return;
+      }
+
+      const contractNumber = entry.contract?.contract_number
+        || entry.contract_id?.slice(0, 8) || 'Unknown';
+
+      const { error: fnError } = await supabase.functions.invoke('notify-approval', {
+        body: {
+          type,
+          entryId:        entry.id,
+          recipientEmail: techProfile.email,
+          recipientName:  techProfile.full_name || techProfile.email,
+          approverName:   approverName || 'Manager',
+          contractNumber,
+          entryDate:      entry.entry_date || '',
+          reason:         reason || undefined
+        }
+      });
+
+      if (fnError) {
+        console.warn('⚠️ notify-approval fn error:', fnError.message);
+      } else {
+        console.log(`📧 Email sent (${type}) → ${techProfile.email}`);
+      }
+    } catch (err) {
+      console.warn('⚠️ _notifyTechnician failed (non-blocking):', err.message);
+    }
+  }
+
 }
 
 export const workEntryService = new WorkEntryService();

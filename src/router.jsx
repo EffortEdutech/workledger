@@ -39,77 +39,78 @@
  *
  */
 
+import { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { ROUTES } from './constants/routes';
 
-// Auth guards
+// Auth guards (eager — needed immediately)
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import RouteGuard     from './components/auth/RouteGuard';
 
 // Public pages
-import Login          from './pages/auth/Login';
-import Register       from './pages/auth/Register';
-import ForgotPassword from './pages/auth/ForgotPassword';
+const Login          = lazy(() => import('./pages/auth/Login'));
+const Register       = lazy(() => import('./pages/auth/Register'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 
 // Core
-import Dashboard          from './pages/Dashboard';
-import TechnicianDashboard from './pages/technician/TechnicianDashboard';
+const Dashboard           = lazy(() => import('./pages/Dashboard'));
+const TechnicianDashboard = lazy(() => import('./pages/technician/TechnicianDashboard'));
 
 // Profile
-import ProfilePage from './pages/profile/ProfilePage';
+const ProfilePage = lazy(() => import('./pages/profile/ProfilePage'));
 
 // Organizations
-import OrganizationList     from './pages/organizations/OrganizationList';
-import NewOrganization      from './pages/organizations/NewOrganization';
-import OrganizationSettings from './pages/organizations/OrganizationSettings';
+const OrganizationList     = lazy(() => import('./pages/organizations/OrganizationList'));
+const NewOrganization      = lazy(() => import('./pages/organizations/NewOrganization'));
+const OrganizationSettings = lazy(() => import('./pages/organizations/OrganizationSettings'));
 
 // Projects
-import ProjectListPage from './pages/projects/ProjectListPage';
-import NewProject      from './pages/projects/NewProject';
-import EditProject     from './pages/projects/EditProject';
-import ProjectDetail   from './pages/projects/ProjectDetail';
+const ProjectListPage = lazy(() => import('./pages/projects/ProjectListPage'));
+const NewProject      = lazy(() => import('./pages/projects/NewProject'));
+const EditProject     = lazy(() => import('./pages/projects/EditProject'));
+const ProjectDetail   = lazy(() => import('./pages/projects/ProjectDetail'));
 
 // Contracts
-import ContractListPage from './pages/contracts/ContractListPage';
-import NewContract      from './pages/contracts/NewContract';
-import EditContract     from './pages/contracts/EditContract';
-import ContractDetail   from './pages/contracts/ContractDetail';
+const ContractListPage = lazy(() => import('./pages/contracts/ContractListPage'));
+const NewContract      = lazy(() => import('./pages/contracts/NewContract'));
+const EditContract     = lazy(() => import('./pages/contracts/EditContract'));
+const ContractDetail   = lazy(() => import('./pages/contracts/ContractDetail'));
 
 // Work Entries — offline (MUST be before /work/:id)
-import OfflineWorkEntryPage from './pages/workEntries/OfflineWorkEntryPage';
-import OfflineEditDraft     from './pages/workEntries/OfflineEditDraft';
+const OfflineWorkEntryPage = lazy(() => import('./pages/workEntries/OfflineWorkEntryPage'));
+const OfflineEditDraft     = lazy(() => import('./pages/workEntries/OfflineEditDraft'));
 
 // Work Entries — online (literal paths BEFORE /work/:id)
-import ApprovalsPage     from './pages/workEntries/ApprovalsPage';
-import WorkEntryListPage from './pages/workEntries/WorkEntryListPage';
-import NewWorkEntry      from './pages/workEntries/NewWorkEntry';
-import EditWorkEntry     from './pages/workEntries/EditWorkEntry';
-import WorkEntryDetail   from './pages/workEntries/WorkEntryDetail';
+const ApprovalsPage     = lazy(() => import('./pages/workEntries/ApprovalsPage'));
+const WorkEntryListPage = lazy(() => import('./pages/workEntries/WorkEntryListPage'));
+const NewWorkEntry      = lazy(() => import('./pages/workEntries/NewWorkEntry'));
+const EditWorkEntry     = lazy(() => import('./pages/workEntries/EditWorkEntry'));
+const WorkEntryDetail   = lazy(() => import('./pages/workEntries/WorkEntryDetail'));
 
 // Reports
-import GenerateReport     from './pages/reports/GenerateReport';
-import ReportHistory      from './pages/reports/ReportHistory';
-import ConsolidatedReport from './pages/reports/ConsolidatedReport';
-import RejectionAnalytics from './pages/reports/RejectionAnalytics';
+const GenerateReport     = lazy(() => import('./pages/reports/GenerateReport'));
+const ReportHistory      = lazy(() => import('./pages/reports/ReportHistory'));
+const ConsolidatedReport = lazy(() => import('./pages/reports/ConsolidatedReport'));
+const RejectionAnalytics = lazy(() => import('./pages/reports/RejectionAnalytics'));
 
 // Report Layouts (new BEFORE :id)
-import ReportLayoutList   from './pages/reports/layouts/LayoutList';
-import ReportLayoutEditor from './pages/reports/layouts/LayoutEditor';
+const ReportLayoutList   = lazy(() => import('./pages/reports/layouts/LayoutList'));
+const ReportLayoutEditor = lazy(() => import('./pages/reports/layouts/LayoutEditor'));
 
 // Templates
-import TemplateDemoPage from './pages/demo/TemplateDemoPage';
+const TemplateDemoPage = lazy(() => import('./pages/demo/TemplateDemoPage'));
 
 // Users
-import UserList   from './pages/users/UserList';
-import InviteUser from './pages/users/InviteUser';
+const UserList   = lazy(() => import('./pages/users/UserList'));
+const InviteUser = lazy(() => import('./pages/users/InviteUser'));
 
 // Subcontractors
-import SubcontractorList from './pages/subcontractors/SubcontractorList';
+const SubcontractorList = lazy(() => import('./pages/subcontractors/SubcontractorList'));
 
 // Admin (BJ Staff)
-import QuickEntry from './pages/admin/QuickEntry';
+const QuickEntry = lazy(() => import('./pages/admin/QuickEntry'));
 
-// 404
+// 404 — kept as inline component (not lazy)
 const NotFoundPage = () => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
     <div className="text-center">

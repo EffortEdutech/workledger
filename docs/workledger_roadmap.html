@@ -1,0 +1,71 @@
+<style>
+.phase{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:12px}
+.phase-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.phase-label{font-size:10px;font-weight:500;letter-spacing:0.07em;text-transform:uppercase;padding:3px 8px;border-radius:20px}
+.items{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.item{display:flex;align-items:flex-start;gap:7px;padding:6px 8px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);font-size:12px;color:var(--color-text-secondary);line-height:1.4}
+.item i{font-size:14px;flex-shrink:0;margin-top:1px}
+.item strong{color:var(--color-text-primary);font-weight:500;display:block;font-size:12px}
+.done{opacity:0.45}
+.done .item{background:transparent;border:0.5px solid var(--color-border-tertiary)}
+</style>
+
+<h2 class="sr-only">WorkLedger platform roadmap grouped by phase</h2>
+
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-label" style="background:var(--color-background-success);color:var(--color-text-success)">Done this session</span>
+    <span style="font-size:12px;color:var(--color-text-tertiary)">committed, deploy-ready</span>
+  </div>
+  <div class="items done">
+    <div class="item"><i class="ti ti-checks" aria-hidden="true"></i><div><strong>ESLint clean</strong>zero errors across full codebase</div></div>
+    <div class="item"><i class="ti ti-bell" aria-hidden="true"></i><div><strong>Toast system</strong>replaced all alert() calls</div></div>
+    <div class="item"><i class="ti ti-building-community" aria-hidden="true"></i><div><strong>Subcontract fields</strong>contract_role + performing_org</div></div>
+    <div class="item"><i class="ti ti-layout-sidebar" aria-hidden="true"></i><div><strong>Sectioned sidebar</strong>Field Work / Management / Reports / Admin</div></div>
+    <div class="item"><i class="ti ti-id-badge" aria-hidden="true"></i><div><strong>Org branding</strong>slug shown in sidebar header</div></div>
+    <div class="item"><i class="ti ti-checks" aria-hidden="true"></i><div><strong>Approvals bug fixed</strong>.single typo emptying the list</div></div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-label" style="background:var(--color-background-danger);color:var(--color-text-danger)">Fix now — blockers</span>
+    <span style="font-size:12px;color:var(--color-text-tertiary)">must work before going live</span>
+  </div>
+  <div class="items">
+    <div class="item"><i class="ti ti-building-community" aria-hidden="true"></i><div><strong>Cross-org approvals</strong>main con approves subcon entries</div></div>
+    <div class="item"><i class="ti ti-photo" aria-hidden="true"></i><div><strong>Photo sync offline</strong>_pushAttachment missing in syncService</div></div>
+    <div class="item"><i class="ti ti-mail" aria-hidden="true"></i><div><strong>Member invite</strong>"coming soon" blocks onboarding</div></div>
+    <div class="item"><i class="ti ti-shield-lock" aria-hidden="true"></i><div><strong>RLS policy audit</strong>confirm no data leaks across orgs</div></div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-label" style="background:var(--color-background-warning);color:var(--color-text-warning)">Ship soon — UX gaps</span>
+    <span style="font-size:12px;color:var(--color-text-tertiary)">users will notice these</span>
+  </div>
+  <div class="items">
+    <div class="item"><i class="ti ti-device-mobile" aria-hidden="true"></i><div><strong>Mobile nav</strong>no bottom nav bar on phone</div></div>
+    <div class="item"><i class="ti ti-bell-ringing" aria-hidden="true"></i><div><strong>Email notifications</strong>approval requests + rejections</div></div>
+    <div class="item"><i class="ti ti-user-circle" aria-hidden="true"></i><div><strong>User profile page</strong>change name, password, avatar</div></div>
+    <div class="item"><i class="ti ti-route" aria-hidden="true"></i><div><strong>Onboarding flow</strong>new org: first contract → template → entry</div></div>
+    <div class="item"><i class="ti ti-chart-pie" aria-hidden="true"></i><div><strong>Dashboard metrics</strong>real numbers, not placeholders</div></div>
+    <div class="item"><i class="ti ti-package" aria-hidden="true"></i><div><strong>Bundle splitting</strong>661kB chunk → lazy routes</div></div>
+  </div>
+</div>
+
+<div class="phase">
+  <div class="phase-header">
+    <span class="phase-label" style="background:var(--color-background-info);color:var(--color-text-info)">Growth — platform features</span>
+    <span style="font-size:12px;color:var(--color-text-tertiary)">what makes clients pay and stay</span>
+  </div>
+  <div class="items">
+    <div class="item"><i class="ti ti-credit-card" aria-hidden="true"></i><div><strong>Subscription billing</strong>tier field exists, Stripe not wired</div></div>
+    <div class="item"><i class="ti ti-photo-up" aria-hidden="true"></i><div><strong>Org logo upload</strong>replace W monogram with real logo</div></div>
+    <div class="item"><i class="ti ti-wifi-off" aria-hidden="true"></i><div><strong>Full offline mode</strong>read past entries + background sync</div></div>
+    <div class="item"><i class="ti ti-alert-circle" aria-hidden="true"></i><div><strong>Error monitoring</strong>Sentry or similar for production crashes</div></div>
+    <div class="item"><i class="ti ti-file-certificate" aria-hidden="true"></i><div><strong>Terms + privacy</strong>required before taking real clients</div></div>
+    <div class="item"><i class="ti ti-rocket" aria-hidden="true"></i><div><strong>Public landing page</strong>workledger.my — sign-up funnel</div></div>
+  </div>
+</div>

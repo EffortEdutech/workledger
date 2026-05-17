@@ -1,15 +1,17 @@
 /**
  * WorkLedger - Recent Activity Component
- * 
- * Component displaying recent activity feed with time formatting
- * and activity type icons.
- * 
+ *
+ * Self-fetching component that queries activity_logs from Supabase
+ * and displays a formatted activity feed with relative timestamps.
+ *
  * @module components/dashboard/RecentActivity
  * @created January 29, 2026
+ * @updated May 17, 2026 - self-fetch from activity_logs using orgId
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../../services/supabase/client';
 
 /**
  * Format relative time (e.g., "2 hours ago")
@@ -31,112 +33,241 @@ function formatRelativeTime(dateString) {
   if (seconds < 604800) {
     return `${Math.floor(seconds / 86400)} days ago`;
   }
-  
+
   return date.toLocaleDateString();
 }
 
 /**
- * Get icon for activity type
+ * Map DB action values to human-readable messages
  */
-function getActivityIcon(type) {
+function getActivityMessage(action) {
+  const map = {
+    APPROVE_WORK_ENTRY: 'approved a work entry',
+    REJECT_WORK_ENTRY: 'rejected a work entry',
+    DELETE_WORK_ENTRY: 'deleted a work entry',
+    CREATE_WORK_ENTRY: 'created a work entry'
+  };
+  return map[action] || action.toLowerCase().replace(/_/g, ' ');
+}
+
+/**
+ * Get icon for activity type (keyed by action string)
+ */
+function getActivityIcon(action) {
   const icons = {
-    'work_entry_created': (
+    CREATE_WORK_ENTRY: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
-    'work_entry_submitted': (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
-    'work_entry_approved': (
+    APPROVE_WORK_ENTRY: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
-    'project_created': (
+    REJECT_WORK_ENTRY: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
-    'member_joined': (
+    DELETE_WORK_ENTRY: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
       </svg>
     ),
-    'default': (
+    default: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     )
   };
 
-  return icons[type] || icons.default;
+  return icons[action] || icons.default;
 }
 
 /**
- * Get color class for activity type
+ * Get color class for activity type (keyed by action string)
  */
-function getActivityColor(type) {
+function getActivityColor(action) {
   const colors = {
-    'work_entry_created': 'bg-blue-100 text-blue-600',
-    'work_entry_submitted': 'bg-yellow-100 text-yellow-600',
-    'work_entry_approved': 'bg-green-100 text-green-600',
-    'project_created': 'bg-purple-100 text-purple-600',
-    'member_joined': 'bg-indigo-100 text-indigo-600',
-    'default': 'bg-gray-100 text-gray-600'
+    CREATE_WORK_ENTRY: 'bg-blue-100 text-blue-600',
+    APPROVE_WORK_ENTRY: 'bg-green-100 text-green-600',
+    REJECT_WORK_ENTRY: 'bg-red-100 text-red-600',
+    DELETE_WORK_ENTRY: 'bg-gray-100 text-gray-600',
+    default: 'bg-gray-100 text-gray-600'
   };
 
-  return colors[type] || colors.default;
+  return colors[action] || colors.default;
+}
+
+/**
+ * Loading skeleton - 3 animated grey bars
+ */
+function LoadingSkeleton() {
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
+      <div className="space-y-4">
+        {[0, 1, 2].map(function(i) {
+          return (
+            <div key={i} className="flex items-center space-x-3 animate-pulse">
+              <div className="h-10 w-10 rounded-full bg-gray-200 flex-shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-gray-200 rounded w-3/4" />
+                <div className="h-3 bg-gray-200 rounded w-1/2" />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Normalise a log row returned from supabase into a display-ready shape.
+ * Handles both the nested-join shape and the flat shape (fallback).
+ */
+function normaliseLog(log, nameMap) {
+  let actorName = 'Unknown';
+  if (log.user_profiles && log.user_profiles.full_name) {
+    actorName = log.user_profiles.full_name;
+  } else if (nameMap && nameMap[log.actor_user_id]) {
+    actorName = nameMap[log.actor_user_id];
+  }
+  return {
+    id: log.id,
+    action: log.action,
+    entity_type: log.entity_type,
+    entity_id: log.entity_id,
+    created_at: log.created_at,
+    actorName: actorName
+  };
 }
 
 /**
  * RecentActivity Component
- * 
+ *
+ * Self-fetches the latest 10 activity_logs rows where the given org
+ * is either the actor or the target.
+ *
  * @param {Object} props
- * @param {Array} props.activities - Array of activity objects
- * @param {string} props.activities[].type - Activity type
- * @param {string} props.activities[].message - Activity message
- * @param {string} props.activities[].user - User who performed action
- * @param {string} props.activities[].timestamp - ISO timestamp
- * @param {string} props.activities[].link - Link to related resource (optional)
- * @param {number} props.maxItems - Maximum items to display (default: 5)
- * 
- * @example
- * <RecentActivity
- *   activities={[
- *     {
- *       type: 'work_entry_created',
- *       message: 'Work entry created for PMC Contract',
- *       user: 'John Doe',
- *       timestamp: '2026-01-29T10:30:00Z',
- *       link: '/work-entries/123'
- *     }
- *   ]}
- * />
+ * @param {string} props.orgId - Organisation ID used to filter activity_logs
  */
-export function RecentActivity({ activities = [], maxItems = 5 }) {
-  // Limit activities to maxItems
-  const displayActivities = activities.slice(0, maxItems);
+export function RecentActivity({ orgId }) {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(function() {
+    if (!orgId) {
+      setLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function fetchActivities() {
+      setLoading(true);
+      try {
+        const result = await supabase
+          .from('activity_logs')
+          .select('id, action, entity_type, entity_id, actor_user_id, metadata, created_at, user_profiles!actor_user_id(full_name)')
+          .or(`actor_org_id.eq.${orgId},target_org_id.eq.${orgId}`)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (!result.error && result.data) {
+          if (!cancelled) {
+            setActivities(result.data.map(function(log) {
+              return normaliseLog(log, null);
+            }));
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Fallback: fetch without join and resolve names separately
+        const logsResult = await supabase
+          .from('activity_logs')
+          .select('id, action, entity_type, entity_id, actor_user_id, metadata, created_at')
+          .or(`actor_org_id.eq.${orgId},target_org_id.eq.${orgId}`)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (logsResult.error || !logsResult.data) {
+          if (!cancelled) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        const logs = logsResult.data;
+        const userIds = logs
+          .map(function(l) {
+            return l.actor_user_id; 
+          })
+          .filter(Boolean)
+          .filter(function(v, i, a) {
+            return a.indexOf(v) === i; 
+          });
+
+        const nameMap = {};
+        if (userIds.length > 0) {
+          const profilesResult = await supabase
+            .from('user_profiles')
+            .select('id, full_name')
+            .in('id', userIds);
+          if (profilesResult.data) {
+            profilesResult.data.forEach(function(p) {
+              nameMap[p.id] = p.full_name;
+            });
+          }
+        }
+
+        if (!cancelled) {
+          setActivities(logs.map(function(log) {
+            return normaliseLog(log, nameMap);
+          }));
+          setLoading(false);
+        }
+      } catch (_err) {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchActivities();
+    return function() {
+      cancelled = true;
+    };
+  }, [orgId]);
+
+  if (loading) {
+    return <LoadingSkeleton />;
+  }
 
   // Empty state
-  if (displayActivities.length === 0) {
+  if (activities.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Recent Activity
-        </h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
         <div className="text-center py-8">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
-          <p className="mt-2 text-sm text-gray-500">
-            No recent activity yet
-          </p>
-          <p className="text-xs text-gray-400">
-            Activity will appear here as you use the app
-          </p>
+          <p className="mt-2 text-sm text-gray-500">No recent activity yet</p>
+          <p className="text-xs text-gray-400">Activity will appear here as you use the app</p>
         </div>
       </div>
     );
@@ -144,17 +275,20 @@ export function RecentActivity({ activities = [], maxItems = 5 }) {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">
-        Recent Activity
-      </h3>
-      
+      <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h3>
+
       <div className="flow-root">
         <ul className="-mb-8">
-          {displayActivities.map((activity, index) => {
-            const ActivityContent = (
+          {activities.map(function(activity, index) {
+            const isLast = index === activities.length - 1;
+            const link =
+              activity.entity_type === 'work_entry' && activity.entity_id
+                ? `/work/${activity.entity_id}`
+                : null;
+
+            const rowContent = (
               <div className="relative pb-8">
-                {/* Connecting line */}
-                {index !== displayActivities.length - 1 && (
+                {!isLast && (
                   <span
                     className="absolute top-5 left-5 -ml-px h-full w-0.5 bg-gray-200"
                     aria-hidden="true"
@@ -162,36 +296,43 @@ export function RecentActivity({ activities = [], maxItems = 5 }) {
                 )}
 
                 <div className="relative flex items-start space-x-3">
-                  {/* Icon */}
-                  <div className={`
-                    relative px-1 flex h-10 w-10 items-center justify-center rounded-full
-                    ${getActivityColor(activity.type)}
-                  `}>
-                    {getActivityIcon(activity.type)}
+                  <div
+                    className={`relative px-1 flex h-10 w-10 items-center justify-center rounded-full ${getActivityColor(activity.action)}`}
+                  >
+                    {getActivityIcon(activity.action)}
                   </div>
 
-                  {/* Content */}
                   <div className="min-w-0 flex-1">
                     <div>
                       <div className="text-sm">
                         <span className="font-medium text-gray-900">
-                          {activity.user}
-                        </span>{' '}
+                          {activity.actorName}
+                        </span>
+                        {' '}
                         <span className="text-gray-500">
-                          {activity.message}
+                          {getActivityMessage(activity.action)}
                         </span>
                       </div>
                       <p className="mt-0.5 text-xs text-gray-500">
-                        {formatRelativeTime(activity.timestamp)}
+                        {formatRelativeTime(activity.created_at)}
                       </p>
                     </div>
                   </div>
 
-                  {/* Arrow link */}
-                  {activity.link && (
+                  {link && (
                     <div className="flex-shrink-0 self-center">
-                      <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      <svg
+                        className="h-5 w-5 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
                       </svg>
                     </div>
                   )}
@@ -199,33 +340,20 @@ export function RecentActivity({ activities = [], maxItems = 5 }) {
               </div>
             );
 
-            // Wrap with link if available
-            if (activity.link) {
+            if (link) {
               return (
-                <li key={index}>
-                  <Link to={activity.link} className="block hover:bg-gray-50 -mx-2 px-2 rounded">
-                    {ActivityContent}
+                <li key={activity.id}>
+                  <Link to={link} className="block hover:bg-gray-50 -mx-2 px-2 rounded">
+                    {rowContent}
                   </Link>
                 </li>
               );
             }
 
-            return <li key={index}>{ActivityContent}</li>;
+            return <li key={activity.id}>{rowContent}</li>;
           })}
         </ul>
       </div>
-
-      {/* View all link */}
-      {activities.length > maxItems && (
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <Link
-            to="/activity"
-            className="text-sm font-medium text-primary-600 hover:text-primary-700"
-          >
-            View all activity →
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

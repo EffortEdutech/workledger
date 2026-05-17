@@ -19,11 +19,20 @@
  * @updated March 4, 2026 - Session 18 cleanup: removed old inline offline banner
  */
 
-import React, { useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import { AuthProvider } from './context/AuthContext';
 import { OrganizationProvider } from './context/OrganizationContext';
+
+/**
+ * Full-screen loading spinner shown while lazy page chunks are loading.
+ */
+const PageLoadingFallback = () => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 /**
  * Root App Component
@@ -53,7 +62,9 @@ function App() {
       {/* OrganizationProvider must be INSIDE AuthProvider
           so it can read profile.global_role to identify Bina Jaya staff */}
       <OrganizationProvider>
-        <RouterProvider router={router} />
+        <Suspense fallback={<PageLoadingFallback />}>
+          <RouterProvider router={router} />
+        </Suspense>
       </OrganizationProvider>
     </AuthProvider>
   );

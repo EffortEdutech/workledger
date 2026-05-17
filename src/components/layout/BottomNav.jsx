@@ -7,6 +7,7 @@
  * SESSION 11 UPDATE: Role-filtered tabs.
  * SESSION 19 UPDATE: iOS/Android safe-area inset on <nav> element directly.
  * SESSION 19 UPDATE: No-org fallback state for new/pending users.
+ * SESSION 20 UPDATE: Approvals tab with badge, Profile tab replaces More.
  *
  * NO-ORG STATE:
  *   When a user is authenticated but has no org_members record yet
@@ -21,19 +22,45 @@
  * @created January 29, 2026
  * @updated February 21, 2026 - Session 11: Role-filtered tabs
  * @updated April 7, 2026    - Session 19: safe-area inset + no-org fallback
+ * @updated May 17, 2026     - Session 20: Approvals badge + Profile tab
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../constants/routes';
 import { useRole } from '../../hooks/useRole';
 import { useAuth } from '../../context/AuthContext';
+import { useOrganization } from '../../context/OrganizationContext';
+import { workEntryService } from '../../services/api/workEntryService';
 
 export function BottomNav() {
   const location  = useLocation();
   const navigate  = useNavigate();
   const { can, loading: roleLoading } = useRole();
   const { profile, logout } = useAuth();
+  const { orgId } = useOrganization();
+
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // Fetch pending approvals count only for users who can approve work entries
+  useEffect(() => {
+    if (!can('APPROVE_WORK_ENTRY') || !orgId) {
+      return;
+    }
+
+    let cancelled = false;
+    workEntryService.getPendingApprovals(orgId, true)
+      .then((count) => {
+        if (!cancelled) {
+          setPendingCount(typeof count === 'number' ? count : 0);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId, can]);
 
   const allTabs = [
     {
@@ -81,13 +108,25 @@ export function BottomNav() {
       )
     },
     {
-      label:      'More',
-      path:       ROUTES.DASHBOARD,
+      label:      'Approvals',
+      path:       ROUTES.WORK_ENTRY_APPROVALS,
+      permission: 'APPROVE_WORK_ENTRY',
+      badge:      pendingCount > 0,
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+      )
+    },
+    {
+      label:      'Profile',
+      path:       ROUTES.PROFILE,
       permission: 'NAV_DASHBOARD',
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       )
     }
@@ -157,7 +196,12 @@ export function BottomNav() {
                 ${active ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'}
               `}
             >
-              {tab.icon}
+              <span className="relative">
+                {tab.icon}
+                {tab.badge && (
+                  <span className="absolute top-1 right-1/4 w-2 h-2 rounded-full bg-red-500" />
+                )}
+              </span>
               <span className="text-xs font-medium">{tab.label}</span>
             </Link>
           );

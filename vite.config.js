@@ -168,6 +168,7 @@ export default defineConfig({
           'vendor-auth': ['@supabase/supabase-js'],
           'vendor-pdf': ['jspdf', 'jspdf-autotable'],
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-icons': ['@heroicons/react'],
         },
       },
     },

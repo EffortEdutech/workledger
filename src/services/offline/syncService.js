@@ -1,6 +1,11 @@
 /**
  * WorkLedger — Sync Service
  *
+ * SESSION 20 UPDATE — offline photo sync (_pushAttachment):
+ *   After each work entry sync, push any pending db.attachments for that
+ *   entry (photos captured offline via OfflineEditDraft). Also runs a
+ *   catch-all _pushPendingAttachments() pass on every sync cycle.
+ *
  * SESSION 19 FIX — created_by null guard in _pushWorkEntry:
  *   When entries are created offline, workEntryService calls getUser() which
  *   makes a live network request. This request fails offline (ERR_NAME_NOT_RESOLVED)
@@ -19,6 +24,7 @@
 
 import { db, SYNC_STATUS } from './db';
 import { supabase } from '../supabase/client';
+import { storageService } from '../supabase/storageService';
 
 const ENTRY_WINDOW = 30;
 
@@ -76,6 +82,9 @@ export const syncService = {
       for (const item of pending) {
         await this._pushSingleItem(item);
       }
+
+      // SESSION 20: Push pending offline attachments (photos captured offline)
+      await this._pushPendingAttachments();
     } catch (e) {
       console.error('❌ pushPendingEntries failed:', e); 
     }
@@ -224,6 +233,200 @@ export const syncService = {
     });
     await db.syncQueue.update(queueItem.id, { sync_status: 'done' });
     console.log(`✅ Entry pushed → remoteId: ${data.id}`);
+
+    // SESSION 20: Immediately push any offline photos captured for this entry
+    try {
+      await this._pushAttachmentsForEntry(localId, data.id);
+    } catch (attErr) {
+      console.warn('⚠️ Attachment sync after entry push failed:', attErr.message);
+    }
+  },
+
+  // ── ATTACHMENT PUSH (Session 20) ─────────────────────────────────────────
+
+  /**
+   * Push all pending offline attachments on every sync cycle.
+   * Catches attachments whose parent entry was already synced in a prior cycle.
+   */
+  async _pushPendingAttachments() {
+    try {
+      const pending = await db.attachments
+        .filter((a) => !a.remoteId && a.sync_status === 'pending')
+        .toArray();
+
+      if (!pending.length) {
+        return;
+      }
+
+      console.log(`📎 Pushing ${pending.length} pending offline attachment(s)...`);
+
+      for (const att of pending) {
+        try {
+          await this._pushAttachment(att);
+        } catch (e) {
+          const isDeferral = e.message?.startsWith('Parent work entry not yet synced');
+          if (!isDeferral) {
+            console.warn(`⚠️ Attachment push failed (localId: ${att.localId}):`, e.message);
+            await db.attachments.update(att.localId, { last_error: e.message }).catch(() => {});
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ _pushPendingAttachments failed:', e.message);
+    }
+  },
+
+  /**
+   * Push all pending attachments that belong to a specific entry local ID.
+   * Called immediately after _pushWorkEntry succeeds.
+   *
+   * @param {number} entryLocalId  - Dexie localId of the parent work entry
+   * @param {string} entryRemoteId - Supabase UUID just assigned to the entry
+   */
+  async _pushAttachmentsForEntry(entryLocalId, entryRemoteId) {
+    const pending = await db.attachments
+      .where('entry_local_id').equals(entryLocalId)
+      .filter((a) => !a.remoteId)
+      .toArray();
+
+    if (!pending.length) {
+      return;
+    }
+
+    console.log(`📎 Pushing ${pending.length} attachment(s) for entry ${entryRemoteId}...`);
+
+    for (const att of pending) {
+      try {
+        // Stamp entry_remote_id so _pushAttachment can skip the lookup
+        await db.attachments.update(att.localId, { entry_remote_id: entryRemoteId });
+        await this._pushAttachment({ ...att, entry_remote_id: entryRemoteId });
+      } catch (e) {
+        console.warn(`⚠️ Attachment push failed (localId: ${att.localId}):`, e.message);
+        await db.attachments.update(att.localId, { last_error: e.message }).catch(() => {});
+      }
+    }
+  },
+
+  /**
+   * Upload one offline attachment to Supabase Storage, insert a DB record,
+   * and mark the Dexie row as synced.
+   *
+   * Flow:
+   *   1. Resolve parent work entry's Supabase remoteId (defer if not synced yet)
+   *   2. Resolve organization_id from cached contract (or live Supabase fetch)
+   *   3. Decode base64 data URL → Blob
+   *   4. Upload Blob to Supabase Storage via storageService
+   *   5. Insert row into `attachments` table
+   *   6. Update Dexie record: remoteId, entry_remote_id, sync_status = 'synced'
+   *
+   * @param {Object} attachment - Dexie db.attachments row
+   */
+  async _pushAttachment(attachment) {
+    // ── Step 1: Resolve entry_remote_id ─────────────────────────────────────
+    let entryRemoteId = attachment.entry_remote_id;
+
+    if (!entryRemoteId) {
+      const parentEntry = await db.workEntries.get(attachment.entry_local_id);
+
+      if (!parentEntry || !parentEntry.remoteId) {
+        // Parent not synced yet — will be retried on next cycle
+        throw new Error('Parent work entry not yet synced — deferring attachment');
+      }
+
+      entryRemoteId = parentEntry.remoteId;
+      await db.attachments.update(attachment.localId, { entry_remote_id: entryRemoteId });
+    }
+
+    // ── Step 2: Resolve organization_id ─────────────────────────────────────
+    // Try the parent entry from Dexie first (it has contract_id).
+    const parentEntry = attachment.entry_local_id
+      ? await db.workEntries.get(attachment.entry_local_id)
+      : await db.workEntries.where('remoteId').equals(entryRemoteId).first();
+
+    const contractId = parentEntry?.contract_id;
+
+    let organizationId = contractId
+      ? (await db.contracts.get(contractId))?.organization_id
+      : null;
+
+    if (!organizationId) {
+      // Fall back to a live Supabase fetch — the entry is online at this point
+      const { data: remoteEntry } = await supabase
+        .from('work_entries')
+        .select('organization_id, contract_id')
+        .eq('id', entryRemoteId)
+        .single();
+
+      organizationId = remoteEntry?.organization_id;
+    }
+
+    if (!organizationId) {
+      throw new Error(`Cannot determine organization_id for attachment localId ${attachment.localId}`);
+    }
+
+    // ── Step 3: Decode base64 data URL → Blob ────────────────────────────────
+    const base64Data = attachment.data || '';
+    const commaIdx   = base64Data.indexOf(',');
+    const header     = commaIdx > -1 ? base64Data.slice(0, commaIdx) : '';
+    const b64        = commaIdx > -1 ? base64Data.slice(commaIdx + 1) : base64Data;
+    const mimeMatch  = header.match(/:(.*?);/);
+    const mime       = mimeMatch ? mimeMatch[1] : (attachment.mime_type || 'image/jpeg');
+
+    const binaryStr = atob(b64);
+    const bytes     = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mime });
+
+    // ── Step 4: Upload Blob to Supabase Storage ──────────────────────────────
+    const ext       = (attachment.file_name || 'photo.jpg').split('.').pop() || 'jpg';
+    const fileName  = storageService.generateFileName(attachment.attachment_type || 'photo', ext);
+    const storagePath = storageService.generatePath(organizationId, contractId || 'unknown', entryRemoteId, fileName);
+
+    const uploadResult = await storageService.uploadFile('workledger-attachments', storagePath, blob);
+
+    if (!uploadResult.success) {
+      throw new Error(`Storage upload failed: ${uploadResult.error}`);
+    }
+
+    // ── Step 5: Insert row in attachments table ───────────────────────────────
+    const userId = await getSessionUserId();
+    const now    = new Date().toISOString();
+
+    const { data: dbRow, error: dbErr } = await supabase
+      .from('attachments')
+      .insert({
+        work_entry_id:  entryRemoteId,
+        file_name:      fileName,
+        file_type:      attachment.attachment_type || 'photo',
+        file_size:      blob.size,
+        mime_type:      mime,
+        storage_bucket: 'workledger-attachments',
+        storage_path:   storagePath,
+        storage_url:    uploadResult.data.publicUrl,
+        field_id:       attachment.field_id || null,
+        sync_status:    'uploaded',
+        synced_at:      now,
+        created_by:     userId,
+        created_at:     attachment.created_at || now
+      })
+      .select('id')
+      .single();
+
+    if (dbErr) {
+      throw new Error(`attachments insert failed: ${dbErr.message}`);
+    }
+
+    // ── Step 6: Update Dexie row ─────────────────────────────────────────────
+    await db.attachments.update(attachment.localId, {
+      remoteId:        dbRow.id,
+      entry_remote_id: entryRemoteId,
+      sync_status:     'synced',
+      last_error:      null
+    });
+
+    console.log(`✅ Attachment synced → remoteId: ${dbRow.id} (entry: ${entryRemoteId})`);
   },
 
   // ── PULL ──────────────────────────────────────────────────────────────────
@@ -404,6 +607,13 @@ export const syncService = {
       }
 
       await db.syncQueue.where('sync_status').equals('done').delete();
+
+      // SESSION 20: Free IndexedDB space — synced attachments are in Supabase Storage
+      const syncedAttKeys = await db.attachments.filter((a) => !!a.remoteId).primaryKeys();
+      if (syncedAttKeys.length) {
+        await db.attachments.bulkDelete(syncedAttKeys);
+        console.log(`🧹 Pruned ${syncedAttKeys.length} synced attachment records from IndexedDB`);
+      }
 
       const failed = await db.syncQueue.where('sync_status').equals(SYNC_STATUS.FAILED).toArray();
       for (const item of failed) {

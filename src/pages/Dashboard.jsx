@@ -28,6 +28,7 @@ import { useRole } from '../hooks/useRole';
 import AppLayout from '../components/layout/AppLayout';
 import StatsCard from '../components/dashboard/StatsCard';
 import RecentActivity from '../components/dashboard/RecentActivity';
+import OnboardingWizard from '../components/dashboard/OnboardingWizard';
 import { projectService } from '../services/api/projectService';
 import { contractService } from '../services/api/contractService';
 import { workEntryService } from '../services/api/workEntryService';
@@ -253,7 +254,7 @@ export function Dashboard() {
             <span className="text-amber-500 mt-0.5">⚠️</span>
             <div>
               <p className="text-sm font-medium text-amber-800">
-                You're not part of any organization yet.
+                You&apos;re not part of any organization yet.
               </p>
               <p className="text-sm text-amber-700 mt-0.5">
                 Create your first organization to get started.
@@ -285,6 +286,16 @@ export function Dashboard() {
           </div>
         )}
 
+        {/* Onboarding Wizard — shown when org exists but has no contracts yet */}
+        {orgId && stats.contracts === 0 && !loading && can('MANAGE_CONTRACTS') && (
+          <OnboardingWizard
+            contractCount={stats.contracts}
+            orgId={orgId}
+            can={can}
+            loading={loading}
+          />
+        )}
+
         {/* Quick Actions */}
         {visibleQuickActions.length > 0 && (
           <div className="mb-8">
@@ -301,7 +312,7 @@ export function Dashboard() {
                   `}
                 >
                   {/* Session 16: badge dot for pending approvals */}
-                  {action.badge != null && (
+                  {action.badge !== null && (
                     <span className="absolute top-2 right-2 inline-flex items-center
                                      justify-center min-w-[1.25rem] h-5 px-1
                                      text-xs font-bold text-white bg-blue-600 rounded-full">

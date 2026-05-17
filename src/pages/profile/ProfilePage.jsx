@@ -25,6 +25,7 @@ import AppLayout from '../../components/layout/AppLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useOrganization } from '../../context/OrganizationContext';
 import { getRoleMeta } from '../../constants/permissions';
+import { authService } from '../../services/supabase/auth';
 
 export default function ProfilePage() {
   const { user, profile, updateProfile } = useAuth();
@@ -37,6 +38,10 @@ export default function ProfilePage() {
     full_name:    profile?.full_name    || '',
     phone_number: profile?.phone_number || ''
   });
+
+  // Password change state
+  const [pwData,      setPwData]      = useState({ current: '', newPw: '', confirm: '' });
+  const [pwSaving,    setPwSaving]    = useState(false);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -83,7 +88,37 @@ export default function ProfilePage() {
     }
   };
 
-  const initial    = (profile?.full_name || user?.email || '?').charAt(0).toUpperCase();
+  const handlePasswordChange = async () => {
+    if (!pwData.current) {
+      showToast('Current password is required.', 'error');
+      return;
+    }
+    if (pwData.newPw.length < 8) {
+      showToast('New password must be at least 8 characters.', 'error');
+      return;
+    }
+    if (pwData.newPw !== pwData.confirm) {
+      showToast('New passwords do not match.', 'error');
+      return;
+    }
+
+    try {
+      setPwSaving(true);
+      const result = await authService.updatePassword(pwData.newPw);
+      if (!result.success) {
+        showToast(result.error || 'Failed to change password.', 'error');
+        return;
+      }
+      setPwData({ current: '', newPw: '', confirm: '' });
+      showToast('Password changed successfully.');
+    } catch {
+      showToast('Unexpected error. Please try again.', 'error');
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
+  const initial    = profile?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?';
   const globalRole = profile?.global_role;
   const roleMeta   = globalRole ? getRoleMeta(globalRole) : null;
 
@@ -112,8 +147,11 @@ export default function ProfilePage() {
         <div className="bg-white rounded-xl shadow p-6">
           <div className="flex items-start gap-5">
             {/* Avatar */}
-            <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-2xl flex-shrink-0">
-              {initial}
+            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+              <div className="w-20 h-20 rounded-full bg-primary-600 flex items-center justify-center text-white font-bold text-2xl">
+                {initial}
+              </div>
+              <span className="text-xs text-gray-400">(Avatar upload coming soon)</span>
             </div>
 
             {/* Name + role */}
@@ -241,6 +279,66 @@ export default function ProfilePage() {
                   : '—'}
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Change Password */}
+        <div className="bg-white rounded-xl shadow p-6 space-y-5">
+          <h3 className="text-base font-semibold text-gray-900">Change Password</h3>
+
+          <div className="space-y-4">
+            {/* Current password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Current Password
+              </label>
+              <input
+                type="password"
+                value={pwData.current}
+                onChange={e => setPwData(prev => ({ ...prev, current: e.target.value }))}
+                placeholder="Enter your current password"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
+            {/* New password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                New Password
+                <span className="ml-2 text-xs font-normal text-gray-400">(min 8 characters)</span>
+              </label>
+              <input
+                type="password"
+                value={pwData.newPw}
+                onChange={e => setPwData(prev => ({ ...prev, newPw: e.target.value }))}
+                placeholder="Enter new password"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
+            {/* Confirm new password */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={pwData.confirm}
+                onChange={e => setPwData(prev => ({ ...prev, confirm: e.target.value }))}
+                placeholder="Repeat new password"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={handlePasswordChange}
+              disabled={pwSaving}
+              className="px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
+            >
+              {pwSaving ? 'Changing...' : 'Change Password'}
+            </button>
           </div>
         </div>
 
