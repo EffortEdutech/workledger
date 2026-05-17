@@ -348,9 +348,13 @@ class WorkEntryService {
         status: flat.status || 'draft',
         submitted_at: flat.submitted_at || null,
         created_by: user.id,
+        // SESSION 21 FIX: Pass organization_id explicitly from the form (currentOrg?.id).
+        // The DB trigger intended to auto-set this from contracts.organization_id was never
+        // applied, so new entries landed with organization_id = null. getUserWorkEntries
+        // filters by organization_id = orgId, which silently excluded all new entries.
+        organization_id: flat.organization_id ?? null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-        // organization_id auto-set by DB trigger (migration 023) — do NOT pass
       };
 
       // ── STEP 1: Save to IndexedDB first (always, instant) ────────────

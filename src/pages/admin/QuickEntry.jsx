@@ -180,9 +180,10 @@ export default function QuickEntry() {
       );
 
       const result = await workEntryService.createWorkEntry({
-        contract_id:  contractId,
-        template_id:  templateId,
-        entry_date:   entryDate,
+        contract_id:     contractId,
+        template_id:     templateId,
+        entry_date:      entryDate,
+        organization_id: currentOrg?.id ?? null,
         data,
         status
       });

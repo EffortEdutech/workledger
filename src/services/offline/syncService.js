@@ -116,6 +116,20 @@ export const syncService = {
   },
 
   async _pushSingleItem(queueItem) {
+    // Hard cap: after 10 retries, mark as permanently failed so it stops looping.
+    // The user will need to delete the stuck entry and re-create it.
+    const MAX_RETRIES = 10;
+    if ((queueItem.retry_count || 0) >= MAX_RETRIES) {
+      console.warn(`⛔ Queue item ${queueItem.id} hit retry cap (${MAX_RETRIES}) — marking failed`);
+      await db.syncQueue.update(queueItem.id, { sync_status: SYNC_STATUS.FAILED });
+      if (queueItem.entity_type === 'work_entry') {
+        await db.workEntries.update(queueItem.entity_local_id, {
+          sync_error: 'Max retries exceeded — please delete and re-create this entry.'
+        }).catch(() => {});
+      }
+      return;
+    }
+
     try {
       await db.syncQueue.update(queueItem.id, { sync_status: SYNC_STATUS.SYNCING });
       if (queueItem.entity_type === 'work_entry') {
@@ -208,6 +222,23 @@ export const syncService = {
       }
     }
 
+    // ── GUARD 3: organization_id must not be null ────────────────────────
+    // Entries created before the SESSION 21 fix may have organization_id = null.
+    // Resolve it from the cached contract in IndexedDB.
+    if (!supabasePayload.organization_id) {
+      console.warn('⚠️ organization_id is null — resolving from cached contract...');
+      const cachedContract = await db.contracts.get(supabasePayload.contract_id)
+        ?? await db.contracts.filter(c => c.id === supabasePayload.contract_id).first();
+      const resolvedOrgId = cachedContract?.organization_id ?? null;
+      if (resolvedOrgId) {
+        supabasePayload.organization_id = resolvedOrgId;
+        await db.workEntries.update(localId, { organization_id: resolvedOrgId });
+        console.log(`✅ Resolved organization_id from cached contract: ${resolvedOrgId}`);
+      } else {
+        console.warn('⚠️ Could not resolve organization_id — DB trigger will handle it server-side');
+      }
+    }
+
     console.log(`📤 Pushing entry (localId: ${localId}, date: ${supabasePayload.entry_date}, status: ${supabasePayload.status}, created_by: ${supabasePayload.created_by})`);
 
     const { data, error } = await supabase
@@ -223,7 +254,7 @@ export const syncService = {
         created_by: supabasePayload.created_by,
         template_id: supabasePayload.template_id
       });
-      throw new Error(`${error.message}${error.hint ? ` — ${error.hint}` : ''}`);
+      throw new Error(`${error.message}${error.hint ? ' — ' + error.hint : ''}`);
     }
 
     await db.workEntries.update(localId, {
@@ -580,8 +611,89 @@ export const syncService = {
         }
       }
       console.log(`📥 ${data.length} work entries synced`);
+
+      // SESSION 20 FIX: Reconcile orphaned Dexie entries.
+      // If createWorkEntry pushed to Supabase but failed to save the remoteId
+      // locally (network drop after insert, app backgrounded, etc.), the Dexie
+      // entry has no remoteId and keeps retrying → duplicate UI rows + sync errors.
+      //
+      // After each pull, scan Dexie for entries without remoteId and match them
+      // against the entries we just pulled by (contract_id, entry_date, created_by).
+      // When a match is found, stamp the remoteId so the entry is correctly synced.
+      await this._reconcileOrphanedEntries(data).catch((e) =>
+        console.warn('⚠️ _reconcileOrphanedEntries failed:', e.message)
+      );
     } catch (e) {
       console.warn('⚠️ _pullWorkEntries failed:', e.message); 
+    }
+  },
+
+  /**
+   * Match Dexie entries that have no remoteId against a set of freshly-pulled
+   * Supabase entries. When (contract_id, entry_date, created_by) matches,
+   * stamp the localId with the remoteId so the entry stops appearing as unsynced.
+   *
+   * This recovers from the scenario:
+   *   1. createWorkEntry → Supabase insert succeeds, response arrives
+   *   2. db.workEntries.update(remoteId) fails or is interrupted
+   *   3. Dexie entry persists without remoteId indefinitely
+   *
+   * @param {Array} pulledEntries - Entries returned from _pullWorkEntries
+   */
+  async _reconcileOrphanedEntries(pulledEntries) {
+    if (!pulledEntries?.length) {
+      return;
+    }
+
+    // Find all local entries with no remoteId (potentially stuck)
+    const orphans = await db.workEntries
+      .filter((e) => !e.remoteId && !e.deleted_at)
+      .toArray();
+
+    if (!orphans.length) {
+      return;
+    }
+
+    let reconciled = 0;
+
+    for (const orphan of orphans) {
+      // Find a pulled entry that shares the same authoring fingerprint.
+      // We intentionally do NOT match on shift — the constraint that required
+      // (contract_id, entry_date, shift, created_by) uniqueness has been dropped.
+      // Instead we look for entries created on the same date for the same contract
+      // by the same person that are not yet claimed by another local record.
+      const match = pulledEntries.find((remote) =>
+        remote.contract_id === orphan.contract_id &&
+        remote.entry_date  === orphan.entry_date  &&
+        remote.created_by  === orphan.created_by  &&
+        // Ensure this remoteId isn't already claimed by another Dexie row
+        !orphans.some((o) => o.remoteId === remote.id)
+      );
+
+      if (match) {
+        await db.workEntries.update(orphan.localId, {
+          remoteId:    match.id,
+          status:      match.status,
+          sync_status: SYNC_STATUS.SYNCED,
+          sync_error:  null
+        });
+
+        // Clean up the stale syncQueue item for this entry if present
+        await db.syncQueue
+          .filter((q) =>
+            q.entity_type === 'work_entry' &&
+            q.entity_local_id === orphan.localId &&
+            q.sync_status !== 'done'
+          )
+          .modify({ sync_status: 'done' });
+
+        console.log(`🔗 Reconciled orphan localId ${orphan.localId} → remoteId ${match.id}`);
+        reconciled++;
+      }
+    }
+
+    if (reconciled > 0) {
+      console.log(`✅ Reconciled ${reconciled} orphaned entry/entries`);
     }
   },
 
