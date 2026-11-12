@@ -1,0 +1,24 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {createAppointmentCommands,CommandError} from '../src/appointmentCommands.mjs';
+const id=()=>randomUUID();const user=id(),org=id(),project=id(),contract=id(),ap=id();
+const c=()=>({command_id:id(),idempotency_key:'idem-'+id(),organization_id:org,project_id:project,contract_id:contract,acting_appointment_id:ap,expected_version:0,reason:'Contract document signed',request_id:id(),party_id:id(),appointee_user_id:id(),capacity:'subcontractor_submitter',capabilities:['construction.contract.read','construction.diary.submit'],effective_from:new Date(Date.now()-1000).toISOString(),effective_until:null});
+const fixture=({verifier=async()=>({id:user}),connect=async()=>({query:async()=>({rows:[{permitted:false}]}),release(){}})}={})=>createAppointmentCommands({verifyAccessToken:verifier,pool:{connect}});
+async function bad(promise,code){await assert.rejects(promise,e=>e instanceof CommandError&&e.code===code);}
+const run=(service,command=c(),header='Bearer x.y')=>service.execute({authorization:header,kind:'request',command});
+test('E01B-U01 rejects missing bearer',async()=>bad(run(fixture(),c(),''),'unauthenticated'));
+test('E01B-U02 rejects Basic auth',async()=>bad(run(fixture(),c(),'Basic token'),'unauthenticated'));
+test('E01B-U03 rejects forged actor',async()=>bad(run(fixture(),{...c(),actor_user_id:user}),'invalid_input'));
+test('E01B-U04 rejects forged role',async()=>bad(run(fixture(),{...c(),role:'admin'}),'invalid_input'));
+test('E01B-U05 rejects arbitrary extra key',async()=>bad(run(fixture(),{...c(),approved_by:user}),'invalid_input'));
+test('E01B-U06 rejects reserved payment capability',async()=>bad(run(fixture(),{...c(),capabilities:['construction.contract.read','construction.payment.record']}),'forbidden'));
+test('E01B-U07 rejects duplicated capabilities',async()=>bad(run(fixture(),{...c(),capabilities:['construction.contract.read','construction.contract.read']}),'forbidden'));
+test('E01B-U08 rejects grant to unknown capacity',async()=>bad(run(fixture(),{...c(),capacity:'legal_counsel'}),'forbidden'));
+test('E01B-U09 rejects unauthenticated verifier error',async()=>bad(run(fixture({verifier:async()=>{throw Error('forbidden')}})),'unauthenticated'));
+test('E01B-U10 rejects invalid verified identity',async()=>bad(run(fixture({verifier:async()=>({id:'not-uuid'})})),'unauthenticated'));
+test('E01B-U11 rejects unavailable pool',async()=>bad(run(fixture({connect:async()=>{throw Error('network')}})),'command_unavailable'));
+test('E01B-U12 rejects missing expected_version',async()=>{const cmd=c();delete cmd.expected_version;await bad(run(fixture(),cmd),'invalid_input')});
+test('E01B-U13 rejects short reason',async()=>bad(run(fixture(),{...c(),reason:'ok'}),'invalid_input'));
+test('E01B-U14 rejects malformed effective_from',async()=>bad(run(fixture(),{...c(),effective_from:'yesterday'}),'invalid_input'));
+test('E01B-U15 refuses missing verifier/pool dependency',()=>assert.throws(()=>createAppointmentCommands({verifyAccessToken:()=>{}})));
+test('E01B-U16 denies no grant capability in DB',async()=>bad(run(fixture()),'forbidden'));

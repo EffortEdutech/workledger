@@ -1,0 +1,2 @@
+-- Disposable PostgreSQL/PGlite test ONLY. NEVER apply to live Supabase.
+CREATE ROLE wle_e01_appointment_writer NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;

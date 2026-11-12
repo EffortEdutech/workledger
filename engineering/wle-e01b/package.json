@@ -1,0 +1,9 @@
+{
+  "name":"@workledger/wle-e01b-appointment-commands",
+  "version":"0.1.0",
+  "private":true,
+  "type":"module",
+  "engines":{"node":">=22"},
+  "scripts":{"test":"node --test tests/*.test.mjs","test:unit":"node --test tests/commands.unit.test.mjs","test:db":"node --test tests/commands.pg.test.mjs"},
+  "devDependencies":{"@electric-sql/pglite":"0.5.16"}
+}
