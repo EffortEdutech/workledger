@@ -6,6 +6,7 @@ import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {resolve,dirname} from 'node:path';
 import {PGlite} from '@electric-sql/pglite';
+import {createAuthorisationGateway,AuthError} from '../src/gateway.mjs';
 const dir=dirname(fileURLToPath(import.meta.url));
 const sql=(p)=>readFileSync(resolve(dir,'..','sql',p),'utf8');
 const U=(prefix,n)=>`${prefix}0000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
@@ -100,3 +101,36 @@ test('E01-D24: accepted role sees only same-tenant project metadata',async()=>{c
 test('E01-D25: revoked membership immediately denies previously valid appointment',async()=>{const before=(await as(userMC,can(oA,pA,cA,appMC))).rows[0].permitted;assert.equal(before,true);await pg.query("UPDATE wle_e01.organization_memberships SET status='revoked' WHERE organization_id=$1 AND user_id=$2",[oA,userMC]);const after=(await as(userMC,can(oA,pA,cA,appMC))).rows[0].permitted;assert.equal(after,false);});
 test('E01-D26: revoked membership also hides contract records',async()=>{const {rows}=await as(userMC,'SELECT * FROM wle_e01.construction_contracts');assert.equal(rows.length,0);});
 test('E01-D27: contract same as another tenant mapped to different party is rejected by FK',async()=>{await assert.rejects(()=>pg.query('INSERT INTO wle_e01.contract_parties VALUES($1,$2,$3,$4,$5)',[oA,pA,cB,U('1',66),'Forged']));});
+
+
+// Real PostgreSQL RLS + real gateway transaction, with a TEST-ONLY token verifier.
+// No external JWT, HTTP endpoint, or production Supabase is exercised.
+function makePgGateway(verifiedUser) {
+ const pool={connect:async()=>({query:(query,args)=>pg.query(query,args),release:()=>{}})};
+ return createAuthorisationGateway({verifyAccessToken:async()=>({id:verifiedUser}),pool});
+}
+async function gatewayAs(user,scope,shouldAllow) {
+ await pg.exec('RESET ROLE');
+ await pg.exec('SET ROLE wle_e01_gateway');
+ try {
+   const promise=makePgGateway(user).authorize({authorization:'Bearer synthetic.test.token',scope});
+   if(shouldAllow) {
+      const result=await promise;
+      assert.equal(result.actor_user_id,user);
+      assert.equal(result.contract_id,scope.contract_id);
+   } else {
+      await assert.rejects(promise,e=>e instanceof AuthError&&e.code==='forbidden'&&e.status===403);
+   }
+ }finally{await pg.exec('RESET ROLE');await pg.exec('RESET wle_e01.verified_user_id');}
+}
+
+test('E01-D28: actual gateway transaction allowed by PostgreSQL RLS',async()=>{
+ await gatewayAs(userB,{organization_id:oB,project_id:pB,contract_id:cB,acting_appointment_id:appB,capability:'construction.contract.read'},true);
+});
+test('E01-D29: actual gateway transaction denied across tenants',async()=>{
+ await gatewayAs(userB,{organization_id:oA,project_id:pA,contract_id:cA,acting_appointment_id:appMC,capability:'construction.contract.read'},false);
+});
+test('E01-D30: actual gateway denies formerly valid member after revocation',async()=>{
+ await pg.query("UPDATE wle_e01.organization_memberships SET status='revoked' WHERE organization_id=$1 AND user_id=$2",[oB,userB]);
+ await gatewayAs(userB,{organization_id:oB,project_id:pB,contract_id:cB,acting_appointment_id:appB,capability:'construction.contract.read'},false);
+});
