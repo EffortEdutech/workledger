@@ -1,0 +1,339 @@
+openapi: 3.1.0
+info:
+  title: WorkLedger Enterprise Contract API — Candidate RC
+  version: 1.0.0-rc1
+  description: Proposed API schema for mock/isolated engineering only. NOT DEPLOYED. Appointments verified by server,
+    tenant isolation and idempotency mandatory.
+servers:
+- url: https://enterprise.example.invalid
+  description: Non-routable placeholder, not a deployed endpoint
+security:
+- userBearer: []
+paths:
+  /v1/construction-contracts/{contractId}/diaries:
+    post:
+      operationId: createDiaryDraft
+      summary: Create scoped diary draft
+      parameters:
+      - $ref: '#/components/parameters/ContractId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - entry_date
+              - work_description
+              properties:
+                entry_date:
+                  type: string
+                  format: date
+                shift:
+                  type: string
+                work_description:
+                  type: string
+                  minLength: 1
+                work_package_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Draft recorded with event and version
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: Domain rule or validation failed
+      description: Candidate contract only; the server resolves actor and appointment.
+  /v1/construction-contracts/{contractId}/diaries/{diaryId}/submit:
+    post:
+      operationId: submitDiary
+      parameters:
+      - $ref: '#/components/parameters/ContractId'
+      - name: diaryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      responses:
+        '200':
+          description: Submitted; immutable audit event recorded
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: Domain rule or validation failed
+      description: Candidate contract only; the server resolves actor and appointment.
+  /v1/construction-contracts/{contractId}/diaries/{diaryId}/acknowledge:
+    post:
+      operationId: acknowledgeDiary
+      description: Online only. Explicit active main-contractor appointment required.
+      parameters:
+      - $ref: '#/components/parameters/ContractId'
+      - name: diaryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      responses:
+        '200':
+          description: Acknowledged with signed authority record
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: Domain rule or validation failed
+  /v1/programme-generation-requests:
+    post:
+      operationId: requestProgrammeGeneration
+      description: Enqueue scoped adapter job, not direct QS DB mutation.
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProgrammeRequest'
+      responses:
+        '202':
+          description: Job accepted for governed QS processing
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: Domain rule or validation failed
+  /v1/programme-generation-requests/{requestId}:
+    get:
+      operationId: getProgrammeGenerationStatus
+      parameters:
+      - name: requestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Scoped job stage/review status
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: Domain rule or validation failed
+      description: Candidate contract only; the server resolves actor and appointment.
+  /v1/programme-imports:
+    post:
+      operationId: importAcceptedProgramme
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - contract_id
+              - manifest_id
+              - expected_boq_sha256
+              properties:
+                contract_id:
+                  type: string
+                  format: uuid
+                manifest_id:
+                  type: string
+                expected_boq_sha256:
+                  type: string
+                  pattern: ^[a-f0-9]{64}$
+      responses:
+        '202':
+          description: Validation/import queued; not active baseline
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: Domain rule or validation failed
+      description: Candidate contract only; the server resolves actor and appointment.
+  /v1/programme-imports/{importId}/accept:
+    post:
+      operationId: acceptProgrammeBaseline
+      description: Requires distinct Enterprise contractual capacity/approval.
+      parameters:
+      - name: importId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      responses:
+        '200':
+          description: Accepted immutable baseline
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '422':
+          description: Domain rule or validation failed
+components:
+  securitySchemes:
+    userBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ContractId:
+      name: contractId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    CorrelationId:
+      name: X-Correlation-ID
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    TransitionRequest:
+      type: object
+      required:
+      - expected_version
+      - acting_appointment_id
+      properties:
+        expected_version:
+          type: integer
+          minimum: 1
+        acting_appointment_id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+    ProgrammeRequest:
+      type: object
+      required:
+      - organization_id
+      - project_id
+      - contract_id
+      - boq_version_id
+      - boq_source_sha256
+      - acting_appointment_id
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        contract_id:
+          type: string
+          format: uuid
+        boq_version_id:
+          type: string
+          format: uuid
+        boq_source_sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        acting_appointment_id:
+          type: string
+          format: uuid
+    ApiError:
+      type: object
+      required:
+      - error
+      - meta
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+        meta:
+          type: object
+          properties:
+            correlation_id:
+              type: string
+              format: uuid
+  responses:
+    Forbidden:
+      description: No contract-scoped authority; unrelated record existence concealed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Conflict:
+      description: Stale version, idempotency conflict or source revision mismatch
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+tags:
+- name: Construction
+  description: Contract diary and BOQ scope
+- name: Programme
+  description: QS adapter and baseline reception
+x-contract-freeze: 1.0.0-rc1

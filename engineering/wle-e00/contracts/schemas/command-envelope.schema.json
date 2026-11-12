@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/wle/1.0.0-rc1/command-envelope.schema.json",
+  "title": "command-envelope",
+  "description": "WLE-P1B candidate target wire contract only; not a deployed API or authoritative live schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "command_id",
+    "idempotency_key",
+    "organization_id",
+    "project_id",
+    "contract_id",
+    "aggregate_type",
+    "aggregate_id",
+    "expected_version",
+    "acting_appointment_id",
+    "requested_at",
+    "payload"
+  ],
+  "properties": {
+    "command_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 128
+    },
+    "organization_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "contract_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "aggregate_type": {
+      "enum": [
+        "contract",
+        "boq",
+        "diary",
+        "evidence",
+        "programme",
+        "claim",
+        "certificate",
+        "payment",
+        "quality",
+        "safety",
+        "delay",
+        "variation"
+      ]
+    },
+    "aggregate_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "expected_version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "acting_appointment_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4000
+    },
+    "payload": {
+      "type": "object"
+    }
+  }
+}

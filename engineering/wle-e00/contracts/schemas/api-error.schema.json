@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/wle/1.0.0-rc1/api-error.schema.json",
+  "title": "api-error",
+  "description": "WLE-P1B candidate target wire contract only; not a deployed API or authoritative live schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "error",
+    "meta"
+  ],
+  "properties": {
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_input",
+            "unauthenticated",
+            "forbidden",
+            "not_found",
+            "stale_version",
+            "idempotency_conflict",
+            "invalid_transition",
+            "failed_rule",
+            "rate_limited",
+            "downstream_unavailable"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": [
+        "correlation_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "correlation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

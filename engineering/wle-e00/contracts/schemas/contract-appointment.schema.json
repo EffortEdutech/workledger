@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/wle/1.0.0-rc1/contract-appointment.schema.json",
+  "title": "contract-appointment",
+  "description": "WLE-P1B candidate target wire contract only; not a deployed API or authoritative live schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "appointment_id",
+    "organization_id",
+    "project_id",
+    "contract_id",
+    "party_id",
+    "appointee_user_id",
+    "capacity",
+    "effective_from",
+    "status",
+    "capabilities"
+  ],
+  "properties": {
+    "appointment_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "organization_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "contract_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "party_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "appointee_user_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "capacity": {
+      "enum": [
+        "contract_admin",
+        "main_contractor_submitter",
+        "main_contractor_reviewer",
+        "subcontractor_submitter",
+        "appointed_qs",
+        "certifier",
+        "finance_recorder",
+        "client_representative",
+        "independent_quality_verifier",
+        "auditor",
+        "legal_counsel"
+      ]
+    },
+    "effective_from": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "effective_until": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "proposed",
+        "active",
+        "revoked",
+        "expired"
+      ]
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^construction\\.[a-z_]+\\.[a-z_]+$"
+      },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "grant_event_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

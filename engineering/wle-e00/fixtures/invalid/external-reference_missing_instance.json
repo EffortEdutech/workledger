@@ -1,0 +1,12 @@
+{
+  "source_system": "qs-service",
+  "external_entity_type": "programme",
+  "external_id": "42",
+  "source_revision": "v1",
+  "canonical_entity_type": "programme_baseline",
+  "canonical_entity_id": "77777777-7777-4777-8777-777777777777",
+  "organization_id": "11111111-1111-4111-8111-111111111111",
+  "mapping_status": "verified",
+  "verified_at": "2026-11-12T10:05:00Z",
+  "evidence_ref": "synthetic-mapping-001"
+}

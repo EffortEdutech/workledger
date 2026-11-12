@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/wle/1.0.0-rc1/external-reference.schema.json",
+  "title": "external-reference",
+  "description": "WLE-P1B candidate target wire contract only; not a deployed API or authoritative live schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_system",
+    "source_instance",
+    "external_entity_type",
+    "external_id",
+    "source_revision",
+    "canonical_entity_type",
+    "canonical_entity_id",
+    "organization_id",
+    "mapping_status"
+  ],
+  "properties": {
+    "source_system": {
+      "enum": [
+        "workledger",
+        "contract-diary",
+        "qs-service"
+      ]
+    },
+    "source_instance": {
+      "type": "string",
+      "minLength": 1
+    },
+    "external_entity_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "external_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonical_entity_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonical_entity_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "organization_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "mapping_status": {
+      "enum": [
+        "pending",
+        "verified",
+        "rejected",
+        "superseded"
+      ]
+    },
+    "verified_at": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evidence_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

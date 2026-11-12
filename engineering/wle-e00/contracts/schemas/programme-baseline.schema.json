@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/wle/1.0.0-rc1/programme-baseline.schema.json",
+  "title": "programme-baseline",
+  "description": "WLE-P1B candidate target wire contract only; not a deployed API or authoritative live schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_system",
+    "source_instance",
+    "external_project_id",
+    "external_programme_id",
+    "source_revision",
+    "organization_id",
+    "project_id",
+    "contract_id",
+    "boq_version_id",
+    "boq_source_sha256",
+    "programme_status",
+    "review",
+    "timezone",
+    "published_at",
+    "manifest_sha256",
+    "tasks",
+    "dependencies"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0-rc1"
+    },
+    "source_system": {
+      "const": "qs-service"
+    },
+    "source_instance": {
+      "type": "string",
+      "minLength": 1
+    },
+    "external_project_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "external_programme_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "organization_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "project_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "contract_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "boq_version_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "boq_source_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "programme_status": {
+      "const": "confirmed"
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "approved_by_external_id",
+        "approved_by_capacity",
+        "approved_at",
+        "decision_reason"
+      ],
+      "properties": {
+        "decision_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_by_external_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_by_capacity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "approved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decision_reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 3
+    },
+    "calendar_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "external_task_id",
+          "wbs_code",
+          "name",
+          "start_date",
+          "finish_date",
+          "duration_workdays"
+        ],
+        "properties": {
+          "external_task_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "wbs_code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "finish_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "duration_workdays": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "boq_external_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "critical": {
+            "type": "boolean"
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from_external_task_id",
+          "to_external_task_id",
+          "relation_type",
+          "lag_days"
+        ],
+        "properties": {
+          "from_external_task_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "to_external_task_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "relation_type": {
+            "enum": [
+              "FS",
+              "SS",
+              "FF",
+              "SF"
+            ]
+          },
+          "lag_days": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "engine_provenance": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "minProperties": 17
+}

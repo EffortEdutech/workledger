@@ -1,0 +1,9 @@
+{
+  "name": "@workledger/wle-e00-contract-mock",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Isolated WLE-E00 contract and negative-test spike; NOT production API",
+  "engines": {"node": ">=20"},
+  "scripts": {"test": "node --test tests/*.test.mjs", "test:contracts": "python3 tests/validate_frozen_contracts.py", "test:all": "npm test && npm run test:contracts"}
+}
