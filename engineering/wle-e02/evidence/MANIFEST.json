@@ -1,0 +1,60 @@
+{
+  "package": "WLE-E02_Construction_Contract_Version_Registry_Candidate_v0.1",
+  "date_myt": "2026-11-13",
+  "parent_github_sha": "e5fbb735e8a2743d45471170c41efc2df3864128",
+  "contract_freeze": "1.0.0-rc1",
+  "status": "non-production engineering candidate",
+  "test_result": "30/30 node synthetic tests passed, SQL/RLS untested",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 4144,
+      "sha256": "4e1670b8dbb7f744325cc461a35c945c39b2d28eb064d1f0fecff899efa05976"
+    },
+    {
+      "path": "docs/CODEX_HANDOFF.md",
+      "bytes": 2910,
+      "sha256": "0479af873f46a156e072058ac643d8c6207a4eba307875d0a08b6994e88c1af0"
+    },
+    {
+      "path": "docs/DOMAIN_CONTRACT_AND_DECISIONS.md",
+      "bytes": 4890,
+      "sha256": "0f6e96badef0be15b988e14236edebbf2ac3dd3e8dcff76f9f0eb169e567de8e"
+    },
+    {
+      "path": "docs/SECURITY_STAGING_AND_GATES.md",
+      "bytes": 4488,
+      "sha256": "86a552941c67b0b32ef3dddf2ae30e89aa58100975b91e9dba7658b8b22bb5dd"
+    },
+    {
+      "path": "evidence/NODE_TEST_OUTPUT.txt",
+      "bytes": 5528,
+      "sha256": "0ecc6e47e2ac26bc7479e0d8c9211b6a5505afe41267edad6ae01b8324c83994"
+    },
+    {
+      "path": "evidence/TEST_REPORT.md",
+      "bytes": 1623,
+      "sha256": "060594fe11bb2bb9b6d4f48d141f70f12daadb5562fbbfeca8d5e5e802a1f741"
+    },
+    {
+      "path": "package.json",
+      "bytes": 211,
+      "sha256": "26aac941b3f8d7715ca90263f08b4a25152a73146fcc0be649422059e6a5ad73"
+    },
+    {
+      "path": "sql/003_contract_version_registry_CANDIDATE.sql",
+      "bytes": 12937,
+      "sha256": "47f25d2352cde3662b6484e2e37c1a9a2244a147e439fb7618586972e41208e1"
+    },
+    {
+      "path": "src/registry.mjs",
+      "bytes": 11576,
+      "sha256": "3759d364d725294569f562e50717f6cf5cde65acf4311a924ba64678b5a6ac15"
+    },
+    {
+      "path": "tests/registry.test.mjs",
+      "bytes": 10537,
+      "sha256": "6ea4b1b485042bf1c0c0d4467a03fad725facc29b8b2fb52d879de605899c778"
+    }
+  ]
+}
