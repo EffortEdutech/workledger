@@ -158,7 +158,9 @@ CREATE POLICY membership_self ON wle_e01.organization_memberships FOR SELECT TO 
  AND effective_from<=now() AND (effective_until IS NULL OR effective_until>now())
 );
 CREATE POLICY projects_member ON wle_e01.projects FOR SELECT TO wle_e01_gateway USING (
- EXISTS(SELECT 1 FROM wle_e01.organization_memberships m
+ EXISTS(SELECT 1 FROM wle_e01.organizations o
+   WHERE o.organization_id=projects.organization_id AND o.status='active')
+ AND EXISTS(SELECT 1 FROM wle_e01.organization_memberships m
    WHERE m.organization_id=projects.organization_id AND m.user_id=wle_e01.current_actor()
      AND m.status='active' AND m.effective_from<=now()
      AND (m.effective_until IS NULL OR m.effective_until>now()))
@@ -176,7 +178,9 @@ CREATE POLICY capabilities_self ON wle_e01.appointment_capabilities FOR SELECT T
      AND a.appointee_user_id=wle_e01.current_actor())
 );
 CREATE POLICY contract_read ON wle_e01.construction_contracts FOR SELECT TO wle_e01_gateway USING (
- EXISTS(SELECT 1 FROM wle_e01.contract_appointments a
+ EXISTS(SELECT 1 FROM wle_e01.organizations o
+   WHERE o.organization_id=construction_contracts.organization_id AND o.status='active')
+ AND EXISTS(SELECT 1 FROM wle_e01.contract_appointments a
   JOIN wle_e01.appointment_capabilities cap ON cap.appointment_id=a.appointment_id
   WHERE a.organization_id=construction_contracts.organization_id
     AND a.project_id=construction_contracts.project_id
