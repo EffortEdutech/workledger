@@ -134,3 +134,20 @@ test('E01-D30: actual gateway denies formerly valid member after revocation',asy
  await pg.query("UPDATE wle_e01.organization_memberships SET status='revoked' WHERE organization_id=$1 AND user_id=$2",[oB,userB]);
  await gatewayAs(userB,{organization_id:oB,project_id:pB,contract_id:cB,acting_appointment_id:appB,capability:'construction.contract.read'},false);
 });
+
+
+test('E01-D31: suspended tenant cannot be read through direct contract RLS',async()=>{
+ await pg.query("UPDATE wle_e01.organizations SET status='suspended' WHERE organization_id=$1",[oA]);
+ try{const {rows}=await as(userSub,'SELECT contract_id FROM wle_e01.construction_contracts');assert.equal(rows.length,0);}
+ finally{await pg.query("UPDATE wle_e01.organizations SET status='active' WHERE organization_id=$1",[oA]);}
+});
+test('E01-D32: suspended tenant cannot be read through direct project RLS',async()=>{
+ await pg.query("UPDATE wle_e01.organizations SET status='suspended' WHERE organization_id=$1",[oA]);
+ try{const {rows}=await as(userSub,'SELECT project_id FROM wle_e01.projects');assert.equal(rows.length,0);}
+ finally{await pg.query("UPDATE wle_e01.organizations SET status='active' WHERE organization_id=$1",[oA]);}
+});
+test('E01-D33: suspended tenant loses explicit permission as well as row reads',async()=>{
+ await pg.query("UPDATE wle_e01.organizations SET status='suspended' WHERE organization_id=$1",[oA]);
+ try{const {rows}=await as(userSub,can(oA,pA,cA,appSub,'construction.diary.submit'));assert.equal(rows[0].permitted,false);}
+ finally{await pg.query("UPDATE wle_e01.organizations SET status='active' WHERE organization_id=$1",[oA]);}
+});
