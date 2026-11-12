@@ -1,0 +1,14 @@
+{
+  "name": "@workledger/wle-e01-authority-foundation",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Isolated WLE-E01 private PostgreSQL authority gateway; not mounted in WorkLedger Standard",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "test": "node --test tests/gateway.unit.test.mjs",
+    "test:rls": "node --test tests/rls.integration.test.mjs",
+    "test:all": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {"@electric-sql/pglite": "0.5.16"}
+}
