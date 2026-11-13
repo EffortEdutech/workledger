@@ -1,0 +1,19 @@
+{
+  "contract": "WLE-E04-PRIVATE-v0.1",
+  "authority": "WLE-P1B 1.0.0-rc1 provisional freeze; no published DTO change",
+  "status": "SYNTHETIC_SERVER_ONLY_NOT_PUBLIC_API",
+  "scope": ["organization_id", "project_id", "contract_id", "diary_id"],
+  "common_command_fields": ["command_id", "idempotency_key", "organization_id", "project_id", "contract_id", "diary_id", "acting_appointment_id", "expected_version", "reason"],
+  "commands": {
+    "sync_draft": {"additional_fields": ["diary_date", "shift_code", "facts"], "required_capability": "construction.diary.submit", "allowed_capacities": ["subcontractor_submitter", "main_contractor_submitter"], "state": "create draft or replace author-owned draft at expected_version"},
+    "attach_evidence": {"additional_fields": ["evidence_id", "evidence_sha256"], "required_capability": "construction.diary.submit", "trusted_port": "verifyEvidence", "state": "author-owned draft, exact E03 scoped original-byte readback required"},
+    "submit": {"additional_fields": [], "required_capability": "construction.diary.submit", "state": "draft -> submitted; online-only"},
+    "acknowledge": {"additional_fields": ["acknowledgement_note"], "required_capability": "construction.diary.acknowledge", "allowed_capacity": "main_contractor_reviewer", "separation_of_duties": "reviewer must not equal submitter", "state": "submitted -> acknowledged; online-only"}
+  },
+  "statuses": ["draft", "submitted", "acknowledged"],
+  "diary_identity_candidate": ["organization_id", "project_id", "contract_id", "diary_date", "shift_code"],
+  "facts_fields": ["weather_conditions", "site_conditions", "work_progress", "manpower", "equipment", "materials_delivered", "issues_delays"],
+  "retries": "same actor/scope/kind/diary/idempotency_key and same payload returns original receipt; new content under same key conflicts",
+  "event_names": ["diary.draft_synced.v1", "diary.evidence_linked.v1", "diary.submitted.v1", "diary.acknowledged.v1"],
+  "cautions": ["No actor_user_id or caller-provided role accepted", "No offline submit or acknowledge", "No legal certificate or CIPAA deadline", "No physical DB or browser implementation tested", "Hash chain is not RFC8785/JCS or independently anchored"]
+}
