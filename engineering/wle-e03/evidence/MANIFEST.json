@@ -1,0 +1,89 @@
+{
+  "package": "WLE-E03_Evidence_Audit_Foundation_Candidate_v0.1",
+  "date_myt": "2026-11-13",
+  "parent_repo": "EffortEdutech/workledger",
+  "parent_branch": "feature/wle-e02-contract-version-registry",
+  "parent_commit_sha": "8962a44fbd5301b366420cd22108b224f4e12535",
+  "architecture_contract": "1.0.0-rc1 provisional / unchanged",
+  "status": "ISOLATED_NON_PRODUCTION_CANDIDATE",
+  "e03_node_tests": {
+    "passed": 45,
+    "failed": 0,
+    "type": "synthetic memory + real byte hashing"
+  },
+  "e02_regression_tests": {
+    "passed": 30,
+    "failed": 0,
+    "type": "synthetic Node tests"
+  },
+  "postgres_sql_rls": "NOT_TESTED",
+  "supabase_staging": "NOT_TESTED",
+  "production_release": "HOLD",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2761,
+      "sha256": "1b72e7151ab072fc4fd18a52fa0c406fd097a23e6a506e5ddf550009e2125b4c"
+    },
+    {
+      "path": "contracts.json",
+      "bytes": 1037,
+      "sha256": "5f5ff7bdf3f2d5a017c7bf37980b77f49d6ff3a58a8334ad7d7cc34bd0944100"
+    },
+    {
+      "path": "docs/CODEX_HANDOFF.md",
+      "bytes": 2859,
+      "sha256": "135424c5815e1abd21f9a3f77861e72b9faf91ef14b3c490de4c5d1b5687d649"
+    },
+    {
+      "path": "docs/DOMAIN_AND_E02_INTEGRATION.md",
+      "bytes": 4925,
+      "sha256": "7eba6cf43b13e2b7744104583aa8470891a4dbef4f44fcc8bfff3cb7bc0e77b1"
+    },
+    {
+      "path": "docs/STAGING_ACCEPTANCE_AND_RELEASE_HOLDS.md",
+      "bytes": 4035,
+      "sha256": "26b8b834678da4539d91f928143c3698073b00200c82c08e6b68cfdd8290f59a"
+    },
+    {
+      "path": "docs/THREAT_MODEL_STORAGE_AND_RETENTION.md",
+      "bytes": 4593,
+      "sha256": "d58c4a855cfd3321f3adba20d244c37b5f8a3237bcb95a049803731089f4afc1"
+    },
+    {
+      "path": "evidence/E02_REGRESSION_OUTPUT.txt",
+      "bytes": 5530,
+      "sha256": "a010a42a08ac11a4e8c840a4a0edbeedab6abf9e94c7a489fae719227af0cd37"
+    },
+    {
+      "path": "evidence/NODE_TEST_OUTPUT.txt",
+      "bytes": 7749,
+      "sha256": "995e7f315fb99ae83c94d11a6fb4dfa5ef4d1c50d8a3f9147cc74da0516b4714"
+    },
+    {
+      "path": "evidence/TEST_REPORT.md",
+      "bytes": 2099,
+      "sha256": "0ef4cac9d55a8373540daadee0cb7cee10ff3688a15a23b11c1b7dd70166d967"
+    },
+    {
+      "path": "package.json",
+      "bytes": 208,
+      "sha256": "3eebd1a141001c65ba62c06ee090581326b16b7e73d6b56b59bacf73cb722062"
+    },
+    {
+      "path": "sql/004_evidence_audit_schema_CANDIDATE.sql",
+      "bytes": 7224,
+      "sha256": "f46195b749d457daf8dfe28168a3c535ed30466ced5dd21006baf38f350e2008"
+    },
+    {
+      "path": "src/foundation.mjs",
+      "bytes": 18839,
+      "sha256": "ee71d8bf8960a65c00e570df7770b2d43af9aa3923f596e6d8fc15999d612dc9"
+    },
+    {
+      "path": "tests/foundation.test.mjs",
+      "bytes": 16021,
+      "sha256": "ce733987e3c6f472040298cbfcd0a3a863d618d1806c79e6813a52620f7f006e"
+    }
+  ]
+}
