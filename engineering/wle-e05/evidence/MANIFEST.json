@@ -1,0 +1,104 @@
+{
+  "package": "WLE-E05_BOQ_Revisions_Work_Package_Mapping_Candidate_v0.1",
+  "date_myt": "2026-11-13",
+  "parent_repo": "EffortEdutech/workledger",
+  "parent_branch": "feature/wle-e04-diary-offline-capture",
+  "parent_commit_sha": "b0bc8a523871ef6e398b70df0bcaa1d682866006",
+  "architecture_contract": "WLE-P1B 1.0.0-rc1 provisional unchanged",
+  "status": "ISOLATED_NON_PRODUCTION_CANDIDATE",
+  "e05_node_tests": 64,
+  "e04_regression": 58,
+  "e03_regression": 45,
+  "e02_regression": 30,
+  "postgres_sql_rls": "NOT_TESTED",
+  "supabase_staging": "NOT_TESTED",
+  "commercial_authority": "NOT_GRANTED",
+  "production_release": "HOLD",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 4021,
+      "sha256": "8c07fbdbd9cba3192e4fe9300a2040fd98d4a060bbcc054464b66aa107485436"
+    },
+    {
+      "path": "contracts/private_boq_commands.json",
+      "bytes": 2009,
+      "sha256": "9da735adf49b9b301de1aab941a455ab8f41462d633684abea32370184a7e301"
+    },
+    {
+      "path": "docs/CODEX_HANDOFF.md",
+      "bytes": 4082,
+      "sha256": "6d669b74bc55158287d3114f5474f7df0ba88793d4e30e68cb39fde30949905e"
+    },
+    {
+      "path": "docs/DECIMAL_DIFF_AND_WORK_PACKAGE_CONTROLS.md",
+      "bytes": 2904,
+      "sha256": "fcacbaf622bfcb38b27b630990db90bd73f0a38ed7d9f4357f3dd4429e7637aa"
+    },
+    {
+      "path": "docs/DOMAIN_SOURCE_MAPPING_AND_REVISION_POLICY.md",
+      "bytes": 5171,
+      "sha256": "eefdfd2bdc64fa391557f9544462d281d1c0f6b0e804ba03ebe323bbb4df7ffe"
+    },
+    {
+      "path": "docs/SECURITY_STAGING_AND_RELEASE_HOLDS.md",
+      "bytes": 4224,
+      "sha256": "06f60ea7ae392c4d46d4db86859034ae5f01e4307ba8d5bc127c26b613fef177"
+    },
+    {
+      "path": "evidence/E02_REGRESSION_OUTPUT.txt",
+      "bytes": 5531,
+      "sha256": "0997f0b732f323b2897edb95d04e96710a365824472b5c9f5228130ea8a08a17"
+    },
+    {
+      "path": "evidence/E03_REGRESSION_OUTPUT.txt",
+      "bytes": 7750,
+      "sha256": "e6889a0f1bfdd557c92bfaef3ce2f77994495b97b8b260832a8bc23ca57f14eb"
+    },
+    {
+      "path": "evidence/E04_REGRESSION_OUTPUT.txt",
+      "bytes": 10279,
+      "sha256": "d7411e266d6575c118a9b6c73ce06b2d91764f4609f3acd43df1e538ece8e0db"
+    },
+    {
+      "path": "evidence/NODE_TEST_OUTPUT.txt",
+      "bytes": 9764,
+      "sha256": "7a216f350ef57c4068b2c9d80bea43beeeb2aa535d82a472ffe81432e05abf1c"
+    },
+    {
+      "path": "evidence/TEST_REPORT.md",
+      "bytes": 2141,
+      "sha256": "b832f040ef2f673a8d68b2142388efe268bef930e53890b0366b3518dd06d407"
+    },
+    {
+      "path": "package.json",
+      "bytes": 206,
+      "sha256": "eb7fcb0a3f6dfc17956dd0cfde1940381158fac62ac9085ac68d02595115a9ca"
+    },
+    {
+      "path": "sql/006_boq_revisions_packages_CANDIDATE.sql",
+      "bytes": 9035,
+      "sha256": "0ea9d36603a14d9bdc28554e21e5fff0c5d1df57e49a8b184177e8a28c8a2acb"
+    },
+    {
+      "path": "src/boq.mjs",
+      "bytes": 18136,
+      "sha256": "fbc4c8a65a1019b2e09a9cae17fd4e5a1fee9e0893931f7bb089b136f9d4c394"
+    },
+    {
+      "path": "tests/boq.test.mjs",
+      "bytes": 17698,
+      "sha256": "d2800aae2a3398e033e2dd5a4650cd1e53f5e26baf92d2c9d355aa17c488b549"
+    },
+    {
+      "path": "ui/BOQ_REVISIONS_SCREEN_SPEC.md",
+      "bytes": 2909,
+      "sha256": "3f3b06d0e98c128a8e91814c3eb6b3205e4b32c82b89abbf89d0dcbbe0646d25"
+    },
+    {
+      "path": "ui/boq_review_prototype.html",
+      "bytes": 5725,
+      "sha256": "5b501ee914ee731dfe44520a0f190e01664e41aacf7b24c127ae2e0edf105231"
+    }
+  ]
+}
