@@ -1,0 +1,115 @@
+{
+  "package": "WLE-E04_Daily_Diary_Offline_Evidence_Candidate_v0.1",
+  "date_myt": "2026-11-13",
+  "status": "ISOLATED_NON_PRODUCTION_CANDIDATE",
+  "github_repo": "EffortEdutech/workledger",
+  "parent_branch": "feature/wle-e03-evidence-audit-foundation",
+  "observed_parent_sha": "53031747fb16ae09cf7f500bc4750638f30714b5",
+  "architecture_contract": "1.0.0-rc1 candidate unchanged",
+  "e04_tests": {
+    "passed": 58,
+    "failed": 0,
+    "type": "synthetic_node"
+  },
+  "e03_regression": {
+    "passed": 45,
+    "failed": 0,
+    "type": "separate_synthetic_node"
+  },
+  "e02_regression": {
+    "passed": 30,
+    "failed": 0,
+    "type": "separate_synthetic_node"
+  },
+  "supabase_staging": "NOT_TESTED",
+  "postgres_sql_rls": "NOT_TESTED",
+  "offline_browser_durability": "NOT_IMPLEMENTED",
+  "production_release": "HOLD",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 4257,
+      "sha256": "2be2df18fef0fa8018f73e46a866215f4cefa1828753124268ffcb69987614d6"
+    },
+    {
+      "path": "contracts/private_diary_commands.json",
+      "bytes": 2222,
+      "sha256": "d5d4c2bca0f47f221ecf70ff4943c43111b087cf01ffcbb20f5c4f00fac43be8"
+    },
+    {
+      "path": "docs/CODEX_HANDOFF.md",
+      "bytes": 4052,
+      "sha256": "7f27a67b2c599a3242189281d9e5433a654be8a6532a249d00cee98c46b5d04b"
+    },
+    {
+      "path": "docs/DOMAIN_AND_LEGACY_MAPPING.md",
+      "bytes": 4820,
+      "sha256": "ecc8946855f89485a98029a9c488fb4328f6670f1e043b374f6ab628d7af4d92"
+    },
+    {
+      "path": "docs/OFFLINE_SYNC_PROTOCOL_AND_CLIENT_STORAGE.md",
+      "bytes": 5236,
+      "sha256": "da818fc7d08a9f3eb74314e49156bf8afdf3e5ef6c73789f4ad33c71187e5128"
+    },
+    {
+      "path": "docs/SECURITY_RLS_AND_GATE_REGISTER.md",
+      "bytes": 4672,
+      "sha256": "ef3f0ed784ea4d136ab1142161bee38165edb47d06904518856afd1f3d59d24b"
+    },
+    {
+      "path": "evidence/E02_REGRESSION_OUTPUT.txt",
+      "bytes": 5526,
+      "sha256": "a0b27d3f0634458269700bef8f2d6fe069f8224d69882225e0317e162bfa71f8"
+    },
+    {
+      "path": "evidence/E03_REGRESSION_OUTPUT.txt",
+      "bytes": 7748,
+      "sha256": "8bf8de43a8bb9b6d65d8a39905894a948edf2411517b8b32a2b09887da465c46"
+    },
+    {
+      "path": "evidence/NODE_TEST_OUTPUT.txt",
+      "bytes": 10275,
+      "sha256": "c71256d71e443d95938795af7da661dfc264167a6848750a3fc81729bd056d97"
+    },
+    {
+      "path": "evidence/TEST_REPORT.md",
+      "bytes": 2761,
+      "sha256": "6a82717372ef7b2c14d54fce06b3e56087e13019b6123c40f5663426d64ae18c"
+    },
+    {
+      "path": "package.json",
+      "bytes": 207,
+      "sha256": "433c789befdb01090f4d4d1bbf3f563c77754cd430dd3fcc60de1d8d83686f9c"
+    },
+    {
+      "path": "sql/005_diary_offline_CANDIDATE.sql",
+      "bytes": 6515,
+      "sha256": "56685df37de4d4998763ff37f92ce93112f67bbdc2fc5e6b2a6b95035f101064"
+    },
+    {
+      "path": "src/diary.mjs",
+      "bytes": 12252,
+      "sha256": "e8eaf1aab9a020adb3be7c1d827ec34fd3e7a8e402a9f98aafed7592ff068c09"
+    },
+    {
+      "path": "src/offlineQueue.mjs",
+      "bytes": 6162,
+      "sha256": "724dcf5815a72ef34dd2b670cca2a160600d44c6feca3d6efa8c3573ae483d68"
+    },
+    {
+      "path": "tests/diary.test.mjs",
+      "bytes": 18440,
+      "sha256": "9980cf3d38b13048878e093ea68b0e3f43bf54e36952695c3da6f68d6cb6dbc6"
+    },
+    {
+      "path": "ui/DIARY_UI_SCREEN_SPEC.md",
+      "bytes": 3238,
+      "sha256": "cb3792e2e08b682fb1c8e0ac4f3a2ddad27e0c0570a90f7f7d150a5d307b3bc5"
+    },
+    {
+      "path": "ui/diary_prototype.html",
+      "bytes": 5724,
+      "sha256": "9f281151044d5d4b84696f5084d28766f1a2d8a8515a827e54ea8078959879d8"
+    }
+  ]
+}
