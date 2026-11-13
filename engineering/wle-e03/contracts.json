@@ -1,0 +1,18 @@
+{
+  "contract_id": "WLE-E03-PRIVATE-PORT-v0.1",
+  "authority": "WLE-P1B 1.0.0-rc1 candidate (not changing public DTOs)",
+  "evidence_proof_response": {
+    "verified": "boolean; false without independent trusted signer-party evidence",
+    "organization_id": "UUID exact scope",
+    "project_id": "UUID exact scope",
+    "contract_id": "UUID exact scope",
+    "party_id": "UUID matches E02 signed_by_party_id",
+    "sha256": "lowercase SHA-256 from original bytes",
+    "verified_at": "ISO UTC timestamp from trusted signer evidence",
+    "byte_integrity_verified": "boolean true only after rehashing object",
+    "signature_validity": "literal not_assessed"
+  },
+  "command_kinds": ["preserve", "redact", "place_hold", "release_hold", "export_manifest"],
+  "capabilities": ["construction.evidence.preserve", "construction.evidence.redact", "construction.evidence.hold", "construction.evidence.hold_release", "construction.evidence.export", "construction.evidence.read"],
+  "status": "PRIVATE SYNTHETIC CANDIDATE: NOT EXPOSED BY HTTP"
+}
