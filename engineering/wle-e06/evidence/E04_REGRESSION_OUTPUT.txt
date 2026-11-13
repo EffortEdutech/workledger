@@ -1,0 +1,362 @@
+
+> @workledger/wle-e04-diary-offline-candidate@0.1.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: 01: draft creates scoped record, event, pending outbox, receipt
+ok 1 - 01: draft creates scoped record, event, pending outbox, receipt
+  ---
+  duration_ms: 4.109645
+  type: 'test'
+  ...
+# Subtest: 02: diary fields preserve detailed manpower equipment materials weather
+ok 2 - 02: diary fields preserve detailed manpower equipment materials weather
+  ---
+  duration_ms: 1.139304
+  type: 'test'
+  ...
+# Subtest: 03: exact idempotency replay produces same receipt/event
+ok 3 - 03: exact idempotency replay produces same receipt/event
+  ---
+  duration_ms: 0.75772
+  type: 'test'
+  ...
+# Subtest: 04: same idempotency key changed payload is conflict
+ok 4 - 04: same idempotency key changed payload is conflict
+  ---
+  duration_ms: 0.934776
+  type: 'test'
+  ...
+# Subtest: 05: cannot create duplicate contract/date/shift
+ok 5 - 05: cannot create duplicate contract/date/shift
+  ---
+  duration_ms: 1.231583
+  type: 'test'
+  ...
+# Subtest: 06: different shift on same contract/date is a distinct diary candidate
+ok 6 - 06: different shift on same contract/date is a distinct diary candidate
+  ---
+  duration_ms: 0.846124
+  type: 'test'
+  ...
+# Subtest: 07: cross-org deny
+ok 7 - 07: cross-org deny
+  ---
+  duration_ms: 0.356937
+  type: 'test'
+  ...
+# Subtest: 08: sibling contract mismatch deny
+ok 8 - 08: sibling contract mismatch deny
+  ---
+  duration_ms: 0.232059
+  type: 'test'
+  ...
+# Subtest: 09: forged actor field denied
+ok 9 - 09: forged actor field denied
+  ---
+  duration_ms: 0.370307
+  type: 'test'
+  ...
+# Subtest: 10: forged capacity or privilege field denied
+ok 10 - 10: forged capacity or privilege field denied
+  ---
+  duration_ms: 0.43163
+  type: 'test'
+  ...
+# Subtest: 11: invalid token denied
+ok 11 - 11: invalid token denied
+  ---
+  duration_ms: 0.273952
+  type: 'test'
+  ...
+# Subtest: 12: reviewer cannot submitter-sync draft
+ok 12 - 12: reviewer cannot submitter-sync draft
+  ---
+  duration_ms: 0.2524
+  type: 'test'
+  ...
+# Subtest: 13: read-only capability denied
+ok 13 - 13: read-only capability denied
+  ---
+  duration_ms: 0.323677
+  type: 'test'
+  ...
+# Subtest: 14: revoked appointment denies on replay
+ok 14 - 14: revoked appointment denies on replay
+  ---
+  duration_ms: 0.427543
+  type: 'test'
+  ...
+# Subtest: 15: initial version cannot be nonzero
+ok 15 - 15: initial version cannot be nonzero
+  ---
+  duration_ms: 0.223817
+  type: 'test'
+  ...
+# Subtest: 16: draft patch with correct optimistic version succeeds
+ok 16 - 16: draft patch with correct optimistic version succeeds
+  ---
+  duration_ms: 0.803569
+  type: 'test'
+  ...
+# Subtest: 17: stale version conflicting offline edit rejected and existing text retained
+ok 17 - 17: stale version conflicting offline edit rejected and existing text retained
+  ---
+  duration_ms: 0.656628
+  type: 'test'
+  ...
+# Subtest: 18: diary date cannot be silently changed
+ok 18 - 18: diary date cannot be silently changed
+  ---
+  duration_ms: 0.404379
+  type: 'test'
+  ...
+# Subtest: 19: invalid nonexistent calendar day rejected
+ok 19 - 19: invalid nonexistent calendar day rejected
+  ---
+  duration_ms: 0.237187
+  type: 'test'
+  ...
+# Subtest: 20: inconsistent manpower quantities rejected
+ok 20 - 20: inconsistent manpower quantities rejected
+  ---
+  duration_ms: 0.177126
+  type: 'test'
+  ...
+# Subtest: 21: numeric float material quantity rejected
+ok 21 - 21: numeric float material quantity rejected
+  ---
+  duration_ms: 0.162765
+  type: 'test'
+  ...
+# Subtest: 22: submit requires weather
+ok 22 - 22: submit requires weather
+  ---
+  duration_ms: 0.733624
+  type: 'test'
+  ...
+# Subtest: 23: submit requires work progress text
+ok 23 - 23: submit requires work progress text
+  ---
+  duration_ms: 0.607524
+  type: 'test'
+  ...
+# Subtest: 24: draft submit locks data, immutable snapshot status and version
+ok 24 - 24: draft submit locks data, immutable snapshot status and version
+  ---
+  duration_ms: 0.698281
+  type: 'test'
+  ...
+# Subtest: 25: submitted diary cannot be edited
+ok 25 - 25: submitted diary cannot be edited
+  ---
+  duration_ms: 0.682256
+  type: 'test'
+  ...
+# Subtest: 26: submitted diary cannot be submitted twice with fresh key
+ok 26 - 26: submitted diary cannot be submitted twice with fresh key
+  ---
+  duration_ms: 1.087096
+  type: 'test'
+  ...
+# Subtest: 27: reviewer cannot submit diary
+ok 27 - 27: reviewer cannot submit diary
+  ---
+  duration_ms: 0.367743
+  type: 'test'
+  ...
+# Subtest: 28: trusted E03 evidence scope and digest attaches before submission
+ok 28 - 28: trusted E03 evidence scope and digest attaches before submission
+  ---
+  duration_ms: 0.602387
+  type: 'test'
+  ...
+# Subtest: 29: evidence verifier false denies
+ok 29 - 29: evidence verifier false denies
+  ---
+  duration_ms: 0.435446
+  type: 'test'
+  ...
+# Subtest: 30: evidence verifier wrong tenant denies
+ok 30 - 30: evidence verifier wrong tenant denies
+  ---
+  duration_ms: 0.352972
+  type: 'test'
+  ...
+# Subtest: 31: evidence verifier wrong hash denies
+ok 31 - 31: evidence verifier wrong hash denies
+  ---
+  duration_ms: 0.34536
+  type: 'test'
+  ...
+# Subtest: 32: evidence verifier not byte-verified denies
+ok 32 - 32: evidence verifier not byte-verified denies
+  ---
+  duration_ms: 0.345019
+  type: 'test'
+  ...
+# Subtest: 33: duplicate evidence attachment denied
+ok 33 - 33: duplicate evidence attachment denied
+  ---
+  duration_ms: 0.547003
+  type: 'test'
+  ...
+# Subtest: 34: cannot attach evidence after submission
+ok 34 - 34: cannot attach evidence after submission
+  ---
+  duration_ms: 0.501895
+  type: 'test'
+  ...
+# Subtest: 35: reviewer acknowledges submitted diary with independent actor
+ok 35 - 35: reviewer acknowledges submitted diary with independent actor
+  ---
+  duration_ms: 0.751011
+  type: 'test'
+  ...
+# Subtest: 36: submitter cannot acknowledge even with capability spoof
+ok 36 - 36: submitter cannot acknowledge even with capability spoof
+  ---
+  duration_ms: 0.453753
+  type: 'test'
+  ...
+# Subtest: 37: same submitter with reviewer role still cannot self-acknowledge
+ok 37 - 37: same submitter with reviewer role still cannot self-acknowledge
+  ---
+  duration_ms: 0.55808
+  type: 'test'
+  ...
+# Subtest: 38: cannot acknowledge draft
+ok 38 - 38: cannot acknowledge draft
+  ---
+  duration_ms: 0.656778
+  type: 'test'
+  ...
+# Subtest: 39: acknowledged diary cannot change
+ok 39 - 39: acknowledged diary cannot change
+  ---
+  duration_ms: 1.046254
+  type: 'test'
+  ...
+# Subtest: 40: receipt replay on acknowledge is exact and no extra event
+ok 40 - 40: receipt replay on acknowledge is exact and no extra event
+  ---
+  duration_ms: 1.124762
+  type: 'test'
+  ...
+# Subtest: 41: audit events form deterministic linked chain within scope
+ok 41 - 41: audit events form deterministic linked chain within scope
+  ---
+  duration_ms: 0.879323
+  type: 'test'
+  ...
+# Subtest: 42: fault injection rolls back diary, audit and receipt
+ok 42 - 42: fault injection rolls back diary, audit and receipt
+  ---
+  duration_ms: 0.503547
+  type: 'test'
+  ...
+# Subtest: 43: in-process concurrent duplicate draft attempts collapse to one event
+ok 43 - 43: in-process concurrent duplicate draft attempts collapse to one event
+  ---
+  duration_ms: 1.793198
+  type: 'test'
+  ...
+# Subtest: 44: no payment certificate/CIPAA authority in diary capabilities
+ok 44 - 44: no payment certificate/CIPAA authority in diary capabilities
+  ---
+  duration_ms: 0.110096
+  type: 'test'
+  ...
+# Subtest: 45: offline queue captures drafts without auth/token
+ok 45 - 45: offline queue captures drafts without auth/token
+  ---
+  duration_ms: 0.373672
+  type: 'test'
+  ...
+# Subtest: 46: offline draft record is stable and has no online authority
+ok 46 - 46: offline draft record is stable and has no online authority
+  ---
+  duration_ms: 0.199501
+  type: 'test'
+  ...
+# Subtest: 47: offline successive drafts carry monotonically rising expected versions
+ok 47 - 47: offline successive drafts carry monotonically rising expected versions
+  ---
+  duration_ms: 0.157487
+  type: 'test'
+  ...
+# Subtest: 48: failed sync retains queue item and conflict status
+ok 48 - 48: failed sync retains queue item and conflict status
+  ---
+  duration_ms: 0.193922
+  type: 'test'
+  ...
+# Subtest: 49: sync ack requires exact diary and next version
+ok 49 - 49: sync ack requires exact diary and next version
+  ---
+  duration_ms: 0.245219
+  type: 'test'
+  ...
+# Subtest: 50: only acknowledged server draft clears queue
+ok 50 - 50: only acknowledged server draft clears queue
+  ---
+  duration_ms: 0.165359
+  type: 'test'
+  ...
+# Subtest: 51: local evidence intent hashes actual bytes and keeps bytes local
+ok 51 - 51: local evidence intent hashes actual bytes and keeps bytes local
+  ---
+  duration_ms: 0.287513
+  type: 'test'
+  ...
+# Subtest: 52: local evidence intent refuses wrong E03 proof
+ok 52 - 52: local evidence intent refuses wrong E03 proof
+  ---
+  duration_ms: 0.190367
+  type: 'test'
+  ...
+# Subtest: 53: valid preservation proof clears local staged bytes
+ok 53 - 53: valid preservation proof clears local staged bytes
+  ---
+  duration_ms: 0.157828
+  type: 'test'
+  ...
+# Subtest: 54: offline queue cannot request submit or acknowledgement
+ok 54 - 54: offline queue cannot request submit or acknowledgement
+  ---
+  duration_ms: 0.171779
+  type: 'test'
+  ...
+# Subtest: 55: offline evidence path traversal denied
+ok 55 - 55: offline evidence path traversal denied
+  ---
+  duration_ms: 0.133491
+  type: 'test'
+  ...
+# Subtest: 56: attachment or submit never works with empty or forged bearer
+ok 56 - 56: attachment or submit never works with empty or forged bearer
+  ---
+  duration_ms: 0.415415
+  type: 'test'
+  ...
+# Subtest: 57: locally preserved evidence still blocks submission until diary linkage is confirmed
+ok 57 - 57: locally preserved evidence still blocks submission until diary linkage is confirmed
+  ---
+  duration_ms: 0.301293
+  type: 'test'
+  ...
+# Subtest: 58: wrong E03 evidence ID after preservation cannot be linked by user-selected metadata
+ok 58 - 58: wrong E03 evidence ID after preservation cannot be linked by user-selected metadata
+  ---
+  duration_ms: 0.150366
+  type: 'test'
+  ...
+1..58
+# tests 58
+# suites 0
+# pass 58
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 127.179824

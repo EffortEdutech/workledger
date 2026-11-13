@@ -1,0 +1,137 @@
+{
+  "package": "WLE-E06_QS_Service_Integration_Adapter_Candidate_v0.1",
+  "date_myt": "2026-11-13",
+  "status": "ISOLATED_NON_PRODUCTION_CANDIDATE",
+  "workledger_parent_repo": "EffortEdutech/workledger",
+  "workledger_parent_branch": "feature/wle-e05-boq-revisions-work-packages",
+  "workledger_parent_commit_sha": "3ed34c804fce2f4153b23f77800730180a92b09f",
+  "qs_source_repo": "EffortEdutech/QS-Service",
+  "qs_source_commit_sha": "9dc3555b841b9fe1cc0b1d07a62648d2b8a116be",
+  "architecture_contract": "WLE-P1B 1.0.0-rc1 provisional unchanged",
+  "test_suites": {
+    "e06": 80,
+    "e05": 64,
+    "e04": 58,
+    "e03_verified": 45,
+    "e02_verified": 30,
+    "total_isolated": 277,
+    "failed": 0
+  },
+  "live_qs_api": "NOT_IMPLEMENTED",
+  "postgres_rls": "NOT_TESTED",
+  "staging": "NOT_TESTED",
+  "release": "HOLD",
+  "manifest_checksum_scope": "The files array covers every archive file except evidence/MANIFEST.json itself",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 4611,
+      "sha256": "c1d2638b6ecd6b99633a8af981cb00d793f454afaeae25686c8ba54a4f820929"
+    },
+    {
+      "path": "contracts/SYNTHETIC_MANIFEST_EXAMPLE.json",
+      "bytes": 3186,
+      "sha256": "ca30529ffce0611a3cb8aafc495f04642bac445e3ab01680df67a82a9eb1e5b3"
+    },
+    {
+      "path": "contracts/private_qs_adapter_commands.json",
+      "bytes": 1933,
+      "sha256": "a01c78dc016d0091b44107bd0e4dde9f56e2b5417b79174f2b80d04829b44ce6"
+    },
+    {
+      "path": "contracts/programme_manifest_CANDIDATE.schema.json",
+      "bytes": 7590,
+      "sha256": "0a3bd179bb1f4a8a0ca6f4c78bf5e18ba6a20c3c05699af203725368c3cf9749"
+    },
+    {
+      "path": "docs/BOQ_AND_NATIVE_ID_CROSSWALK.md",
+      "bytes": 3112,
+      "sha256": "b046426346d4d7a103b4bdf5de60e440fe56f0e54c507c55abf9c77dc304c25b"
+    },
+    {
+      "path": "docs/CODEX_HANDOFF.md",
+      "bytes": 4417,
+      "sha256": "3ae91235f93ba431474c0cb715180097853f9b9ba63a6084292354ef35d47636"
+    },
+    {
+      "path": "docs/PROPOSED_PRIVATE_ENDPOINTS.yaml",
+      "bytes": 2639,
+      "sha256": "fddd0cd3a4ebc4e93e811eee7696177f92a360f069a2861718e1df9e5132ab49"
+    },
+    {
+      "path": "docs/SECURITY_STAGING_AND_RELEASE_GATES.md",
+      "bytes": 4976,
+      "sha256": "b4cf306f1a97443bd969bc424be37b43787cf420a494ed75bbf3b1c97ff28710"
+    },
+    {
+      "path": "docs/SOURCE_VERIFICATION_AND_CONTRACT_LINEAGE.md",
+      "bytes": 3325,
+      "sha256": "cc1c01e7c7589b761bc773bd5340e90344c44e074257e0116698926a7a8fc9bb"
+    },
+    {
+      "path": "docs/TRANSPORT_MANIFEST_AND_IDEMPOTENCY.md",
+      "bytes": 3485,
+      "sha256": "3863cb174a6a6ebf7f8bd65ae825e1b70a9ca355761627720baf054dca01ab18"
+    },
+    {
+      "path": "evidence/E02_REGRESSION_OUTPUT.txt",
+      "bytes": 5525,
+      "sha256": "f9026512737ce9081dc82e6779c1967155af24a2a088a03f49ff4ac8f6b10b74"
+    },
+    {
+      "path": "evidence/E03_REGRESSION_OUTPUT.txt",
+      "bytes": 7745,
+      "sha256": "3c72b6b985fbb3d37f106a239e164f3f4f1361b431bf1b5bec10c5b7ef996b12"
+    },
+    {
+      "path": "evidence/E04_REGRESSION_OUTPUT.txt",
+      "bytes": 10275,
+      "sha256": "0c012338cdac7e7ec6442b011bcaed2c82a3d8b213d2bdc34b1360fb88c28e9b"
+    },
+    {
+      "path": "evidence/E05_REGRESSION_OUTPUT.txt",
+      "bytes": 9761,
+      "sha256": "38ddcc5e02d1b781b76ec6d52dfca2039694750b6d6a297b48978053f5c53992"
+    },
+    {
+      "path": "evidence/NODE_TEST_OUTPUT.txt",
+      "bytes": 13015,
+      "sha256": "770585d6e1fe612312c41431245991d2e2c92690aad1102a5b32cf7258df77b6"
+    },
+    {
+      "path": "evidence/TEST_REPORT.md",
+      "bytes": 2939,
+      "sha256": "b676711540e3529365eed67747d5a229064d4f78aecf366a46f38bfbb7939430"
+    },
+    {
+      "path": "package.json",
+      "bytes": 204,
+      "sha256": "c533e52c30b4a9699dab31c9f992e51a8ed59b36ee11cc1abe82f6b7bd3346c7"
+    },
+    {
+      "path": "sql/007_qs_adapter_CANDIDATE.sql",
+      "bytes": 8038,
+      "sha256": "f8f8e39fca7cab35eb167f4c3ed7756d5435d9eff686b27327691521eac12557"
+    },
+    {
+      "path": "src/adapter.mjs",
+      "bytes": 24893,
+      "sha256": "7adb28d96a2486efbb57f3bd53a5f5f69676b528528111a5f77a2320e4fe7a64"
+    },
+    {
+      "path": "tests/adapter.test.mjs",
+      "bytes": 25729,
+      "sha256": "0fd28aed10291baad964ebb7645945ada4a497a160b1647f4d77221adf60f543"
+    },
+    {
+      "path": "ui/PROGRAMME_INTEGRATION_SCREEN_SPEC.md",
+      "bytes": 2939,
+      "sha256": "20f9927010532127c924f374bdc04158bf27bc19b8bb1ac357f47e24986d440e"
+    },
+    {
+      "path": "ui/qs_adapter_prototype.html",
+      "bytes": 6010,
+      "sha256": "fbd2282b9c7cb4b710c27484431e5e1e3b579471383ee2476f64701afd238b0c"
+    }
+  ]
+}

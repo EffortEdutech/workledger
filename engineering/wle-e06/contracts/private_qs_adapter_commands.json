@@ -1,0 +1,23 @@
+{
+  "contract":"WLE-E06-PRIVATE-v0.1",
+  "authority":"WLE-P1B 1.0.0-rc1 proposed frozen; unchanged",
+  "classification":"isolated server-only synthetic adapter, not HTTP",
+  "scope":["organization_id","project_id","contract_id"],
+  "commands":{
+    "map_project":{"capability":"construction.programme.qs.map_project","description":"explicit one-to-one crosswalk: source_instance, qs_project_id INTEGER -> exact Enterprise tenant/project/contract","no_browser_actor_assertion":true},
+    "request_generation":{"capability":"construction.programme.qs.request","description":"requires current locked E05 BOQ revision and source-aligned QS project; creates queued request only"},
+    "accept_import":{"capability":"construction.programme.baseline_accept","description":"separate Enterprise appointed reviewer, no self-accept, expected_baseline_version CAS, supersedes predecessor without deleting"},
+    "read":{"capability":"construction.programme.read","description":"private scoped projection, not unrestricted source payload"}
+  },
+  "service_operations":{
+    "dispatchGeneration":"private trusted dispatcher port; request_id is stable idempotency key",
+    "ingestQSStatus":"private authenticated QS event with source-native status/stage, source event inbox dedupe",
+    "ingestManifest":"private QS publication signed with Ed25519, immutable JCS-subset digest, professional decision verification, inactive import"
+  },
+  "proposed_manifest_schema_version":"1.0.0-rc1",
+  "source_system":"qs-service",
+  "source_native_id_type":"positive safe integer",
+  "result_states":["queued","running","review_required","confirmed","reopened","rejected","failed","cancelled"],
+  "imports":["pending_acceptance","accepted","invalidated_reopened"],
+  "excluded":["cross-database SQL","browser privileged credential","automated QS review","automatic Enterprise baseline acceptance","progress actuals","claim certification","CIPAA compliance"]
+}

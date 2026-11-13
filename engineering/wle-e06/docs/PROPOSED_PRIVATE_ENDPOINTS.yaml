@@ -1,0 +1,64 @@
+# WLE-E06 PRIVATE API DESIGN CANDIDATE, NOT DEPLOYED.
+# Proposed future endpoints, all server-to-server authenticated or Enterprise
+# session protected, behind disabled-by-default Enterprise entitlement.
+openapi: 3.1.0
+info:
+  title: WorkLedger Enterprise / QS Adapter — Private Proposal Only
+  version: 0.1.0-candidate
+  description: No real HTTP routes are deployed by WLE-E06.
+servers:
+  - url: https://private-adapter.invalid
+    description: Non-resolving design placeholder, not a working address
+security:
+  - workloadAuthentication: []
+paths:
+  /v1/enterprise/programme-requests:
+    post:
+      summary: Queue a QS generation intent from locked E05 BOQ
+      description: Requires E01 appointment, exact E05 and QS source alignment. No program is accepted by this action.
+      responses:
+        '202': {description: Candidate request queued}
+        '403': {description: Not authorised}
+        '409': {description: BOQ version or crosswalk conflict}
+  /v1/enterprise/programme-requests/{requestId}:
+    get:
+      summary: Read exact scoped job lifecycle and source stage
+      parameters:
+        - in: path
+          name: requestId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Read-only authorised status}
+  /v1/internal/qs-status-events:
+    post:
+      summary: Authenticated QS source status inbox
+      responses:
+        '202': {description: Event recorded or idempotently acknowledged}
+        '409': {description: Event or crosswalk conflict}
+  /v1/internal/qs-manifests:
+    post:
+      summary: Ed25519 signed, professionally reviewed manifest ingestion
+      description: Verified publication becomes INACTIVE import, not accepted contract baseline.
+      responses:
+        '202': {description: Import pending Enterprise acceptance}
+        '403': {description: Invalid signature/review/scope}
+        '409': {description: Replay conflict, stale BOQ, source reopened}
+  /v1/enterprise/programme-imports/{importId}/accept:
+    post:
+      summary: Independent Enterprise appointed baseline acceptance
+      description: Requires optimistic baseline version, approved capability and separation of duties.
+      parameters:
+        - in: path
+          name: importId
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200': {description: Immutable accepted baseline receipt}
+        '409': {description: Stale/changed baseline}
+components:
+  securitySchemes:
+    workloadAuthentication:
+      type: http
+      scheme: bearer
+      bearerFormat: Privately issued workload token — DESIGN ONLY

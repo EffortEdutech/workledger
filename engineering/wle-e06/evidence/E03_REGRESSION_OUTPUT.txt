@@ -1,0 +1,284 @@
+
+> @workledger/wle-e03-evidence-audit-candidate@0.1.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: 01 original bytes are SHA-256 verified and preserved with scoped storage key
+ok 1 - 01 original bytes are SHA-256 verified and preserved with scoped storage key
+  ---
+  duration_ms: 5.417272
+  type: 'test'
+  ...
+# Subtest: 02 authoritative hash rejects mismatched client claim
+ok 2 - 02 authoritative hash rejects mismatched client claim
+  ---
+  duration_ms: 0.946515
+  type: 'test'
+  ...
+# Subtest: 03 no bytes is rejected
+ok 3 - 03 no bytes is rejected
+  ---
+  duration_ms: 0.297558
+  type: 'test'
+  ...
+# Subtest: 04 empty bytes are rejected
+ok 4 - 04 empty bytes are rejected
+  ---
+  duration_ms: 0.528475
+  type: 'test'
+  ...
+# Subtest: 05 wrong organization contract is refused
+ok 5 - 05 wrong organization contract is refused
+  ---
+  duration_ms: 0.484198
+  type: 'test'
+  ...
+# Subtest: 06 sibling contract not registered in scope is refused
+ok 6 - 06 sibling contract not registered in scope is refused
+  ---
+  duration_ms: 0.381825
+  type: 'test'
+  ...
+# Subtest: 07 read-only appointment does not grant preserve
+ok 7 - 07 read-only appointment does not grant preserve
+  ---
+  duration_ms: 0.27255
+  type: 'test'
+  ...
+# Subtest: 08 forged actor ID in command is rejected
+ok 8 - 08 forged actor ID in command is rejected
+  ---
+  duration_ms: 0.284799
+  type: 'test'
+  ...
+# Subtest: 09 invalid bearer rejected
+ok 9 - 09 invalid bearer rejected
+  ---
+  duration_ms: 0.74441
+  type: 'test'
+  ...
+# Subtest: 10 no bearer rejected
+ok 10 - 10 no bearer rejected
+  ---
+  duration_ms: 0.646703
+  type: 'test'
+  ...
+# Subtest: 11 untrusted storage key in payload rejected
+ok 11 - 11 untrusted storage key in payload rejected
+  ---
+  duration_ms: 0.389776
+  type: 'test'
+  ...
+# Subtest: 12 filename path traversal rejected
+ok 12 - 12 filename path traversal rejected
+  ---
+  duration_ms: 0.184007
+  type: 'test'
+  ...
+# Subtest: 13 conflicting evidence UUID is not overwritten
+ok 13 - 13 conflicting evidence UUID is not overwritten
+  ---
+  duration_ms: 1.701581
+  type: 'test'
+  ...
+# Subtest: 14 exact retry returns original receipt without duplicate audit
+ok 14 - 14 exact retry returns original receipt without duplicate audit
+  ---
+  duration_ms: 1.498515
+  type: 'test'
+  ...
+# Subtest: 15 identical key altered bytes fail idempotency
+ok 15 - 15 identical key altered bytes fail idempotency
+  ---
+  duration_ms: 0.647034
+  type: 'test'
+  ...
+# Subtest: 16 duplicate retry concurrency creates one event
+ok 16 - 16 duplicate retry concurrency creates one event
+  ---
+  duration_ms: 1.210592
+  type: 'test'
+  ...
+# Subtest: 17 event and outbox and receipt are atomic in synthetic engine
+ok 17 - 17 event and outbox and receipt are atomic in synthetic engine
+  ---
+  duration_ms: 0.294252
+  type: 'test'
+  ...
+# Subtest: 18 injected commit failure rolls back both bytes and metadata synthetic
+ok 18 - 18 injected commit failure rolls back both bytes and metadata synthetic
+  ---
+  duration_ms: 0.541856
+  type: 'test'
+  ...
+# Subtest: 19 online verification recomputes digest of stored original
+ok 19 - 19 online verification recomputes digest of stored original
+  ---
+  duration_ms: 0.77729
+  type: 'test'
+  ...
+# Subtest: 20 unauthorized read denied even when evidence exists
+ok 20 - 20 unauthorized read denied even when evidence exists
+  ---
+  duration_ms: 1.284493
+  type: 'test'
+  ...
+# Subtest: 21 wrong tenant read refused
+ok 21 - 21 wrong tenant read refused
+  ---
+  duration_ms: 0.692171
+  type: 'test'
+  ...
+# Subtest: 22 corrupt bytes are caught by rehash on every read
+ok 22 - 22 corrupt bytes are caught by rehash on every read
+  ---
+  duration_ms: 0.925023
+  type: 'test'
+  ...
+# Subtest: 23 redaction produces separate new bytes, never overwrites original
+ok 23 - 23 redaction produces separate new bytes, never overwrites original
+  ---
+  duration_ms: 1.044111
+  type: 'test'
+  ...
+# Subtest: 24 identical bytes cannot be called redacted derivative
+ok 24 - 24 identical bytes cannot be called redacted derivative
+  ---
+  duration_ms: 0.65773
+  type: 'test'
+  ...
+# Subtest: 25 redaction of sibling-contract parent refused
+ok 25 - 25 redaction of sibling-contract parent refused
+  ---
+  duration_ms: 0.684761
+  type: 'test'
+  ...
+# Subtest: 26 original bytes are checked before redacting
+ok 26 - 26 original bytes are checked before redacting
+  ---
+  duration_ms: 0.881737
+  type: 'test'
+  ...
+# Subtest: 27 a legal hold is appended and visible in a read, not default retention
+ok 27 - 27 a legal hold is appended and visible in a read, not default retention
+  ---
+  duration_ms: 2.130456
+  type: 'test'
+  ...
+# Subtest: 28 placing a hold requires explicit capability
+ok 28 - 28 placing a hold requires explicit capability
+  ---
+  duration_ms: 0.38554
+  type: 'test'
+  ...
+# Subtest: 29 cannot place duplicate hold UUID
+ok 29 - 29 cannot place duplicate hold UUID
+  ---
+  duration_ms: 0.460864
+  type: 'test'
+  ...
+# Subtest: 30 cannot release own hold
+ok 30 - 30 cannot release own hold
+  ---
+  duration_ms: 0.583138
+  type: 'test'
+  ...
+# Subtest: 31 independent reviewer required to release
+ok 31 - 31 independent reviewer required to release
+  ---
+  duration_ms: 0.554554
+  type: 'test'
+  ...
+# Subtest: 32 separate reviewer can release with independent policy; history remains
+ok 32 - 32 separate reviewer can release with independent policy; history remains
+  ---
+  duration_ms: 1.39555
+  type: 'test'
+  ...
+# Subtest: 33 second hold release is prohibited
+ok 33 - 33 second hold release is prohibited
+  ---
+  duration_ms: 1.429391
+  type: 'test'
+  ...
+# Subtest: 34 missing hold release fails
+ok 34 - 34 missing hold release fails
+  ---
+  duration_ms: 0.950611
+  type: 'test'
+  ...
+# Subtest: 35 export manifest hashes exact scoped items and audit chain head
+ok 35 - 35 export manifest hashes exact scoped items and audit chain head
+  ---
+  duration_ms: 1.71431
+  type: 'test'
+  ...
+# Subtest: 36 export rejects missing cross-contract evidence
+ok 36 - 36 export rejects missing cross-contract evidence
+  ---
+  duration_ms: 0.788857
+  type: 'test'
+  ...
+# Subtest: 37 export rehash detects corruption
+ok 37 - 37 export rehash detects corruption
+  ---
+  duration_ms: 0.76396
+  type: 'test'
+  ...
+# Subtest: 38 audit chain verifies deterministic event hash links
+ok 38 - 38 audit chain verifies deterministic event hash links
+  ---
+  duration_ms: 2.09333
+  type: 'test'
+  ...
+# Subtest: 39 audit chain is tenant-scoped
+ok 39 - 39 audit chain is tenant-scoped
+  ---
+  duration_ms: 0.252049
+  type: 'test'
+  ...
+# Subtest: 40 E02 port refuses signer verification when no signer provider
+ok 40 - 40 E02 port refuses signer verification when no signer provider
+  ---
+  duration_ms: 0.460623
+  type: 'test'
+  ...
+# Subtest: 41 E02 port refuses wrong file digest
+ok 41 - 41 E02 port refuses wrong file digest
+  ---
+  duration_ms: 0.336997
+  type: 'test'
+  ...
+# Subtest: 42 E02 port refuses wrong signer-party scope
+ok 42 - 42 E02 port refuses wrong signer-party scope
+  ---
+  duration_ms: 0.358049
+  type: 'test'
+  ...
+# Subtest: 43 E02 port returns scoped evidence only with independent party proof; no legal claim
+ok 43 - 43 E02 port returns scoped evidence only with independent party proof; no legal claim
+  ---
+  duration_ms: 0.417689
+  type: 'test'
+  ...
+# Subtest: 44 duplicate export UUID cannot overwrite
+ok 44 - 44 duplicate export UUID cannot overwrite
+  ---
+  duration_ms: 0.721896
+  type: 'test'
+  ...
+# Subtest: 45 unrelated paid/commercial/legal service power is absent
+ok 45 - 45 unrelated paid/commercial/legal service power is absent
+  ---
+  duration_ms: 0.171578
+  type: 'test'
+  ...
+1..45
+# tests 45
+# suites 0
+# pass 45
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 142.698941
