@@ -1,0 +1,18 @@
+{
+  "stage":"WLE-E07",
+  "candidate":"0.1",
+  "status":"ISOLATED_NON_PRODUCTION_CANDIDATE",
+  "date_myt":"2026-11-13",
+  "parent_repo":"EffortEdutech/workledger",
+  "parent_commit":"c3837800b56b14d4260e8283f9e891deaa6644b9",
+  "qs_reference":"EffortEdutech/QS-Service @ 9dc3555b841b9fe1cc0b1d07a62648d2b8a116be",
+  "public_wire_freeze":"WLE-P1B 1.0.0-rc1 unchanged",
+  "tests":{"E07":107,"E06":80,"E05":64,"E04":58,"E03_verified":45,"E02_verified":30,"total":384,"fail":0},
+  "contract_fixture":"Draft202012Validator PASS synthetic report",
+  "actual_db_rls":"NOT_TESTED",
+  "live_qs_api":"NOT_IMPLEMENTED",
+  "live_diary_evidence":"NOT_TESTED",
+  "signer_legal_commercial":"HOLD",
+  "main_merge":"NO",
+  "production_release":"HOLD"
+}

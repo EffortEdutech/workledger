@@ -1,0 +1,15 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:workledger:wle-e07:factual-progress-report:v0.1",
+  "$comment":"Private schema candidate. Source E06 and E04 authority, event sequence consistency and report SHA are enforced in separate semantic controls, not JSON Schema alone.",
+  "type":"object","additionalProperties":false,
+  "required":["report_id","organization_id","project_id","contract_id","baseline_id","baseline_version","import_id","manifest_sha256","boq_snapshot_sha256","as_of_date","source_event_sequence","projection","produced_by","produced_at","classification","report_sha256"],
+  "properties":{
+    "report_id":{"$ref":"#/$defs/uuid"},"organization_id":{"$ref":"#/$defs/uuid"},"project_id":{"$ref":"#/$defs/uuid"},"contract_id":{"$ref":"#/$defs/uuid"},"baseline_id":{"$ref":"#/$defs/uuid"},"baseline_version":{"type":"integer","minimum":1},"import_id":{"$ref":"#/$defs/uuid"},
+    "manifest_sha256":{"$ref":"#/$defs/digest"},"boq_snapshot_sha256":{"$ref":"#/$defs/digest"},
+    "as_of_date":{"type":"string","format":"date"},"source_event_sequence":{"type":"integer","minimum":0},
+    "projection":{"type":"object","required":["baseline_id","baseline_version","manifest_sha256","boq_snapshot_sha256","rows","as_of_date","unreviewed_count","voided_count"],"properties":{"baseline_id":{"$ref":"#/$defs/uuid"},"baseline_version":{"type":"integer","minimum":1},"manifest_sha256":{"$ref":"#/$defs/digest"},"boq_snapshot_sha256":{"$ref":"#/$defs/digest"},"rows":{"type":"array","items":{"type":"object","required":["canonical_task_id","external_task_id","wbs_code","title","planned_start_date","planned_finish_date","completion_bp","verified_quantity_by_unit","verified_measure_ids","source_diary_ids"],"properties":{"canonical_task_id":{"$ref":"#/$defs/uuid"},"external_task_id":{"type":"integer","minimum":1},"wbs_code":{"type":"string","minLength":1},"title":{"type":"string"},"planned_start_date":{"type":"string","format":"date"},"planned_finish_date":{"type":"string","format":"date"},"completion_bp":{"type":["integer","null"],"minimum":0,"maximum":10000},"verified_quantity_by_unit":{"type":"object","additionalProperties":{"type":"string","pattern":"^(0|[1-9][0-9]*)\\.[0-9]{4}$"}},"verified_measure_ids":{"type":"array","items":{"$ref":"#/$defs/uuid"}},"source_diary_ids":{"type":"array","items":{"$ref":"#/$defs/uuid"}}}}},"as_of_date":{"type":"string","format":"date"},"unreviewed_count":{"type":"integer","minimum":0},"voided_count":{"type":"integer","minimum":0}}},
+    "produced_by":{"$ref":"#/$defs/uuid"},"produced_at":{"type":"string","format":"date-time"},"classification":{"const":"factual_progress_only"},"report_sha256":{"$ref":"#/$defs/digest"}
+  },
+  "$defs":{"uuid":{"type":"string","pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"},"digest":{"type":"string","pattern":"^[a-f0-9]{64}$"}}
+}

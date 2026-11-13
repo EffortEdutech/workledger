@@ -1,0 +1,21 @@
+{
+  "contract":"WLE-E07-PRIVATE-v0.1",
+  "public_authority":"WLE-P1B 1.0.0-rc1 provisional unchanged",
+  "classification":"synthetic server-only, not HTTP",
+  "scope":["organization_id","project_id","contract_id","baseline_id"],
+  "common_command":["command_id","idempotency_key","acting_appointment_id","reason"],
+  "commands":{
+    "record_actual":{"capability":"construction.programme.actual_record","result":"pending_review observation only","required":["measure_id","canonical_task_id","diary_id","diary_version","observation_date","measure_type","quantity","unit","completion_bp"]},
+    "verify_actual":{"capability":"construction.programme.actual_review","requires":"independent appointed reviewer, unchanged acknowledged E04 diary, expected_version","result":"verified factual progress"},
+    "reject_actual":{"capability":"construction.programme.actual_review","requires":"independent reviewer, expected_version","result":"rejected observation, retained"},
+    "void_actual":{"capability":"construction.programme.actual_correct","requires":"independent reviewer, original verified observation, expected_version, reason","result":"append-only correction, original retained"},
+    "publish_report":{"capability":"construction.programme.report_publish","requires":"as_of_date, expected_event_sequence, accepted baseline snapshot","result":"immutable factual report and hash"},
+    "read":{"capability":"construction.programme.read","result":"tenant/contract scoped progress projection or immutable report"}
+  },
+  "measure_types":{
+    "quantity":{"quantity":"positive decimal string, <=4dp, unit explicit","completion_bp":null},
+    "completion":{"quantity":null,"unit":null,"completion_bp":"integer 0..10000; absolute task assessment"}
+  },
+  "provenance_required":["baseline_id","baseline_version","import_id","manifest_sha256","boq_version_id","boq_snapshot_sha256","source_instance","source_revision","external_programme_id","canonical_task_id","external_task_id","diary_id","diary_version","diary_facts_sha256","diary_evidence_ids","observation_date"],
+  "excluded":["earned_value","auto_quantity_from_diary_text","claim","certificate","payment","EOT","LD","CIPAA","production_SQL","cross_DB_privileged_access"]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@workledger/wle-e07-programme-actuals-reporting-candidate",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "fixture": "node scripts/build_synthetic_fixture.mjs"
+  }
+}

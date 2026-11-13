@@ -1,0 +1,68 @@
+{
+  "report_id": "6189cd3e-cfa4-41ef-9fd8-95fe99902d34",
+  "organization_id": "11111111-1111-4111-8111-111111111111",
+  "project_id": "22222222-2222-4222-8222-222222222222",
+  "contract_id": "33333333-3333-4333-8333-333333333333",
+  "baseline_id": "44444444-4444-4444-8444-444444444444",
+  "baseline_version": 1,
+  "import_id": "55555555-5555-4555-8555-555555555555",
+  "manifest_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "boq_snapshot_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "as_of_date": "2026-11-20",
+  "source_event_sequence": 2,
+  "projection": {
+    "baseline_id": "44444444-4444-4444-8444-444444444444",
+    "baseline_version": 1,
+    "import_id": "55555555-5555-4555-8555-555555555555",
+    "manifest_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "boq_snapshot_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "boq_version_id": "66666666-6666-4666-8666-666666666666",
+    "baseline_status": "active",
+    "as_of_date": "2026-11-20",
+    "calendar": {
+      "timezone": "Asia/Kuala_Lumpur",
+      "working_days": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    "source_instance": "qs_service_synthetic",
+    "external_programme_id": 91,
+    "source_revision": "r1",
+    "rows": [
+      {
+        "canonical_task_id": "77777777-7777-4777-8777-777777777777",
+        "external_task_id": 11,
+        "wbs_code": "A.11",
+        "title": "Synthetic civil work",
+        "planned_start_date": "2026-11-13",
+        "planned_finish_date": "2026-11-19",
+        "planned_duration_days": "5",
+        "planned_float_days": "0",
+        "completion_bp": null,
+        "completion_assessment_date": null,
+        "verified_quantity_by_unit": {
+          "m3": "2.5000"
+        },
+        "verified_measure_ids": [
+          "6a538835-444d-4ab5-b3ac-c224ca08e897"
+        ],
+        "source_diary_ids": [
+          "99999999-9999-4999-8999-999999999999"
+        ],
+        "actual_finish_observed_date": null,
+        "finish_date_difference_days": null
+      }
+    ],
+    "unreviewed_count": 0,
+    "voided_count": 0
+  },
+  "produced_by": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  "produced_at": "2026-11-20T06:00:00Z",
+  "classification": "factual_progress_only",
+  "report_sha256": "a9f19ffef035af3a2f7570bc92b467d5e27befc86a6d34183f09cbc63dd760ff"
+}

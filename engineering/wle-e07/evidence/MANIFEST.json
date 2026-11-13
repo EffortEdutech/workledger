@@ -1,0 +1,148 @@
+{
+  "package": "WLE-E07_Programme_Actuals_Reporting_Candidate_v0.1",
+  "date_myt": "2026-11-13",
+  "status": "ISOLATED_NON_PRODUCTION_CANDIDATE",
+  "parent_repo": "EffortEdutech/workledger",
+  "parent_sha": "c3837800b56b14d4260e8283f9e891deaa6644b9",
+  "authority": "WLE-P1B 1.0.0-rc1 unchanged",
+  "E07_tests": 107,
+  "regressions": {
+    "E06": 80,
+    "E05": 64,
+    "E04": 58,
+    "E03_verified": 45,
+    "E02_verified": 30
+  },
+  "total_separate_node_tests": 384,
+  "failed": 0,
+  "staging_sql": "NOT_EXECUTED",
+  "release": "HOLD",
+  "integrity_scope": "all package files except evidence/MANIFEST.json itself",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 5122,
+      "sha256": "921686e67009f34a7ad2f7eb1301396c70db7884a4b4269fcfa741c1d3bd6303"
+    },
+    {
+      "path": "contracts/SYNTHETIC_PROGRESS_REPORT_EXAMPLE.json",
+      "bytes": 2431,
+      "sha256": "062c8cf7ea04a45ec1bf224af3a603513560a3d04ed6ce4c3ff4400a41ed0638"
+    },
+    {
+      "path": "contracts/factual_progress_report_CANDIDATE.schema.json",
+      "bytes": 2895,
+      "sha256": "4b5354f7bedb9151d2ca55b215fa4d632b255adaa64aa6d109a81ec62b4618c0"
+    },
+    {
+      "path": "contracts/private_programme_actual_commands.json",
+      "bytes": 2226,
+      "sha256": "b92726efbf471d3be7dff0b9bec31146e7305488b2015a6cfa7a0296240cea89"
+    },
+    {
+      "path": "docs/CODEX_HANDOFF.md",
+      "bytes": 4870,
+      "sha256": "b56b26a1a1b14ee681999db5f483caf7a9323e4b8582667ad16baba61dc0dc43"
+    },
+    {
+      "path": "docs/DOMAIN_SOURCE_LINEAGE_AND_VERSION_PARITY.md",
+      "bytes": 4425,
+      "sha256": "70a271fd28d617371f08a8de7d279d28118d1b204ff39b5bd90cb5816256ae5b"
+    },
+    {
+      "path": "docs/MEASUREMENT_CORRECTIONS_AND_REPORT_POLICY.md",
+      "bytes": 4300,
+      "sha256": "a28ab62bc11a1282ea03011981a4394e2e036801180e80b1c3de1628e362baef"
+    },
+    {
+      "path": "docs/OPEN_DECISIONS_AND_RISK_REGISTER.md",
+      "bytes": 2769,
+      "sha256": "fd9256916028f57ae7f87ffc6a870f0cc6deceff466f91caa98e1388acbae71e"
+    },
+    {
+      "path": "docs/PROPOSED_PRIVATE_ENDPOINTS.yaml",
+      "bytes": 2061,
+      "sha256": "67c862d309905081a0504b6282715ebd70eb9e08846e24c960526f058363ed9d"
+    },
+    {
+      "path": "docs/SECURITY_STAGING_AND_RELEASE_GATES.md",
+      "bytes": 4582,
+      "sha256": "fa15605083c99c9f366c2a3b63fe51670ffd42f96337c2b23aeb9d0b1a714ed1"
+    },
+    {
+      "path": "docs/UI_REPORTING_SCREEN_SPEC.md",
+      "bytes": 2791,
+      "sha256": "c94d71e4f58f4373bd5da63a729ef37a221f48d7a12af4db62ee17affb44e207"
+    },
+    {
+      "path": "evidence/E02_REGRESSION_OUTPUT.txt",
+      "bytes": 5529,
+      "sha256": "6daab57425a99cd3b2fc4f8b58f8d5972e07b0e6c5d3c269f47857a7150ceb46"
+    },
+    {
+      "path": "evidence/E03_REGRESSION_OUTPUT.txt",
+      "bytes": 7750,
+      "sha256": "4fde1b8fd77716c57c6cf6530fad4414d1142e0875d3542abcf4b5c01f68ec76"
+    },
+    {
+      "path": "evidence/E04_REGRESSION_OUTPUT.txt",
+      "bytes": 10274,
+      "sha256": "015069cfe4e01422c9c1621433d71828b9d723b02b666c28b9c8abe75a852857"
+    },
+    {
+      "path": "evidence/E05_REGRESSION_OUTPUT.txt",
+      "bytes": 9761,
+      "sha256": "535ffaadd449584ff41d419b8dcdd51e107fe81833fde655e4e06322f09b8917"
+    },
+    {
+      "path": "evidence/E06_REGRESSION_OUTPUT.txt",
+      "bytes": 13013,
+      "sha256": "877455089b000d88ffea6365c9a360a2903414eb325718e73221786aa74674d4"
+    },
+    {
+      "path": "evidence/GATE_CHECKLIST.json",
+      "bytes": 735,
+      "sha256": "3829b992f587cc0f7b7e3ee329062f33f77d215a41458d18aff0367d21c39dcb"
+    },
+    {
+      "path": "evidence/NODE_TEST_OUTPUT.txt",
+      "bytes": 17017,
+      "sha256": "9a822655950c2d8cfd881c8b26163d7a8056df75c28b8668d2e30a3c4ad049a7"
+    },
+    {
+      "path": "evidence/TEST_REPORT.md",
+      "bytes": 3451,
+      "sha256": "1f45bf9354d21b8fda6050b5d8f76a3cf67ab6d819732f9ae9b2d5d0b5107fb8"
+    },
+    {
+      "path": "package.json",
+      "bytes": 296,
+      "sha256": "d6499c329032d40fe0fc06dc9dc905dbe40d1ea22a68f7ae7f9ac14b7a64af10"
+    },
+    {
+      "path": "scripts/build_synthetic_fixture.mjs",
+      "bytes": 2956,
+      "sha256": "e9df6a6d7a2130efbbfa57d0bf0b73b0d505a2abf716b5a200dc3ae371824bd8"
+    },
+    {
+      "path": "sql/008_programme_actuals_reporting_CANDIDATE.sql",
+      "bytes": 7910,
+      "sha256": "979d394ae1915daeec34ff15514efbc9a3e715fb1b21a1d5a398514d8ba7ba0f"
+    },
+    {
+      "path": "src/actuals.mjs",
+      "bytes": 16998,
+      "sha256": "58dab9bc84342e3212c02c384fd264da08fbccbbfb33915c26996a89dfb52462"
+    },
+    {
+      "path": "tests/actuals.test.mjs",
+      "bytes": 25939,
+      "sha256": "4b19a285eafdf95a031dc1ea1e907050a647228a3f6bc2ff99796b2345834a1a"
+    },
+    {
+      "path": "ui/progress_reporting_prototype.html",
+      "bytes": 7608,
+      "sha256": "12d7eb239bc079dadbd9a122bba81e2d4f67780d4d4fcc9a6d1943174f6a9e45"
+    }
+  ]
+}
