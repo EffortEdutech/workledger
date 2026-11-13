@@ -1,0 +1,8 @@
+{
+  "name": "@workledger/wle-e03-evidence-audit-candidate",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {"test": "node --test tests/*.test.mjs"}
+}
