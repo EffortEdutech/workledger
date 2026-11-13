@@ -1,0 +1,19 @@
+{
+  "contract": "WLE-E05-PRIVATE-v0.1",
+  "architecture": "WLE-P1B 1.0.0-rc1 provisional unchanged",
+  "classification": "synthetic server-only; not exposed by HTTP",
+  "scope": ["organization_id", "project_id", "contract_id", "boq_id", "revision_id"],
+  "common": ["command_id", "idempotency_key", "acting_appointment_id", "expected_version", "reason"],
+  "commands": {
+    "create_revision": {"capability": "construction.boq.revision_create", "input": "full items and work-package allocation snapshots, E02 contract revision and E03 source evidence proof", "state": "new draft revision, predecessor locked"},
+    "replace_draft": {"capability": "construction.boq.revision_edit", "input": "full replacement snapshot", "state": "creator-owned draft only, optimistic version"},
+    "approve_revision": {"capability": "construction.boq.revision_approve", "state": "draft to approved, independent reviewer, not a certificate"},
+    "lock_revision": {"capability": "construction.boq.revision_lock", "state": "approved to locked, independent reviewer, immutable baseline"},
+    "map_source": {"capability": "construction.boq.source_map", "input": "legacy source_system+source_instance_id+source_entity_type+source_record_id+source_revision", "state": "append-only exact source crosswalk"},
+    "link_diary": {"capability": "construction.boq.diary_link", "input": "E04 verified submitted/acknowledged diary and locked work package", "state": "factual reference only; no measured quantity / valuation"},
+    "read": {"capability": "construction.boq.read", "state": "read guarded by current authorization"}
+  },
+  "state_machine": ["draft", "approved", "locked"],
+  "decimal_policy_candidate": {"quantity_scale": 4,"rate_scale": 4,"currency": "MYR","amount_scale": 2,"rounding": "half-up per line only; independently ratify before use"},
+  "excluded": ["payment", "certificate", "progress claim", "VO approval", "retention amount", "tax", "CIPAA service", "programme actuals", "production SQL", "automatic claims"]
+}
