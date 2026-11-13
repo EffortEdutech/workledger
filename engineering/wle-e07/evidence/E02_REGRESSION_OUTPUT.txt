@@ -1,0 +1,194 @@
+
+> @workledger/wle-e02-contract-registry-candidate@0.1.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: 01 register immutable, scoped candidate revision with pending audit/outbox/receipt
+ok 1 - 01 register immutable, scoped candidate revision with pending audit/outbox/receipt
+  ---
+  duration_ms: 5.325834
+  type: 'test'
+  ...
+# Subtest: 02 exact idempotent replay returns same event and no duplicate
+ok 2 - 02 exact idempotent replay returns same event and no duplicate
+  ---
+  duration_ms: 1.309251
+  type: 'test'
+  ...
+# Subtest: 03 same key different payload denies conflict
+ok 3 - 03 same key different payload denies conflict
+  ---
+  duration_ms: 1.104713
+  type: 'test'
+  ...
+# Subtest: 04 duplicate revision number in same contract denied
+ok 4 - 04 duplicate revision number in same contract denied
+  ---
+  duration_ms: 0.771421
+  type: 'test'
+  ...
+# Subtest: 05 duplicate revision UUID denied
+ok 5 - 05 duplicate revision UUID denied
+  ---
+  duration_ms: 0.813104
+  type: 'test'
+  ...
+# Subtest: 06 cross-tenant contract registration denied
+ok 6 - 06 cross-tenant contract registration denied
+  ---
+  duration_ms: 0.414133
+  type: 'test'
+  ...
+# Subtest: 07 unregistered party denied
+ok 7 - 07 unregistered party denied
+  ---
+  duration_ms: 0.442706
+  type: 'test'
+  ...
+# Subtest: 08 read capability does NOT grant revision create
+ok 8 - 08 read capability does NOT grant revision create
+  ---
+  duration_ms: 0.946204
+  type: 'test'
+  ...
+# Subtest: 09 actor ID cannot be supplied by browser command
+ok 9 - 09 actor ID cannot be supplied by browser command
+  ---
+  duration_ms: 0.360182
+  type: 'test'
+  ...
+# Subtest: 10 reject invalid/forged bearer token
+ok 10 - 10 reject invalid/forged bearer token
+  ---
+  duration_ms: 0.789879
+  type: 'test'
+  ...
+# Subtest: 11 reject malformed dates without inventing legal calendar defaults
+ok 11 - 11 reject malformed dates without inventing legal calendar defaults
+  ---
+  duration_ms: 0.395034
+  type: 'test'
+  ...
+# Subtest: 12 reject float amount or unknown field in signed-revision metadata
+ok 12 - 12 reject float amount or unknown field in signed-revision metadata
+  ---
+  duration_ms: 0.14627
+  type: 'test'
+  ...
+# Subtest: 13 reject invalid timezone
+ok 13 - 13 reject invalid timezone
+  ---
+  duration_ms: 0.241724
+  type: 'test'
+  ...
+# Subtest: 14 reject version mismatch on register
+ok 14 - 14 reject version mismatch on register
+  ---
+  duration_ms: 0.125278
+  type: 'test'
+  ...
+# Subtest: 15 seal fails if revision absent
+ok 15 - 15 seal fails if revision absent
+  ---
+  duration_ms: 0.283417
+  type: 'test'
+  ...
+# Subtest: 16 trusted evidence receipt required, not client hash alone
+ok 16 - 16 trusted evidence receipt required, not client hash alone
+  ---
+  duration_ms: 0.617359
+  type: 'test'
+  ...
+# Subtest: 17 wrong verified digest denied
+ok 17 - 17 wrong verified digest denied
+  ---
+  duration_ms: 0.463658
+  type: 'test'
+  ...
+# Subtest: 18 verified evidence for a different tenant denied
+ok 18 - 18 verified evidence for a different tenant denied
+  ---
+  duration_ms: 0.432341
+  type: 'test'
+  ...
+# Subtest: 19 seal creates immutable linked snapshot and audit record
+ok 19 - 19 seal creates immutable linked snapshot and audit record
+  ---
+  duration_ms: 0.589127
+  type: 'test'
+  ...
+# Subtest: 20 second seal for same revision denied without replacement
+ok 20 - 20 second seal for same revision denied without replacement
+  ---
+  duration_ms: 0.618261
+  type: 'test'
+  ...
+# Subtest: 21 signed-by party must belong to exact contract revision
+ok 21 - 21 signed-by party must belong to exact contract revision
+  ---
+  duration_ms: 0.459432
+  type: 'test'
+  ...
+# Subtest: 22 source mapping preserves source instance namespace
+ok 22 - 22 source mapping preserves source instance namespace
+  ---
+  duration_ms: 1.078273
+  type: 'test'
+  ...
+# Subtest: 23 duplicate mapping exact target is idempotent even with a new command key
+ok 23 - 23 duplicate mapping exact target is idempotent even with a new command key
+  ---
+  duration_ms: 0.553143
+  type: 'test'
+  ...
+# Subtest: 24 existing source key cannot map to another canonical revision
+ok 24 - 24 existing source key cannot map to another canonical revision
+  ---
+  duration_ms: 0.836339
+  type: 'test'
+  ...
+# Subtest: 25 mapping cannot refer to other contract revision
+ok 25 - 25 mapping cannot refer to other contract revision
+  ---
+  duration_ms: 0.452782
+  type: 'test'
+  ...
+# Subtest: 26 event failure rolls back all transactional records
+ok 26 - 26 event failure rolls back all transactional records
+  ---
+  duration_ms: 0.816058
+  type: 'test'
+  ...
+# Subtest: 27 parallel replay is serialised and produces exactly one event
+ok 27 - 27 parallel replay is serialised and produces exactly one event
+  ---
+  duration_ms: 1.863574
+  type: 'test'
+  ...
+# Subtest: 28 revocation between original and replay refuses new readback
+ok 28 - 28 revocation between original and replay refuses new readback
+  ---
+  duration_ms: 0.585631
+  type: 'test'
+  ...
+# Subtest: 29 mapping input rejects empty source identity or extra privilege flags
+ok 29 - 29 mapping input rejects empty source identity or extra privilege flags
+  ---
+  duration_ms: 0.229605
+  type: 'test'
+  ...
+# Subtest: 30 capabilities have no commercial approval or legal service grants
+ok 30 - 30 capabilities have no commercial approval or legal service grants
+  ---
+  duration_ms: 0.119049
+  type: 'test'
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 96.234909

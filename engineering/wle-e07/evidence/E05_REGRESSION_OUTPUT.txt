@@ -1,0 +1,398 @@
+
+> @workledger/wle-e05-boq-registry-candidate@0.1.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: 01 first revision with exact decimal snapshots
+ok 1 - 01 first revision with exact decimal snapshots
+  ---
+  duration_ms: 4.401583
+  type: 'test'
+  ...
+# Subtest: 02 first revision has audit, pending outbox, receipt
+ok 2 - 02 first revision has audit, pending outbox, receipt
+  ---
+  duration_ms: 0.600754
+  type: 'test'
+  ...
+# Subtest: 03 no JavaScript floating-point quantity accepted
+ok 3 - 03 no JavaScript floating-point quantity accepted
+  ---
+  duration_ms: 0.745301
+  type: 'test'
+  ...
+# Subtest: 04 amount precision rounds half-up at minor unit
+ok 4 - 04 amount precision rounds half-up at minor unit
+  ---
+  duration_ms: 0.402816
+  type: 'test'
+  ...
+# Subtest: 05 decimal formatting stable at zero
+ok 5 - 05 decimal formatting stable at zero
+  ---
+  duration_ms: 0.185259
+  type: 'test'
+  ...
+# Subtest: 06 reject scientific notation
+ok 6 - 06 reject scientific notation
+  ---
+  duration_ms: 0.266351
+  type: 'test'
+  ...
+# Subtest: 07 reject negative rate
+ok 7 - 07 reject negative rate
+  ---
+  duration_ms: 0.198559
+  type: 'test'
+  ...
+# Subtest: 08 reject too many decimals
+ok 8 - 08 reject too many decimals
+  ---
+  duration_ms: 0.142304
+  type: 'test'
+  ...
+# Subtest: 09 reject unknown fields
+ok 9 - 09 reject unknown fields
+  ---
+  duration_ms: 0.562166
+  type: 'test'
+  ...
+# Subtest: 10 reject forged actor claim
+ok 10 - 10 reject forged actor claim
+  ---
+  duration_ms: 0.709167
+  type: 'test'
+  ...
+# Subtest: 11 reject bad token
+ok 11 - 11 reject bad token
+  ---
+  duration_ms: 0.417899
+  type: 'test'
+  ...
+# Subtest: 12 reject read-only authority
+ok 12 - 12 reject read-only authority
+  ---
+  duration_ms: 1.8472
+  type: 'test'
+  ...
+# Subtest: 13 cross-tenant denies
+ok 13 - 13 cross-tenant denies
+  ---
+  duration_ms: 0.557248
+  type: 'test'
+  ...
+# Subtest: 14 sibling contract not in register denies
+ok 14 - 14 sibling contract not in register denies
+  ---
+  duration_ms: 0.472941
+  type: 'test'
+  ...
+# Subtest: 15 unverified E02 contract revision denies
+ok 15 - 15 unverified E02 contract revision denies
+  ---
+  duration_ms: 0.344759
+  type: 'test'
+  ...
+# Subtest: 16 E02 contract revision wrong scope denies
+ok 16 - 16 E02 contract revision wrong scope denies
+  ---
+  duration_ms: 0.289636
+  type: 'test'
+  ...
+# Subtest: 17 unverified E03 source receipt denies
+ok 17 - 17 unverified E03 source receipt denies
+  ---
+  duration_ms: 0.543037
+  type: 'test'
+  ...
+# Subtest: 18 E03 receipt requires byte check
+ok 18 - 18 E03 receipt requires byte check
+  ---
+  duration_ms: 0.795848
+  type: 'test'
+  ...
+# Subtest: 19 E03 receipt cannot supply wrong hash
+ok 19 - 19 E03 receipt cannot supply wrong hash
+  ---
+  duration_ms: 0.331589
+  type: 'test'
+  ...
+# Subtest: 20 E03 receipt cross-tenant denies
+ok 20 - 20 E03 receipt cross-tenant denies
+  ---
+  duration_ms: 0.382156
+  type: 'test'
+  ...
+# Subtest: 21 duplicate item codes fail
+ok 21 - 21 duplicate item codes fail
+  ---
+  duration_ms: 0.166381
+  type: 'test'
+  ...
+# Subtest: 22 duplicate stable line key fails
+ok 22 - 22 duplicate stable line key fails
+  ---
+  duration_ms: 0.192289
+  type: 'test'
+  ...
+# Subtest: 23 invalid provisional item as lump sum unit denied
+ok 23 - 23 invalid provisional item as lump sum unit denied
+  ---
+  duration_ms: 0.142104
+  type: 'test'
+  ...
+# Subtest: 24 package allocation missing line denied
+ok 24 - 24 package allocation missing line denied
+  ---
+  duration_ms: 0.183075
+  type: 'test'
+  ...
+# Subtest: 25 overallocated item across packages denied
+ok 25 - 25 overallocated item across packages denied
+  ---
+  duration_ms: 0.175555
+  type: 'test'
+  ...
+# Subtest: 26 exact 100% split allocation accepted
+ok 26 - 26 exact 100% split allocation accepted
+  ---
+  duration_ms: 1.00298
+  type: 'test'
+  ...
+# Subtest: 27 duplicate package code denied
+ok 27 - 27 duplicate package code denied
+  ---
+  duration_ms: 0.470709
+  type: 'test'
+  ...
+# Subtest: 28 exact replay idempotent
+ok 28 - 28 exact replay idempotent
+  ---
+  duration_ms: 2.177497
+  type: 'test'
+  ...
+# Subtest: 29 changed replay conflicts
+ok 29 - 29 changed replay conflicts
+  ---
+  duration_ms: 0.869648
+  type: 'test'
+  ...
+# Subtest: 30 concurrent exact retry one event
+ok 30 - 30 concurrent exact retry one event
+  ---
+  duration_ms: 3.208488
+  type: 'test'
+  ...
+# Subtest: 31 revision number collision fails
+ok 31 - 31 revision number collision fails
+  ---
+  duration_ms: 1.597744
+  type: 'test'
+  ...
+# Subtest: 32 cannot start at revision 2
+ok 32 - 32 cannot start at revision 2
+  ---
+  duration_ms: 0.218669
+  type: 'test'
+  ...
+# Subtest: 33 draft owner may replace full snapshot
+ok 33 - 33 draft owner may replace full snapshot
+  ---
+  duration_ms: 0.640193
+  type: 'test'
+  ...
+# Subtest: 34 stale draft update denied without overwrite
+ok 34 - 34 stale draft update denied without overwrite
+  ---
+  duration_ms: 0.406031
+  type: 'test'
+  ...
+# Subtest: 35 another user cannot edit creator draft
+ok 35 - 35 another user cannot edit creator draft
+  ---
+  duration_ms: 0.355245
+  type: 'test'
+  ...
+# Subtest: 36 creator cannot self-approve
+ok 36 - 36 creator cannot self-approve
+  ---
+  duration_ms: 0.556197
+  type: 'test'
+  ...
+# Subtest: 37 independent reviewer approves without certification
+ok 37 - 37 independent reviewer approves without certification
+  ---
+  duration_ms: 0.416486
+  type: 'test'
+  ...
+# Subtest: 38 cannot edit approved snapshot
+ok 38 - 38 cannot edit approved snapshot
+  ---
+  duration_ms: 0.90372
+  type: 'test'
+  ...
+# Subtest: 39 creator cannot self-lock
+ok 39 - 39 creator cannot self-lock
+  ---
+  duration_ms: 1.197422
+  type: 'test'
+  ...
+# Subtest: 40 can lock approved revision
+ok 40 - 40 can lock approved revision
+  ---
+  duration_ms: 1.316711
+  type: 'test'
+  ...
+# Subtest: 41 cannot modify locked snapshot
+ok 41 - 41 cannot modify locked snapshot
+  ---
+  duration_ms: 1.744014
+  type: 'test'
+  ...
+# Subtest: 42 next revision requires locked predecessor
+ok 42 - 42 next revision requires locked predecessor
+  ---
+  duration_ms: 1.200326
+  type: 'test'
+  ...
+# Subtest: 43 valid second revision retains first
+ok 43 - 43 valid second revision retains first
+  ---
+  duration_ms: 2.394824
+  type: 'test'
+  ...
+# Subtest: 44 cannot skip revision number
+ok 44 - 44 cannot skip revision number
+  ---
+  duration_ms: 1.260687
+  type: 'test'
+  ...
+# Subtest: 45 immutable source mapping can target approved line
+ok 45 - 45 immutable source mapping can target approved line
+  ---
+  duration_ms: 1.096781
+  type: 'test'
+  ...
+# Subtest: 46 source mapping rejects draft revision
+ok 46 - 46 source mapping rejects draft revision
+  ---
+  duration_ms: 0.526092
+  type: 'test'
+  ...
+# Subtest: 47 source mapping rejects unknown item
+ok 47 - 47 source mapping rejects unknown item
+  ---
+  duration_ms: 0.737911
+  type: 'test'
+  ...
+# Subtest: 48 source mapping exact target business-idempotent
+ok 48 - 48 source mapping exact target business-idempotent
+  ---
+  duration_ms: 0.921938
+  type: 'test'
+  ...
+# Subtest: 49 source mapping refuses repointing under same legacy key
+ok 49 - 49 source mapping refuses repointing under same legacy key
+  ---
+  duration_ms: 1.231944
+  type: 'test'
+  ...
+# Subtest: 50 source mapping namespaces different instances
+ok 50 - 50 source mapping namespaces different instances
+  ---
+  duration_ms: 1.050931
+  type: 'test'
+  ...
+# Subtest: 51 header mapping demands null item_key
+ok 51 - 51 header mapping demands null item_key
+  ---
+  duration_ms: 0.441865
+  type: 'test'
+  ...
+# Subtest: 52 diary link only locked revision
+ok 52 - 52 diary link only locked revision
+  ---
+  duration_ms: 0.749177
+  type: 'test'
+  ...
+# Subtest: 53 diary link needs actual trusted E04 status
+ok 53 - 53 diary link needs actual trusted E04 status
+  ---
+  duration_ms: 0.620874
+  type: 'test'
+  ...
+# Subtest: 54 sibling-contract diary proof denied
+ok 54 - 54 sibling-contract diary proof denied
+  ---
+  duration_ms: 0.71136
+  type: 'test'
+  ...
+# Subtest: 55 verified submitted diary can link to work package
+ok 55 - 55 verified submitted diary can link to work package
+  ---
+  duration_ms: 0.931642
+  type: 'test'
+  ...
+# Subtest: 56 diary link cannot claim unknown work package
+ok 56 - 56 diary link cannot claim unknown work package
+  ---
+  duration_ms: 0.87669
+  type: 'test'
+  ...
+# Subtest: 57 duplicate diary link new command conflicts
+ok 57 - 57 duplicate diary link new command conflicts
+  ---
+  duration_ms: 1.21584
+  type: 'test'
+  ...
+# Subtest: 58 read requires separately authorized capability
+ok 58 - 58 read requires separately authorized capability
+  ---
+  duration_ms: 0.779463
+  type: 'test'
+  ...
+# Subtest: 59 read returns defensive snapshot
+ok 59 - 59 read returns defensive snapshot
+  ---
+  duration_ms: 0.484839
+  type: 'test'
+  ...
+# Subtest: 60 diff line and package changes without changing first revision
+ok 60 - 60 diff line and package changes without changing first revision
+  ---
+  duration_ms: 2.188824
+  type: 'test'
+  ...
+# Subtest: 61 diff rejects cross-scope revisions
+ok 61 - 61 diff rejects cross-scope revisions
+  ---
+  duration_ms: 0.202855
+  type: 'test'
+  ...
+# Subtest: 62 injected failure rolls back event and state
+ok 62 - 62 injected failure rolls back event and state
+  ---
+  duration_ms: 0.520654
+  type: 'test'
+  ...
+# Subtest: 63 revoked appointment denies even exact retry
+ok 63 - 63 revoked appointment denies even exact retry
+  ---
+  duration_ms: 0.351639
+  type: 'test'
+  ...
+# Subtest: 64 no payment or legal certification capabilities
+ok 64 - 64 no payment or legal certification capabilities
+  ---
+  duration_ms: 0.275234
+  type: 'test'
+  ...
+1..64
+# tests 64
+# suites 0
+# pass 64
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 168.403395

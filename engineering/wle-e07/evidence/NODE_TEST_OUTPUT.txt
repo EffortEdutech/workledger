@@ -1,0 +1,656 @@
+
+> @workledger/wle-e07-programme-actuals-reporting-candidate@0.1.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: 01 quantity parser preserves 4dp exact scale
+ok 1 - 01 quantity parser preserves 4dp exact scale
+  ---
+  duration_ms: 1.292845
+  type: 'test'
+  ...
+# Subtest: 02 quantity arithmetic handles large exact sums
+ok 2 - 02 quantity arithmetic handles large exact sums
+  ---
+  duration_ms: 0.156946
+  type: 'test'
+  ...
+# Subtest: 03 quantity rejects JS floats
+ok 3 - 03 quantity rejects JS floats
+  ---
+  duration_ms: 0.457709
+  type: 'test'
+  ...
+# Subtest: 04 rejects scientific notation
+ok 4 - 04 rejects scientific notation
+  ---
+  duration_ms: 0.122464
+  type: 'test'
+  ...
+# Subtest: 05 rejects negative increments
+ok 5 - 05 rejects negative increments
+  ---
+  duration_ms: 0.111318
+  type: 'test'
+  ...
+# Subtest: 06 rejects more than 4dp
+ok 6 - 06 rejects more than 4dp
+  ---
+  duration_ms: 0.139911
+  type: 'test'
+  ...
+# Subtest: 07 deterministic hash object ordering
+ok 7 - 07 deterministic hash object ordering
+  ---
+  duration_ms: 0.51786
+  type: 'test'
+  ...
+# Subtest: 08 normal positive observation creates pending and one audit
+ok 8 - 08 normal positive observation creates pending and one audit
+  ---
+  duration_ms: 2.442136
+  type: 'test'
+  ...
+# Subtest: 09 input amount is not accepted
+ok 9 - 09 input amount is not accepted
+  ---
+  duration_ms: 0.553002
+  type: 'test'
+  ...
+# Subtest: 10 forged actor field rejected
+ok 10 - 10 forged actor field rejected
+  ---
+  duration_ms: 0.410197
+  type: 'test'
+  ...
+# Subtest: 11 forged capability field rejected
+ok 11 - 11 forged capability field rejected
+  ---
+  duration_ms: 0.204588
+  type: 'test'
+  ...
+# Subtest: 12 invalid token denies
+ok 12 - 12 invalid token denies
+  ---
+  duration_ms: 0.223606
+  type: 'test'
+  ...
+# Subtest: 13 outsider denied
+ok 13 - 13 outsider denied
+  ---
+  duration_ms: 0.23219
+  type: 'test'
+  ...
+# Subtest: 14 scope unverified denies
+ok 14 - 14 scope unverified denies
+  ---
+  duration_ms: 0.256486
+  type: 'test'
+  ...
+# Subtest: 15 read-only appointment denies write
+ok 15 - 15 read-only appointment denies write
+  ---
+  duration_ms: 0.210056
+  type: 'test'
+  ...
+# Subtest: 16 cross-org baseline mismatch denies
+ok 16 - 16 cross-org baseline mismatch denies
+  ---
+  duration_ms: 0.299811
+  type: 'test'
+  ...
+# Subtest: 17 cross-contract baseline mismatch denies
+ok 17 - 17 cross-contract baseline mismatch denies
+  ---
+  duration_ms: 0.201613
+  type: 'test'
+  ...
+# Subtest: 18 unverified baseline denies
+ok 18 - 18 unverified baseline denies
+  ---
+  duration_ms: 0.168734
+  type: 'test'
+  ...
+# Subtest: 19 no baseline tasks denies
+ok 19 - 19 no baseline tasks denies
+  ---
+  duration_ms: 0.247373
+  type: 'test'
+  ...
+# Subtest: 20 unknown canonical task denies
+ok 20 - 20 unknown canonical task denies
+  ---
+  duration_ms: 0.220542
+  type: 'test'
+  ...
+# Subtest: 21 wrong import id denies baseline
+ok 21 - 21 wrong import id denies baseline
+  ---
+  duration_ms: 0.174523
+  type: 'test'
+  ...
+# Subtest: 22 bad manifest digest denies
+ok 22 - 22 bad manifest digest denies
+  ---
+  duration_ms: 0.208073
+  type: 'test'
+  ...
+# Subtest: 23 superseded baseline denies new actual
+ok 23 - 23 superseded baseline denies new actual
+  ---
+  duration_ms: 0.266981
+  type: 'test'
+  ...
+# Subtest: 24 unknown baseline source status denies
+ok 24 - 24 unknown baseline source status denies
+  ---
+  duration_ms: 0.223477
+  type: 'test'
+  ...
+# Subtest: 25 diary unverified denies
+ok 25 - 25 diary unverified denies
+  ---
+  duration_ms: 0.224548
+  type: 'test'
+  ...
+# Subtest: 26 diary wrong tenant denies
+ok 26 - 26 diary wrong tenant denies
+  ---
+  duration_ms: 0.265429
+  type: 'test'
+  ...
+# Subtest: 27 diary wrong version denies
+ok 27 - 27 diary wrong version denies
+  ---
+  duration_ms: 0.222054
+  type: 'test'
+  ...
+# Subtest: 28 diary draft denies capture
+ok 28 - 28 diary draft denies capture
+  ---
+  duration_ms: 0.224698
+  type: 'test'
+  ...
+# Subtest: 29 submitted diary permits observation
+ok 29 - 29 submitted diary permits observation
+  ---
+  duration_ms: 0.289375
+  type: 'test'
+  ...
+# Subtest: 30 reviewer cannot verify submitted-only diary
+ok 30 - 30 reviewer cannot verify submitted-only diary
+  ---
+  duration_ms: 0.717289
+  type: 'test'
+  ...
+# Subtest: 31 independent reviewer verifies acknowledged
+ok 31 - 31 independent reviewer verifies acknowledged
+  ---
+  duration_ms: 0.520733
+  type: 'test'
+  ...
+# Subtest: 32 creator cannot self-verify
+ok 32 - 32 creator cannot self-verify
+  ---
+  duration_ms: 0.468415
+  type: 'test'
+  ...
+# Subtest: 33 creator cannot self-reject
+ok 33 - 33 creator cannot self-reject
+  ---
+  duration_ms: 0.627744
+  type: 'test'
+  ...
+# Subtest: 34 reviewer can reject pending without verification
+ok 34 - 34 reviewer can reject pending without verification
+  ---
+  duration_ms: 1.20969
+  type: 'test'
+  ...
+# Subtest: 35 reject does not count into report
+ok 35 - 35 reject does not count into report
+  ---
+  duration_ms: 1.283742
+  type: 'test'
+  ...
+# Subtest: 36 draft does not count into verified report
+ok 36 - 36 draft does not count into verified report
+  ---
+  duration_ms: 0.474013
+  type: 'test'
+  ...
+# Subtest: 37 reviewer cannot verify twice
+ok 37 - 37 reviewer cannot verify twice
+  ---
+  duration_ms: 0.571701
+  type: 'test'
+  ...
+# Subtest: 38 stale version fails
+ok 38 - 38 stale version fails
+  ---
+  duration_ms: 0.686804
+  type: 'test'
+  ...
+# Subtest: 39 quantity zero denied
+ok 39 - 39 quantity zero denied
+  ---
+  duration_ms: 0.199079
+  type: 'test'
+  ...
+# Subtest: 40 quantity input scientific notation denied
+ok 40 - 40 quantity input scientific notation denied
+  ---
+  duration_ms: 0.117847
+  type: 'test'
+  ...
+# Subtest: 41 quantity with percent simultaneously denied
+ok 41 - 41 quantity with percent simultaneously denied
+  ---
+  duration_ms: 0.113932
+  type: 'test'
+  ...
+# Subtest: 42 completion with physical unit denied
+ok 42 - 42 completion with physical unit denied
+  ---
+  duration_ms: 0.127923
+  type: 'test'
+  ...
+# Subtest: 43 completion with quantity denied
+ok 43 - 43 completion with quantity denied
+  ---
+  duration_ms: 0.145549
+  type: 'test'
+  ...
+# Subtest: 44 completion > 100 percent denied
+ok 44 - 44 completion > 100 percent denied
+  ---
+  duration_ms: 0.118178
+  type: 'test'
+  ...
+# Subtest: 45 completion negative denied
+ok 45 - 45 completion negative denied
+  ---
+  duration_ms: 0.194963
+  type: 'test'
+  ...
+# Subtest: 46 completion with float denied
+ok 46 - 46 completion with float denied
+  ---
+  duration_ms: 0.139169
+  type: 'test'
+  ...
+# Subtest: 47 bad observation date denied
+ok 47 - 47 bad observation date denied
+  ---
+  duration_ms: 0.122304
+  type: 'test'
+  ...
+# Subtest: 48 diary date mismatch denied
+ok 48 - 48 diary date mismatch denied
+  ---
+  duration_ms: 0.170676
+  type: 'test'
+  ...
+# Subtest: 49 exact retry returns one event
+ok 49 - 49 exact retry returns one event
+  ---
+  duration_ms: 0.742558
+  type: 'test'
+  ...
+# Subtest: 50 same key different payload conflicts
+ok 50 - 50 same key different payload conflicts
+  ---
+  duration_ms: 0.433722
+  type: 'test'
+  ...
+# Subtest: 51 duplicate measure UUID denied
+ok 51 - 51 duplicate measure UUID denied
+  ---
+  duration_ms: 0.379541
+  type: 'test'
+  ...
+# Subtest: 52 failed transaction rolls back measure and event
+ok 52 - 52 failed transaction rolls back measure and event
+  ---
+  duration_ms: 0.415996
+  type: 'test'
+  ...
+# Subtest: 53 concurrent same idempotency produces one observation
+ok 53 - 53 concurrent same idempotency produces one observation
+  ---
+  duration_ms: 0.454114
+  type: 'test'
+  ...
+# Subtest: 54 verified increments exact sum by unit
+ok 54 - 54 verified increments exact sum by unit
+  ---
+  duration_ms: 9.471985
+  type: 'test'
+  ...
+# Subtest: 55 differing units never combined
+ok 55 - 55 differing units never combined
+  ---
+  duration_ms: 1.402551
+  type: 'test'
+  ...
+# Subtest: 56 completed task percentage remains unknown without verification
+ok 56 - 56 completed task percentage remains unknown without verification
+  ---
+  duration_ms: 0.555195
+  type: 'test'
+  ...
+# Subtest: 57 verified completion percent displayed
+ok 57 - 57 verified completion percent displayed
+  ---
+  duration_ms: 0.500013
+  type: 'test'
+  ...
+# Subtest: 58 verified 100% produces observational finish difference
+ok 58 - 58 verified 100% produces observational finish difference
+  ---
+  duration_ms: 0.426211
+  type: 'test'
+  ...
+# Subtest: 59 incomplete completion does not create finish date
+ok 59 - 59 incomplete completion does not create finish date
+  ---
+  duration_ms: 0.492431
+  type: 'test'
+  ...
+# Subtest: 60 completion may hold same percentage on successive dates
+ok 60 - 60 completion may hold same percentage on successive dates
+  ---
+  duration_ms: 0.73765
+  type: 'test'
+  ...
+# Subtest: 61 lower completion at same earlier date rejected
+ok 61 - 61 lower completion at same earlier date rejected
+  ---
+  duration_ms: 0.689377
+  type: 'test'
+  ...
+# Subtest: 62 higher earlier completion cannot precede lower later completion
+ok 62 - 62 higher earlier completion cannot precede lower later completion
+  ---
+  duration_ms: 0.65786
+  type: 'test'
+  ...
+# Subtest: 63 cannot void a pending observation
+ok 63 - 63 cannot void a pending observation
+  ---
+  duration_ms: 0.345379
+  type: 'test'
+  ...
+# Subtest: 64 creator cannot void own verified observation
+ok 64 - 64 creator cannot void own verified observation
+  ---
+  duration_ms: 0.421424
+  type: 'test'
+  ...
+# Subtest: 65 independent correction voids via append-only event
+ok 65 - 65 independent correction voids via append-only event
+  ---
+  duration_ms: 0.421294
+  type: 'test'
+  ...
+# Subtest: 66 voided quantity excluded from live projection
+ok 66 - 66 voided quantity excluded from live projection
+  ---
+  duration_ms: 0.931391
+  type: 'test'
+  ...
+# Subtest: 67 repeat void with different key blocked
+ok 67 - 67 repeat void with different key blocked
+  ---
+  duration_ms: 0.536588
+  type: 'test'
+  ...
+# Subtest: 68 void original still retained for audit
+ok 68 - 68 void original still retained for audit
+  ---
+  duration_ms: 0.402216
+  type: 'test'
+  ...
+# Subtest: 69 published report pins source manifest and active version
+ok 69 - 69 published report pins source manifest and active version
+  ---
+  duration_ms: 0.836759
+  type: 'test'
+  ...
+# Subtest: 70 publication does not mutate prior measure
+ok 70 - 70 publication does not mutate prior measure
+  ---
+  duration_ms: 0.661976
+  type: 'test'
+  ...
+# Subtest: 71 stale report sequence rejected
+ok 71 - 71 stale report sequence rejected
+  ---
+  duration_ms: 0.895658
+  type: 'test'
+  ...
+# Subtest: 72 report cannot reuse report_id for changed payload
+ok 72 - 72 report cannot reuse report_id for changed payload
+  ---
+  duration_ms: 0.483217
+  type: 'test'
+  ...
+# Subtest: 73 read report denied cross-tenant
+ok 73 - 73 read report denied cross-tenant
+  ---
+  duration_ms: 0.332781
+  type: 'test'
+  ...
+# Subtest: 74 reported snapshot immutable after corrections
+ok 74 - 74 reported snapshot immutable after corrections
+  ---
+  duration_ms: 2.19913
+  type: 'test'
+  ...
+# Subtest: 75 active report may be produced for superseded historical baseline
+ok 75 - 75 active report may be produced for superseded historical baseline
+  ---
+  duration_ms: 0.543658
+  type: 'test'
+  ...
+# Subtest: 76 source history retains native task ID
+ok 76 - 76 source history retains native task ID
+  ---
+  duration_ms: 0.142635
+  type: 'test'
+  ...
+# Subtest: 77 source-free zero not assumed, unassessed completion null
+ok 77 - 77 source-free zero not assumed, unassessed completion null
+  ---
+  duration_ms: 0.164317
+  type: 'test'
+  ...
+# Subtest: 78 report hash is deterministic for retained stored body
+ok 78 - 78 report hash is deterministic for retained stored body
+  ---
+  duration_ms: 2.977856
+  type: 'test'
+  ...
+# Subtest: 79 revocation rechecked before idempotent replay
+ok 79 - 79 revocation rechecked before idempotent replay
+  ---
+  duration_ms: 0.27896
+  type: 'test'
+  ...
+# Subtest: 80 read-only capability cannot publish
+ok 80 - 80 read-only capability cannot publish
+  ---
+  duration_ms: 0.21321
+  type: 'test'
+  ...
+# Subtest: 81 sequential report requests preserve distinct event sequences
+ok 81 - 81 sequential report requests preserve distinct event sequences
+  ---
+  duration_ms: 0.567754
+  type: 'test'
+  ...
+# Subtest: 82 unknown report read fails
+ok 82 - 82 unknown report read fails
+  ---
+  duration_ms: 0.131017
+  type: 'test'
+  ...
+# Subtest: 83 cross-contract report read fails
+ok 83 - 83 cross-contract report read fails
+  ---
+  duration_ms: 0.25907
+  type: 'test'
+  ...
+# Subtest: 84 canonical report does not contain claim amount
+ok 84 - 84 canonical report does not contain claim amount
+  ---
+  duration_ms: 0.55148
+  type: 'test'
+  ...
+# Subtest: 85 same measure cannot be verified across different baseline
+ok 85 - 85 same measure cannot be verified across different baseline
+  ---
+  duration_ms: 0.43187
+  type: 'test'
+  ...
+# Subtest: 86 wrong diary ID remains pinned in each verified row
+ok 86 - 86 wrong diary ID remains pinned in each verified row
+  ---
+  duration_ms: 0.433492
+  type: 'test'
+  ...
+# Subtest: 87 publish command cannot declare commercial entitlement
+ok 87 - 87 publish command cannot declare commercial entitlement
+  ---
+  duration_ms: 0.116015
+  type: 'test'
+  ...
+# Subtest: 88 unknown measure review fails
+ok 88 - 88 unknown measure review fails
+  ---
+  duration_ms: 0.155344
+  type: 'test'
+  ...
+# Subtest: 89 partial baseline task drift denied
+ok 89 - 89 partial baseline task drift denied
+  ---
+  duration_ms: 0.153892
+  type: 'test'
+  ...
+# Subtest: 90 bad baseline import scope rejected for read
+ok 90 - 90 bad baseline import scope rejected for read
+  ---
+  duration_ms: 0.13898
+  type: 'test'
+  ...
+# Subtest: 91 physical observation pins immutable QS integer task and source revision
+ok 91 - 91 physical observation pins immutable QS integer task and source revision
+  ---
+  duration_ms: 0.253542
+  type: 'test'
+  ...
+# Subtest: 92 diary fact digest pinned from trusted E04 receipt
+ok 92 - 92 diary fact digest pinned from trusted E04 receipt
+  ---
+  duration_ms: 0.20625
+  type: 'test'
+  ...
+# Subtest: 93 invalid diary facts digest blocks capture
+ok 93 - 93 invalid diary facts digest blocks capture
+  ---
+  duration_ms: 0.179881
+  type: 'test'
+  ...
+# Subtest: 94 invalid E03 evidence id in diary receipt blocks capture
+ok 94 - 94 invalid E03 evidence id in diary receipt blocks capture
+  ---
+  duration_ms: 0.17267
+  type: 'test'
+  ...
+# Subtest: 95 changed source diary facts block verification
+ok 95 - 95 changed source diary facts block verification
+  ---
+  duration_ms: 0.313682
+  type: 'test'
+  ...
+# Subtest: 96 reviewed observation remains visible as traceable E04 reference
+ok 96 - 96 reviewed observation remains visible as traceable E04 reference
+  ---
+  duration_ms: 0.422005
+  type: 'test'
+  ...
+# Subtest: 97 as-of projection excludes future dated verified observation
+ok 97 - 97 as-of projection excludes future dated verified observation
+  ---
+  duration_ms: 0.572402
+  type: 'test'
+  ...
+# Subtest: 98 as-of projection includes exact boundary date
+ok 98 - 98 as-of projection includes exact boundary date
+  ---
+  duration_ms: 0.59154
+  type: 'test'
+  ...
+# Subtest: 99 report source event sequence pins before publication event
+ok 99 - 99 report source event sequence pins before publication event
+  ---
+  duration_ms: 0.911712
+  type: 'test'
+  ...
+# Subtest: 100 report exact idempotent replay preserves same hash
+ok 100 - 100 report exact idempotent replay preserves same hash
+  ---
+  duration_ms: 0.381484
+  type: 'test'
+  ...
+# Subtest: 101 concurrent publish of stale event sequences produces exactly one report
+ok 101 - 101 concurrent publish of stale event sequences produces exactly one report
+  ---
+  duration_ms: 0.357168
+  type: 'test'
+  ...
+# Subtest: 102 event chain includes previous hash
+ok 102 - 102 event chain includes previous hash
+  ---
+  duration_ms: 0.282996
+  type: 'test'
+  ...
+# Subtest: 103 sibling contract mis-scope denies publishing
+ok 103 - 103 sibling contract mis-scope denies publishing
+  ---
+  duration_ms: 0.123847
+  type: 'test'
+  ...
+# Subtest: 104 report view rechecks current appointment
+ok 104 - 104 report view rechecks current appointment
+  ---
+  duration_ms: 0.255124
+  type: 'test'
+  ...
+# Subtest: 105 report read rejects untrusted arbitrary inputs
+ok 105 - 105 report read rejects untrusted arbitrary inputs
+  ---
+  duration_ms: 0.214543
+  type: 'test'
+  ...
+# Subtest: 106 source programme ID missing denies baseline
+ok 106 - 106 source programme ID missing denies baseline
+  ---
+  duration_ms: 0.126891
+  type: 'test'
+  ...
+# Subtest: 107 recorded progress retains accepted BOQ revision not mutable BOQ item total
+ok 107 - 107 recorded progress retains accepted BOQ revision not mutable BOQ item total
+  ---
+  duration_ms: 0.279901
+  type: 'test'
+  ...
+1..107
+# tests 107
+# suites 0
+# pass 107
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 136.646229

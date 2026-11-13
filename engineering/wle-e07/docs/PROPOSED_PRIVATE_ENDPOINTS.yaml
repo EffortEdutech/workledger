@@ -1,0 +1,48 @@
+# WLE-E07 PRIVATE CONTRACT DESIGN ONLY. NOT DEPLOYED.
+openapi: 3.1.0
+info:
+  title: WorkLedger Enterprise — Actuals and Reporting (private proposal)
+  version: 0.1.0-candidate
+  description: All endpoints are conceptual. All access depends on verified E01 appointment and real RLS.
+servers:
+  - url: https://not-deployed.invalid
+paths:
+  /v1/enterprise/programmes/{baselineId}/actuals:
+    post:
+      summary: Record site actual observation from trusted E04 diary, never verify automatically
+      responses:
+        '202': {description: Pending independent review}
+        '403': {description: Appointment forbidden}
+        '409': {description: Wrong baseline/task/diary version or stale baseline}
+  /v1/enterprise/actuals/{measureId}/verify:
+    post:
+      summary: Independent appointed review after E04 acknowledged and unchanged evidence
+      responses:
+        '200': {description: Verified factual progress}
+        '409': {description: Stale version, changed evidence or state conflict}
+  /v1/enterprise/actuals/{measureId}/reject:
+    post:
+      summary: Reject pending factual observation, preserving audit
+      responses:
+        '200': {description: Observation rejected}
+  /v1/enterprise/actuals/{measureId}/void:
+    post:
+      summary: Append a correction/void; never edit original
+      responses:
+        '200': {description: Corrective audit event appended}
+  /v1/enterprise/programmes/{baselineId}/progress:
+    get:
+      summary: Scoped read of verified factual progress and pending counts
+      responses:
+        '200': {description: Programme progress projection, null when unassessed}
+  /v1/enterprise/programmes/{baselineId}/reports:
+    post:
+      summary: Publish version-locked report with optimistic event sequence
+      responses:
+        '201': {description: Immutable report snapshot}
+        '409': {description: Event sequence conflict}
+  /v1/enterprise/reports/{reportId}:
+    get:
+      summary: Scoped immutable report retrieval
+      responses:
+        '200': {description: Original report content with SHA-256}

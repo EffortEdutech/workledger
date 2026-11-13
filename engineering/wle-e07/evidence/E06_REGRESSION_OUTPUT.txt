@@ -1,0 +1,494 @@
+
+> @workledger/wle-e06-qs-adapter-candidate@0.1.0 test
+> node --test tests/*.test.mjs
+
+TAP version 13
+# Subtest: 01 canonical digest stable under object key reordering
+ok 1 - 01 canonical digest stable under object key reordering
+  ---
+  duration_ms: 1.420568
+  type: 'test'
+  ...
+# Subtest: 02 canonical digest differs by array order
+ok 2 - 02 canonical digest differs by array order
+  ---
+  duration_ms: 0.391359
+  type: 'test'
+  ...
+# Subtest: 03 disallow non-json Infinity
+ok 3 - 03 disallow non-json Infinity
+  ---
+  duration_ms: 0.420352
+  type: 'test'
+  ...
+# Subtest: 04 disallow NaN
+ok 4 - 04 disallow NaN
+  ---
+  duration_ms: 0.120482
+  type: 'test'
+  ...
+# Subtest: 05 disallow -0
+ok 5 - 05 disallow -0
+  ---
+  duration_ms: 0.122454
+  type: 'test'
+  ...
+# Subtest: 06 disallow circular object
+ok 6 - 06 disallow circular object
+  ---
+  duration_ms: 0.177406
+  type: 'test'
+  ...
+# Subtest: 07 map project source numeric ID
+ok 7 - 07 map project source numeric ID
+  ---
+  duration_ms: 2.163976
+  type: 'test'
+  ...
+# Subtest: 08 reject forged actor claim
+ok 8 - 08 reject forged actor claim
+  ---
+  duration_ms: 0.422005
+  type: 'test'
+  ...
+# Subtest: 09 reject invalid bearer
+ok 9 - 09 reject invalid bearer
+  ---
+  duration_ms: 0.659072
+  type: 'test'
+  ...
+# Subtest: 10 refuse read-only actor
+ok 10 - 10 refuse read-only actor
+  ---
+  duration_ms: 1.977286
+  type: 'test'
+  ...
+# Subtest: 11 reject unverified scope capability
+ok 11 - 11 reject unverified scope capability
+  ---
+  duration_ms: 0.602296
+  type: 'test'
+  ...
+# Subtest: 12 replay exact mapping returns receipt
+ok 12 - 12 replay exact mapping returns receipt
+  ---
+  duration_ms: 1.294278
+  type: 'test'
+  ...
+# Subtest: 13 same key changed payload fails
+ok 13 - 13 same key changed payload fails
+  ---
+  duration_ms: 0.569748
+  type: 'test'
+  ...
+# Subtest: 14 same QS native ID cannot map to second tenant
+ok 14 - 14 same QS native ID cannot map to second tenant
+  ---
+  duration_ms: 0.819503
+  type: 'test'
+  ...
+# Subtest: 15 same canonical contract cannot map to second QS project
+ok 15 - 15 same canonical contract cannot map to second QS project
+  ---
+  duration_ms: 0.546832
+  type: 'test'
+  ...
+# Subtest: 16 cannot request without crosswalk
+ok 16 - 16 cannot request without crosswalk
+  ---
+  duration_ms: 0.355065
+  type: 'test'
+  ...
+# Subtest: 17 valid request starts queued
+ok 17 - 17 valid request starts queued
+  ---
+  duration_ms: 0.705902
+  type: 'test'
+  ...
+# Subtest: 18 reject E05 draft BOQ
+ok 18 - 18 reject E05 draft BOQ
+  ---
+  duration_ms: 0.535876
+  type: 'test'
+  ...
+# Subtest: 19 reject E05 approved not locked
+ok 19 - 19 reject E05 approved not locked
+  ---
+  duration_ms: 0.735627
+  type: 'test'
+  ...
+# Subtest: 20 reject old superseded BOQ snapshot
+ok 20 - 20 reject old superseded BOQ snapshot
+  ---
+  duration_ms: 0.638601
+  type: 'test'
+  ...
+# Subtest: 21 reject BOQ snapshot mismatch
+ok 21 - 21 reject BOQ snapshot mismatch
+  ---
+  duration_ms: 0.663689
+  type: 'test'
+  ...
+# Subtest: 22 reject QS input alignment missing
+ok 22 - 22 reject QS input alignment missing
+  ---
+  duration_ms: 0.732702
+  type: 'test'
+  ...
+# Subtest: 23 deny QS alignment with wrong native project ID
+ok 23 - 23 deny QS alignment with wrong native project ID
+  ---
+  duration_ms: 0.877421
+  type: 'test'
+  ...
+# Subtest: 24 different request under reused UUID denied
+ok 24 - 24 different request under reused UUID denied
+  ---
+  duration_ms: 1.192004
+  type: 'test'
+  ...
+# Subtest: 25 deny source status with invalid service token
+ok 25 - 25 deny source status with invalid service token
+  ---
+  duration_ms: 1.426847
+  type: 'test'
+  ...
+# Subtest: 26 deny source status wrong QS project
+ok 26 - 26 deny source status wrong QS project
+  ---
+  duration_ms: 0.85047
+  type: 'test'
+  ...
+# Subtest: 27 reject confirmed with incomplete stage
+ok 27 - 27 reject confirmed with incomplete stage
+  ---
+  duration_ms: 0.949028
+  type: 'test'
+  ...
+# Subtest: 28 accept authenticated confirmed status
+ok 28 - 28 accept authenticated confirmed status
+  ---
+  duration_ms: 2.27923
+  type: 'test'
+  ...
+# Subtest: 29 source status duplicate event is idempotent
+ok 29 - 29 source status duplicate event is idempotent
+  ---
+  duration_ms: 0.461584
+  type: 'test'
+  ...
+# Subtest: 30 status event changed payload with same ID denied
+ok 30 - 30 status event changed payload with same ID denied
+  ---
+  duration_ms: 0.606272
+  type: 'test'
+  ...
+# Subtest: 31 manifest confirms with three tasks, two links and inactive import
+ok 31 - 31 manifest confirms with three tasks, two links and inactive import
+  ---
+  duration_ms: 3.705937
+  type: 'test'
+  ...
+# Subtest: 32 draft manifesto is rejected even if hash recalculated
+ok 32 - 32 draft manifesto is rejected even if hash recalculated
+  ---
+  duration_ms: 0.468945
+  type: 'test'
+  ...
+# Subtest: 33 reopened manifesto is rejected
+ok 33 - 33 reopened manifesto is rejected
+  ---
+  duration_ms: 0.492731
+  type: 'test'
+  ...
+# Subtest: 34 missing professional decision rejected
+ok 34 - 34 missing professional decision rejected
+  ---
+  duration_ms: 0.765903
+  type: 'test'
+  ...
+# Subtest: 35 missing dependent task rejected
+ok 35 - 35 missing dependent task rejected
+  ---
+  duration_ms: 0.482797
+  type: 'test'
+  ...
+# Subtest: 36 dependency cycle rejected
+ok 36 - 36 dependency cycle rejected
+  ---
+  duration_ms: 0.566983
+  type: 'test'
+  ...
+# Subtest: 37 duplicate task ID rejected
+ok 37 - 37 duplicate task ID rejected
+  ---
+  duration_ms: 0.568876
+  type: 'test'
+  ...
+# Subtest: 38 invalid manifest hash rejected
+ok 38 - 38 invalid manifest hash rejected
+  ---
+  duration_ms: 0.805983
+  type: 'test'
+  ...
+# Subtest: 39 no manifest before QS confirmed
+ok 39 - 39 no manifest before QS confirmed
+  ---
+  duration_ms: 2.366952
+  type: 'test'
+  ...
+# Subtest: 40 cross-tenant manifest denied
+ok 40 - 40 cross-tenant manifest denied
+  ---
+  duration_ms: 1.517954
+  type: 'test'
+  ...
+# Subtest: 41 conflicting BOQ digest denied on manifest
+ok 41 - 41 conflicting BOQ digest denied on manifest
+  ---
+  duration_ms: 0.849468
+  type: 'test'
+  ...
+# Subtest: 42 wrong QS source programme denied
+ok 42 - 42 wrong QS source programme denied
+  ---
+  duration_ms: 0.958533
+  type: 'test'
+  ...
+# Subtest: 43 wrong signing key denied
+ok 43 - 43 wrong signing key denied
+  ---
+  duration_ms: 0.947055
+  type: 'test'
+  ...
+# Subtest: 44 bad Ed25519 signature rejected
+ok 44 - 44 bad Ed25519 signature rejected
+  ---
+  duration_ms: 1.273306
+  type: 'test'
+  ...
+# Subtest: 45 QS professional decision unverified denied
+ok 45 - 45 QS professional decision unverified denied
+  ---
+  duration_ms: 1.257532
+  type: 'test'
+  ...
+# Subtest: 46 professional decision mismatched source rev denied
+ok 46 - 46 professional decision mismatched source rev denied
+  ---
+  duration_ms: 1.014787
+  type: 'test'
+  ...
+# Subtest: 47 external same manifest identity changed hash denied
+ok 47 - 47 external same manifest identity changed hash denied
+  ---
+  duration_ms: 1.835662
+  type: 'test'
+  ...
+# Subtest: 48 exact manifest repeated event gets same import receipt
+ok 48 - 48 exact manifest repeated event gets same import receipt
+  ---
+  duration_ms: 1.985537
+  type: 'test'
+  ...
+# Subtest: 49 exact manifest new event gets original import
+ok 49 - 49 exact manifest new event gets original import
+  ---
+  duration_ms: 2.590718
+  type: 'test'
+  ...
+# Subtest: 50 source event same ID changed manifest hash hard conflicts
+ok 50 - 50 source event same ID changed manifest hash hard conflicts
+  ---
+  duration_ms: 1.635641
+  type: 'test'
+  ...
+# Subtest: 51 raw source status reopen invalidates pending import
+ok 51 - 51 raw source status reopen invalidates pending import
+  ---
+  duration_ms: 1.4425
+  type: 'test'
+  ...
+# Subtest: 52 cannot import after source reopened
+ok 52 - 52 cannot import after source reopened
+  ---
+  duration_ms: 0.924521
+  type: 'test'
+  ...
+# Subtest: 53 map action denied after appointment revocation
+ok 53 - 53 map action denied after appointment revocation
+  ---
+  duration_ms: 0.493493
+  type: 'test'
+  ...
+# Subtest: 54 new Enterprise baseline action requires separate appointment capacity
+ok 54 - 54 new Enterprise baseline action requires separate appointment capacity
+  ---
+  duration_ms: 1.092384
+  type: 'test'
+  ...
+# Subtest: 55 importer cannot self-accept programme
+ok 55 - 55 importer cannot self-accept programme
+  ---
+  duration_ms: 1.115609
+  type: 'test'
+  ...
+# Subtest: 56 independent Enterprise accepter activates version one
+ok 56 - 56 independent Enterprise accepter activates version one
+  ---
+  duration_ms: 1.471775
+  type: 'test'
+  ...
+# Subtest: 57 stale baseline CAS blocks acceptance
+ok 57 - 57 stale baseline CAS blocks acceptance
+  ---
+  duration_ms: 1.202019
+  type: 'test'
+  ...
+# Subtest: 58 replay accepted command returns same event/receipt
+ok 58 - 58 replay accepted command returns same event/receipt
+  ---
+  duration_ms: 1.749813
+  type: 'test'
+  ...
+# Subtest: 59 parallel accept different keys leads only one active baseline
+ok 59 - 59 parallel accept different keys leads only one active baseline
+  ---
+  duration_ms: 1.372376
+  type: 'test'
+  ...
+# Subtest: 60 read scope requires view appointment
+ok 60 - 60 read scope requires view appointment
+  ---
+  duration_ms: 0.4719
+  type: 'test'
+  ...
+# Subtest: 61 event and outbox emitted atomically
+ok 61 - 61 event and outbox emitted atomically
+  ---
+  duration_ms: 0.346542
+  type: 'test'
+  ...
+# Subtest: 62 failed synthetic transaction rolls back before commit
+ok 62 - 62 failed synthetic transaction rolls back before commit
+  ---
+  duration_ms: 0.446251
+  type: 'test'
+  ...
+# Subtest: 63 latest BOQ changed between request and import blocks
+ok 63 - 63 latest BOQ changed between request and import blocks
+  ---
+  duration_ms: 0.974286
+  type: 'test'
+  ...
+# Subtest: 64 wrong source service identity denies manifest
+ok 64 - 64 wrong source service identity denies manifest
+  ---
+  duration_ms: 0.987196
+  type: 'test'
+  ...
+# Subtest: 65 unapproved approval by browser cannot alter manifest
+ok 65 - 65 unapproved approval by browser cannot alter manifest
+  ---
+  duration_ms: 0.461634
+  type: 'test'
+  ...
+# Subtest: 66 authenticated actor cannot smuggle a QS service token in request
+ok 66 - 66 authenticated actor cannot smuggle a QS service token in request
+  ---
+  duration_ms: 0.222976
+  type: 'test'
+  ...
+# Subtest: 67 untrusted stage decision provenance rejected
+ok 67 - 67 untrusted stage decision provenance rejected
+  ---
+  duration_ms: 0.250157
+  type: 'test'
+  ...
+# Subtest: 68 duplicate dependency rejected
+ok 68 - 68 duplicate dependency rejected
+  ---
+  duration_ms: 0.207752
+  type: 'test'
+  ...
+# Subtest: 69 source non-confirmed director recommendation not accepted
+ok 69 - 69 source non-confirmed director recommendation not accepted
+  ---
+  duration_ms: 1.395039
+  type: 'test'
+  ...
+# Subtest: 70 source project mapping does not leak to unrelated contract in scoped read
+ok 70 - 70 source project mapping does not leak to unrelated contract in scoped read
+  ---
+  duration_ms: 0.387594
+  type: 'test'
+  ...
+# Subtest: 71 replay manifest with malformed signature denies even when same event id
+ok 71 - 71 replay manifest with malformed signature denies even when same event id
+  ---
+  duration_ms: 1.445285
+  type: 'test'
+  ...
+# Subtest: 72 malformed published timestamp denied
+ok 72 - 72 malformed published timestamp denied
+  ---
+  duration_ms: 0.160532
+  type: 'test'
+  ...
+# Subtest: 73 untrusted snapshot identity denies
+ok 73 - 73 untrusted snapshot identity denies
+  ---
+  duration_ms: 0.316407
+  type: 'test'
+  ...
+# Subtest: 74 task UUID mappings retained across QS source revisions
+ok 74 - 74 task UUID mappings retained across QS source revisions
+  ---
+  duration_ms: 2.449376
+  type: 'test'
+  ...
+# Subtest: 75 newly accepted baseline preserves predecessor without mutation
+ok 75 - 75 newly accepted baseline preserves predecessor without mutation
+  ---
+  duration_ms: 2.467122
+  type: 'test'
+  ...
+# Subtest: 76 private dispatch sends stable idempotent envelope
+ok 76 - 76 private dispatch sends stable idempotent envelope
+  ---
+  duration_ms: 0.724891
+  type: 'test'
+  ...
+# Subtest: 77 delivery replays original receipt without duplicate outbound side effect
+ok 77 - 77 delivery replays original receipt without duplicate outbound side effect
+  ---
+  duration_ms: 0.816228
+  type: 'test'
+  ...
+# Subtest: 78 unauthorized internal dispatcher denied
+ok 78 - 78 unauthorized internal dispatcher denied
+  ---
+  duration_ms: 0.404028
+  type: 'test'
+  ...
+# Subtest: 79 ambiguous remote acknowledgement fails without local dispatched receipt
+ok 79 - 79 ambiguous remote acknowledgement fails without local dispatched receipt
+  ---
+  duration_ms: 0.981628
+  type: 'test'
+  ...
+# Subtest: 80 delivery failure is retryable with same key
+ok 80 - 80 delivery failure is retryable with same key
+  ---
+  duration_ms: 0.66449
+  type: 'test'
+  ...
+1..80
+# tests 80
+# suites 0
+# pass 80
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 194.504048
