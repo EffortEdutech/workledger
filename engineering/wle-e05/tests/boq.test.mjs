@@ -1,0 +1,93 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+import {createBOQRegistry,createSyntheticBOQStore,calculatedAmount,diffRevisions,BOQError,E05_CAPABILITIES} from '../src/boq.mjs';
+const I={org:'11111111-1111-4111-8111-111111111111',project:'22222222-2222-4222-8222-222222222222',contract:'33333333-3333-4333-8333-333333333333',boq:'44444444-4444-4444-8444-444444444444',rev:'55555555-5555-4555-8555-555555555555',rev2:'66666666-6666-4666-8666-666666666666',contractRev:'77777777-7777-4777-8777-777777777777',source:'88888888-8888-4888-8888-888888888888',creator:'99999999-9999-4999-8999-999999999999',reviewer:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',outsider:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',app:'cccccccc-cccc-4ccc-8ccc-cccccccccccc',item:'dddddddd-dddd-4ddd-8ddd-dddddddddddd',item2:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',package:'ffffffff-ffff-4fff-8fff-ffffffffffff',package2:'10101010-1010-4010-8010-101010101010',otherOrg:'20202020-2020-4020-8020-202020202020',otherContract:'30303030-3030-4030-8030-303030303030',diary:'40404040-4040-4040-8040-404040404040'};
+const S={organization_id:I.org,project_id:I.project,contract_id:I.contract};const SHA='f'.repeat(64);
+const item=(x={})=>({item_key:I.item,item_code:'A.01',description:'In-situ reinforced concrete',section_code:'A',item_type:'measured',unit:'m3',quantity:'12.5000',unit_rate:'120.4500',...x});
+const work=(x={})=>({package_id:I.package,package_code:'WBS-CIV-01',title:'Concrete structure',discipline:'civil',allocations:[{item_key:I.item,share_bp:10000}],...x});
+const base=(extra={})=>({...S,boq_id:I.boq,revision_id:I.rev,acting_appointment_id:I.app,expected_version:0,reason:'Documented BOQ engineering baseline review',idempotency_key:randomUUID(),command_id:randomUUID(),...extra});
+const create=(extra={})=>base({revision_no:1,base_revision_id:null,contract_revision_id:I.contractRev,source_evidence_id:I.source,source_sha256:SHA,currency:'MYR',items:[item()],work_packages:[work()],...extra});
+const patch=(version,extra={})=>base({expected_version:version,items:[item()],work_packages:[work()],...extra});
+const approve=(version,extra={})=>base({expected_version:version,...extra});
+const mapping=(version,extra={})=>base({expected_version:version,source_system:'contract_diary',source_instance_id:'cdp_prod_1',source_entity_type:'boq_item',source_record_id:'legacy-line-01',source_revision:'v1',item_key:I.item,...extra});
+const diary=(version,extra={})=>base({expected_version:version,diary_id:I.diary,package_id:I.package,observation_reference:'Diary site-progress observation only',...extra});
+function fixture(options={}){
+ const store=createSyntheticBOQStore({contracts:[S,...(options.otherContract?[{...S,contract_id:I.otherContract}]:[])],beforeCommit:options.beforeCommit,clock:()=> '2026-11-13T00:30:00Z'});
+ const svc=createBOQRegistry({store,
+  verifyAccessToken:async token=>{let id={creator:I.creator,reviewer:I.reviewer,outsider:I.outsider}[token];if(!id)throw Error('bad token');return{id}},
+  authorizeCapability:async ctx=>options.allow?options.allow(ctx):ctx.actor_user_id!==I.outsider,
+  verifyContractRevision:async ctx=>options.contractProof?options.contractProof(ctx):{verified:true,contract_revision_id:ctx.contract_revision_id,...S},
+  verifyEvidence:async ctx=>options.evidenceProof?options.evidenceProof(ctx):{verified:true,byte_integrity_verified:true,evidence_id:ctx.evidence_id,sha256:ctx.sha256,...S},
+  verifyDiary:async ctx=>options.diaryProof?options.diaryProof(ctx):{verified:true,diary_id:ctx.diary_id,status:'submitted',...S}
+ });
+ const run=(kind,cmd,as='creator')=>svc.execute({kind,command:cmd,authorization:'Bearer '+as});
+ const newRev=()=>run('create_revision',create());
+ const approved=async()=>{await newRev();await run('approve_revision',approve(1),'reviewer')};
+ const locked=async()=>{await approved();await run('lock_revision',approve(2),'reviewer')};
+ return {store,svc,run,newRev,approved,locked};
+}
+const deny=(p,code)=>assert.rejects(p,e=>e instanceof BOQError&&e.code===code);
+const one=(name,fn)=>test(name,fn);
+one('01 first revision with exact decimal snapshots',async()=>{let f=fixture(),r=await f.newRev();assert.equal(r.status,'draft');assert.equal(r.version,1);assert.equal(f.store.snapshot().revisions[0].items[0].amount,'1505.63')});
+one('02 first revision has audit, pending outbox, receipt',async()=>{let f=fixture();await f.newRev();let s=f.store.snapshot();assert.equal(s.events.length,1);assert.equal(s.outbox[0].status,'pending');assert.equal(s.receipts.length,1)});
+one('03 no JavaScript floating-point quantity accepted',async()=>deny(fixture().run('create_revision',create({items:[item({quantity:1.2})]})),'invalid_items'));
+one('04 amount precision rounds half-up at minor unit',()=>{assert.equal(calculatedAmount('1.0000','0.0050'),'0.01');assert.equal(calculatedAmount('1.0000','0.0049'),'0.00')});
+one('05 decimal formatting stable at zero',()=>assert.equal(calculatedAmount('0','42.00'),'0.00'));
+one('06 reject scientific notation',()=>assert.throws(()=>calculatedAmount('1e2','100.0000'),e=>e.code==='invalid_decimal'));
+one('07 reject negative rate',()=>assert.throws(()=>calculatedAmount('1','-1'),e=>e.code==='invalid_decimal'));
+one('08 reject too many decimals',()=>assert.throws(()=>calculatedAmount('1.00001','2'),e=>e.code==='invalid_decimal'));
+one('09 reject unknown fields',async()=>deny(fixture().run('create_revision',create({role:'superadmin'})),'invalid_input'));
+one('10 reject forged actor claim',async()=>deny(fixture().run('create_revision',create({actor_user_id:I.reviewer})),'invalid_input'));
+one('11 reject bad token',async()=>deny(fixture().run('create_revision',create(),'invalid'),'unauthenticated'));
+one('12 reject read-only authority',async()=>deny(fixture({allow:x=>x.capability===E05_CAPABILITIES.read}).newRev(),'forbidden'));
+one('13 cross-tenant denies',async()=>deny(fixture().run('create_revision',create({organization_id:I.otherOrg})),'scope_not_found'));
+one('14 sibling contract not in register denies',async()=>deny(fixture().run('create_revision',create({contract_id:I.otherContract})),'scope_not_found'));
+one('15 unverified E02 contract revision denies',async()=>deny(fixture({contractProof:()=>({verified:false})}).newRev(),'contract_revision_unverified'));
+one('16 E02 contract revision wrong scope denies',async()=>deny(fixture({contractProof:q=>({verified:true,contract_revision_id:q.contract_revision_id,...S,contract_id:I.otherContract})}).newRev(),'contract_revision_unverified'));
+one('17 unverified E03 source receipt denies',async()=>deny(fixture({evidenceProof:()=>({verified:false})}).newRev(),'source_evidence_unverified'));
+one('18 E03 receipt requires byte check',async()=>deny(fixture({evidenceProof:q=>({verified:true,byte_integrity_verified:false,evidence_id:q.evidence_id,sha256:q.sha256,...S})}).newRev(),'source_evidence_unverified'));
+one('19 E03 receipt cannot supply wrong hash',async()=>deny(fixture({evidenceProof:q=>({verified:true,byte_integrity_verified:true,evidence_id:q.evidence_id,sha256:'0'.repeat(64),...S})}).newRev(),'source_evidence_unverified'));
+one('20 E03 receipt cross-tenant denies',async()=>deny(fixture({evidenceProof:q=>({verified:true,byte_integrity_verified:true,evidence_id:q.evidence_id,sha256:q.sha256,...S,organization_id:I.otherOrg})}).newRev(),'source_evidence_unverified'));
+one('21 duplicate item codes fail',async()=>deny(fixture().run('create_revision',create({items:[item(),item({item_key:I.item2})]})),'duplicate_item'));
+one('22 duplicate stable line key fails',async()=>deny(fixture().run('create_revision',create({items:[item(),item({item_code:'A.02'})]})),'duplicate_item'));
+one('23 invalid provisional item as lump sum unit denied',async()=>deny(fixture().run('create_revision',create({items:[item({item_type:'lump_sum',unit:'m3'})]})),'invalid_items'));
+one('24 package allocation missing line denied',async()=>deny(fixture().run('create_revision',create({work_packages:[work({allocations:[{item_key:I.item2,share_bp:10000}]})]})),'invalid_allocation'));
+one('25 overallocated item across packages denied',async()=>deny(fixture().run('create_revision',create({work_packages:[work({allocations:[{item_key:I.item,share_bp:6000}]}),work({package_id:I.package2,package_code:'WBS-CIV-02',allocations:[{item_key:I.item,share_bp:5000}]})]})),'overallocated_item'));
+one('26 exact 100% split allocation accepted',async()=>{let f=fixture();await f.run('create_revision',create({work_packages:[work({allocations:[{item_key:I.item,share_bp:6000}]}),work({package_id:I.package2,package_code:'WBS-CIV-02',allocations:[{item_key:I.item,share_bp:4000}]})]}));assert.equal(f.store.snapshot().revisions[0].work_packages.length,2)});
+one('27 duplicate package code denied',async()=>deny(fixture().run('create_revision',create({work_packages:[work({allocations:[{item_key:I.item,share_bp:4000}]}),work({package_id:I.package2,allocations:[{item_key:I.item,share_bp:3000}]})]})),'duplicate_package'));
+one('28 exact replay idempotent',async()=>{let f=fixture(),c=create();const a=await f.run('create_revision',c),b=await f.run('create_revision',{...c,command_id:randomUUID()});assert.deepEqual(a,b);assert.equal(f.store.snapshot().events.length,1)});
+one('29 changed replay conflicts',async()=>{let f=fixture(),c=create();await f.run('create_revision',c);await deny(f.run('create_revision',{...c,reason:'Changed business intent with same idempotency key'}),'idempotency_conflict')});
+one('30 concurrent exact retry one event',async()=>{let f=fixture(),c=create();let r=await Promise.all(Array.from({length:10},()=>f.run('create_revision',{...c,command_id:randomUUID()})));assert.equal(new Set(r.map(x=>x.event_id)).size,1);assert.equal(f.store.snapshot().events.length,1)});
+one('31 revision number collision fails',async()=>{let f=fixture();await f.newRev();await deny(f.run('create_revision',create({revision_id:I.rev2})),'revision_conflict')});
+one('32 cannot start at revision 2',async()=>deny(fixture().run('create_revision',create({revision_no:2,base_revision_id:I.rev2})),'revision_sequence'));
+one('33 draft owner may replace full snapshot',async()=>{let f=fixture();await f.newRev();let r=await f.run('replace_draft',patch(1,{items:[item({quantity:'13.0000'})]}));assert.equal(r.version,2);assert.equal(f.store.snapshot().revisions[0].items[0].quantity,'13.0000')});
+one('34 stale draft update denied without overwrite',async()=>{let f=fixture();await f.newRev();await deny(f.run('replace_draft',patch(0)),'stale_version');assert.equal(f.store.snapshot().revisions[0].version,1)});
+one('35 another user cannot edit creator draft',async()=>{let f=fixture();await f.newRev();await deny(f.run('replace_draft',patch(1),'reviewer'),'immutable_revision')});
+one('36 creator cannot self-approve',async()=>{let f=fixture();await f.newRev();await deny(f.run('approve_revision',approve(1)),'separation_of_duties')});
+one('37 independent reviewer approves without certification',async()=>{let f=fixture();await f.approved();assert.equal(f.store.snapshot().revisions[0].status,'approved');assert.equal(f.store.snapshot().revisions[0].version,2)});
+one('38 cannot edit approved snapshot',async()=>{let f=fixture();await f.approved();await deny(f.run('replace_draft',patch(2)),'immutable_revision')});
+one('39 creator cannot self-lock',async()=>{let f=fixture();await f.approved();await deny(f.run('lock_revision',approve(2)),'separation_of_duties')});
+one('40 can lock approved revision',async()=>{let f=fixture();await f.locked();assert.equal(f.store.snapshot().revisions[0].status,'locked')});
+one('41 cannot modify locked snapshot',async()=>{let f=fixture();await f.locked();await deny(f.run('replace_draft',patch(3)),'immutable_revision')});
+one('42 next revision requires locked predecessor',async()=>{let f=fixture();await f.approved();await deny(f.run('create_revision',create({revision_no:2,revision_id:I.rev2,base_revision_id:I.rev})),'revision_sequence')});
+one('43 valid second revision retains first',async()=>{let f=fixture();await f.locked();let r=await f.run('create_revision',create({revision_no:2,revision_id:I.rev2,base_revision_id:I.rev,items:[item({quantity:'15.0000'})]}));assert.equal(r.revision_no,2);assert.equal(f.store.snapshot().revisions.length,2);assert.equal(f.store.snapshot().revisions[0].items[0].quantity,'12.5000')});
+one('44 cannot skip revision number',async()=>{let f=fixture();await f.locked();await deny(f.run('create_revision',create({revision_no:3,revision_id:I.rev2,base_revision_id:I.rev})),'revision_sequence')});
+one('45 immutable source mapping can target approved line',async()=>{let f=fixture();await f.approved();let r=await f.run('map_source',mapping(2));assert.equal(r.status,'source_mapped')});
+one('46 source mapping rejects draft revision',async()=>{let f=fixture();await f.newRev();await deny(f.run('map_source',mapping(1)),'revision_not_accepted')});
+one('47 source mapping rejects unknown item',async()=>{let f=fixture();await f.approved();await deny(f.run('map_source',mapping(2,{item_key:I.item2})),'item_not_found')});
+one('48 source mapping exact target business-idempotent',async()=>{let f=fixture();await f.approved();await f.run('map_source',mapping(2));let n=f.store.snapshot().events.length;let r=await f.run('map_source',mapping(2));assert.equal(r.status,'source_already_mapped');assert.equal(f.store.snapshot().events.length,n)});
+one('49 source mapping refuses repointing under same legacy key',async()=>{let f=fixture();await f.locked();await f.run('map_source',mapping(3));await f.run('create_revision',create({revision_no:2,revision_id:I.rev2,base_revision_id:I.rev}));await f.run('approve_revision',approve(1,{revision_id:I.rev2}),'reviewer');await deny(f.run('map_source',mapping(2,{revision_id:I.rev2})),'source_mapping_conflict')});
+one('50 source mapping namespaces different instances',async()=>{let f=fixture();await f.approved();await f.run('map_source',mapping(2));await f.run('map_source',mapping(2,{source_instance_id:'cdp_other'}));assert.equal(f.store.snapshot().sourceMappings.length,2)});
+one('51 header mapping demands null item_key',async()=>{let f=fixture();await f.approved();await deny(f.run('map_source',mapping(2,{source_entity_type:'boq_header'})),'invalid_input')});
+one('52 diary link only locked revision',async()=>{let f=fixture();await f.approved();await deny(f.run('link_diary',diary(2)),'revision_not_locked')});
+one('53 diary link needs actual trusted E04 status',async()=>{let f=fixture({diaryProof:q=>({verified:true,diary_id:q.diary_id,status:'draft',...S})});await f.locked();await deny(f.run('link_diary',diary(3)),'diary_not_verified')});
+one('54 sibling-contract diary proof denied',async()=>{let f=fixture({diaryProof:q=>({verified:true,diary_id:q.diary_id,status:'submitted',...S,contract_id:I.otherContract})});await f.locked();await deny(f.run('link_diary',diary(3)),'diary_not_verified')});
+one('55 verified submitted diary can link to work package',async()=>{let f=fixture();await f.locked();let r=await f.run('link_diary',diary(3));assert.equal(r.status,'diary_reference_linked');assert.equal(f.store.snapshot().diaryLinks.length,1)});
+one('56 diary link cannot claim unknown work package',async()=>{let f=fixture();await f.locked();await deny(f.run('link_diary',diary(3,{package_id:I.package2})),'package_not_found')});
+one('57 duplicate diary link new command conflicts',async()=>{let f=fixture();await f.locked();await f.run('link_diary',diary(3));await deny(f.run('link_diary',diary(3)),'diary_link_exists')});
+one('58 read requires separately authorized capability',async()=>{let f=fixture({allow:x=>x.capability!==E05_CAPABILITIES.read});await f.newRev();await deny(f.svc.getSnapshot({authorization:'Bearer creator',...S,boq_id:I.boq,revision_id:I.rev,acting_appointment_id:I.app}),'forbidden')});
+one('59 read returns defensive snapshot',async()=>{let f=fixture();await f.newRev();let x=await f.svc.getSnapshot({authorization:'Bearer creator',...S,boq_id:I.boq,revision_id:I.rev,acting_appointment_id:I.app});x.items[0].quantity='999';assert.equal(f.store.snapshot().revisions[0].items[0].quantity,'12.5000')});
+one('60 diff line and package changes without changing first revision',async()=>{let f=fixture();await f.locked();await f.run('create_revision',create({revision_no:2,revision_id:I.rev2,base_revision_id:I.rev,items:[item({quantity:'15.0000'}),item({item_key:I.item2,item_code:'A.02',description:'Formwork',quantity:'0.0000'})],work_packages:[work({allocations:[{item_key:I.item,share_bp:10000}]})]}));let [a,b]=f.store.snapshot().revisions;let d=diffRevisions(a,b);assert.equal(d.item_changes.length,2);assert.equal(d.total_before,'1505.63');assert.equal(d.total_after,'1806.75')});
+one('61 diff rejects cross-scope revisions',()=>assert.throws(()=>diffRevisions({revision_id:I.rev,boq_id:I.boq,...S,items:[],currency:'MYR'}, {revision_id:I.rev2,boq_id:I.boq,...S,contract_id:I.otherContract,items:[],currency:'MYR'}),e=>e.code==='incompatible_revisions'));
+one('62 injected failure rolls back event and state',async()=>{let f=fixture({beforeCommit:()=>{throw Error('simulated outage')}});await assert.rejects(f.newRev(),/simulated outage/);assert.equal(f.store.snapshot().revisions.length,0);assert.equal(f.store.snapshot().events.length,0)});
+one('63 revoked appointment denies even exact retry',async()=>{let active=true,f=fixture({allow:()=>active}),c=create();await f.run('create_revision',c);active=false;await deny(f.run('create_revision',c),'forbidden')});
+one('64 no payment or legal certification capabilities',()=>assert.ok(Object.values(E05_CAPABILITIES).every(x=>!/(payment|certificate|cipaa|entitlement|claim_approve|valuation)/i.test(x))));
